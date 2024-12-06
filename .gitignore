@@ -1,0 +1,41 @@
+node_modules/
+.env
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+*.swp
+*.swo
+Thumbs.db
+*.bak
+*.tmp
+
+# Build артефакты
+dist/
+build/
+
+# Ignoring IDE-specific files
+.idea/
+.vscode/
+*.code-workspace
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+*.local
+*.env.local
+
+# Frontend-specific
+public/static/
+coverage/
+.next/
+out/
+
+# Backend-specific
+logs/
+*.sqlite
+*.sqlite3
