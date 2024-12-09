@@ -20,6 +20,7 @@ const io = new Server(httpServer, {
 
 // In-memory storage for workspaces
 const workspaces = new Map();
+const activeConnections = new Map(); // Track active connections per workspace
 
 // Utility function to generate a random workspace key
 function generateWorkspaceKey(length = 6) {
@@ -33,6 +34,20 @@ function generateWorkspaceKey(length = 6) {
     .replace(/=+$/, '')   // Remove trailing =
     .slice(0, length);    // Trim to desired length
 }
+
+// Utility function to clean up inactive workspaces
+const cleanupInactiveWorkspaces = () => {
+  for (const [workspaceId, workspace] of workspaces.entries()) {
+    const connections = activeConnections.get(workspaceId) || new Set();
+    if (connections.size === 0 && Date.now() - workspace.lastActivity > 24 * 60 * 60 * 1000) {
+      workspaces.delete(workspaceId);
+      activeConnections.delete(workspaceId);
+    }
+  }
+};
+
+// Run cleanup every hour
+setInterval(cleanupInactiveWorkspaces, 60 * 60 * 1000);
 
 app.use(cors());
 app.use(express.json());
@@ -63,7 +78,8 @@ app.get('/api/workspace/new', (req, res) => {
     codeSnippets: { language: 'javascript', content: '' },
     diagramDefinitions: [],
     permissions: { default: 'read-write' },
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    lastActivity: Date.now()
   });
 
   res.json({ key });
@@ -104,27 +120,100 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Track active connections
+    if (!activeConnections.has(workspaceId)) {
+      activeConnections.set(workspaceId, new Set());
+    }
+    activeConnections.get(workspaceId).add(socket.id);
+    
     // Join the workspace room
     socket.join(workspaceId);
     currentWorkspace = workspace;
+    workspace.lastActivity = Date.now();
     
     // Initialize diagram handler for this workspace
     diagramHandler = new DiagramHandler(workspace);
     diagramHandler.loadFromWorkspaceState(workspace);
     diagramHandler.initialize(socket, io.to(workspaceId));
 
-    // Send initial state
-    socket.emit('workspace-state', workspace);
+    // Send initial state to the joining user
+    socket.emit('workspace-state', {
+      ...workspace,
+      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+    });
     
     // Notify other users in the workspace
-    socket.to(workspaceId).emit('user-joined', { userId: socket.id });
+    socket.to(workspaceId).emit('user-joined', { 
+      userId: socket.id,
+      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+    });
+  });
+
+  // Handle real-time drawing
+  socket.on('drawing', (data) => {
+    if (currentWorkspace) {
+      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
+      if (workspaceId) {
+        socket.to(workspaceId).emit('drawing', {
+          ...data,
+          userId: socket.id
+        });
+      }
+    }
+  });
+
+  socket.on('drawing-end', () => {
+    if (currentWorkspace) {
+      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
+      if (workspaceId) {
+        socket.to(workspaceId).emit('drawing-end', {
+          userId: socket.id
+        });
+      }
+    }
   });
 
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
-      workspace.whiteboardElements = elements;
-      socket.to(workspaceId).emit('whiteboard-update', elements);
+      workspace.lastActivity = Date.now();
+      
+      // Initialize whiteboardElements if it doesn't exist
+      if (!workspace.whiteboardElements) {
+        workspace.whiteboardElements = [];
+      }
+
+      // Merge new elements with existing ones, preserving all properties
+      elements.forEach(newElement => {
+        if (newElement.type === 'path') {
+          // Ensure path properties are preserved
+          newElement.data = {
+            ...newElement.data,
+            fill: null,
+            backgroundColor: null
+          };
+        }
+        
+        const existingIndex = workspace.whiteboardElements.findIndex(el => el.id === newElement.id);
+        if (existingIndex === -1) {
+          workspace.whiteboardElements.push(newElement);
+        } else {
+          // Merge with existing element, preserving properties
+          workspace.whiteboardElements[existingIndex] = {
+            ...workspace.whiteboardElements[existingIndex],
+            ...newElement,
+            data: {
+              ...workspace.whiteboardElements[existingIndex].data,
+              ...newElement.data,
+              fill: null,
+              backgroundColor: null
+            }
+          };
+        }
+      });
+
+      // Broadcast the complete state to all clients in the workspace
+      io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
     }
   });
 
@@ -137,24 +226,31 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
     if (currentWorkspace) {
-      socket.leave(currentWorkspace.id);
+      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
+      if (workspaceId) {
+        const connections = activeConnections.get(workspaceId);
+        if (connections) {
+          connections.delete(socket.id);
+          io.to(workspaceId).emit('user-left', {
+            userId: socket.id,
+            activeUsers: connections.size
+          });
+        }
+      }
+    }
+  });
+
+  // Handle cursor position updates
+  socket.on('cursor-position', ({ workspaceId, position }) => {
+    if (workspaces.has(workspaceId)) {
+      socket.to(workspaceId).emit('cursor-update', {
+        userId: socket.id,
+        position
+      });
     }
   });
 });
-
-// Cleanup old workspaces periodically (every hour)
-setInterval(() => {
-  const now = Date.now();
-  const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-
-  for (const [key, workspace] of workspaces.entries()) {
-    if (now - workspace.createdAt > MAX_AGE) {
-      workspaces.delete(key);
-    }
-  }
-}, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
