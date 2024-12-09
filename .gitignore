@@ -12,6 +12,8 @@ Thumbs.db
 *.bak
 *.tmp
 
+.txt
+
 # Build артефакты
 dist/
 build/

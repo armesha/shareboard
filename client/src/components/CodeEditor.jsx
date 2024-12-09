@@ -41,7 +41,7 @@ export default function CodeEditor() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-gray-100 p-2 flex items-center space-x-4">
+      <div className="bg-white border-b border-gray-300 p-2 flex items-center space-x-4">
         <select
           value={language}
           onChange={handleLanguageChange}

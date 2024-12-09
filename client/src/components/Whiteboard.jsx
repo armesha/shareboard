@@ -20,11 +20,13 @@ const Whiteboard = forwardRef(({ color, width }, ref) => {
     }
   }));
 
+  // Initialize canvas
   const initializeCanvas = useCallback(() => {
     fabricRef.current = new fabric.Canvas(canvasRef.current, {
       isDrawingMode: true,
-      width: window.innerWidth * 0.8,
-      height: window.innerHeight * 0.8,
+      // Set canvas size
+      width: window.innerWidth * 1,
+      height: window.innerHeight * 1,
       backgroundColor: '#ffffff'
     });
 
