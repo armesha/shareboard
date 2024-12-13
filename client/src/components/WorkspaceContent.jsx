@@ -11,7 +11,8 @@ export default function WorkspaceContent({
   splitPosition,
   isDragging,
   handleMouseDown,
-  containerRef 
+  containerRef,
+  cycleViewMode 
 }) {
   const { clearCanvas } = useWhiteboard();
   const [tool, setTool] = useState('pen');
@@ -69,6 +70,13 @@ export default function WorkspaceContent({
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          <button
+            className="px-4 py-2 rounded bg-blue-100 hover:bg-blue-200 text-blue-800"
+            onClick={cycleViewMode}
+            title="Switch View Mode"
+          >
+            {getViewModeIcon()}
+          </button>
           <div className="px-4 py-2 rounded bg-green-100 text-green-800">
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </div>
@@ -77,26 +85,40 @@ export default function WorkspaceContent({
 
       {/* Main Content */}
       <div ref={containerRef} className="flex-1 flex relative select-none overflow-hidden">
+        {/* Whiteboard */}
         <div 
-          className={`absolute inset-0 ${
-            viewMode === 'code' ? 'hidden' :
-            viewMode === 'split' ? 'block' : 'w-full'
-          }`}
-          style={{ width: viewMode === 'split' ? `${splitPosition}%` : undefined }}
+          style={{ 
+            width: viewMode === 'split' ? `${splitPosition}%` : '100%',
+            display: viewMode === 'code' ? 'none' : 'block',
+            height: '100%',
+            position: 'relative'
+          }}
         >
           <Whiteboard ref={whiteboardRef} color={color} width={width} />
         </div>
-        <CodeEditor 
+
+        {/* Code Editor */}
+        <div
           style={{
-            width: viewMode === 'whiteboard' ? '0' :
+            width: viewMode === 'whiteboard' ? '0' : 
                    viewMode === 'split' ? `${100 - splitPosition}%` : '100%',
-            marginLeft: viewMode === 'split' ? `${splitPosition}%` : '0'
+            display: viewMode === 'whiteboard' ? 'none' : 'block',
+            height: '100%',
+            position: viewMode === 'split' ? 'relative' : 'relative'
           }}
-        />
+        >
+          <CodeEditor />
+        </div>
+
+        {/* Resizer */}
         {viewMode === 'split' && (
           <div
-            className="absolute h-full w-1 bg-gray-300 cursor-col-resize hover:bg-gray-400"
-            style={{ left: `${splitPosition}%` }}
+            className="absolute h-full w-2 bg-gray-300 cursor-col-resize hover:bg-gray-400 active:bg-gray-500 transition-colors"
+            style={{ 
+              left: `${splitPosition}%`,
+              transform: 'translateX(-50%)',
+              zIndex: 10
+            }}
             onMouseDown={handleMouseDown}
           />
         )}

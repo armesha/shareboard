@@ -34,28 +34,35 @@ export default function Workspace() {
   }, [socket, workspaceId]);
 
   const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();  // Предотвращаем всплытие события
     setIsDragging(true);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging || !containerRef.current) return;
-    
-    const container = containerRef.current.getBoundingClientRect();
-    const position = ((e.clientX - container.left) / container.width) * 100;
-    
-    // Enforce minimum width
-    if (position >= MIN_WIDTH_PERCENT && position <= (100 - MIN_WIDTH_PERCENT)) {
-      setSplitPosition(position);
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging || !containerRef.current) return;
+      
+      const container = containerRef.current.getBoundingClientRect();
+      let newPosition = ((e.clientX - container.left) / container.width) * 100;
+      newPosition = Math.max(20, Math.min(80, newPosition));
+      setSplitPosition(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
     }
-  };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, containerRef]);
 
   const cycleViewMode = () => {
     const modes = ['split', 'whiteboard', 'code'];
@@ -76,6 +83,7 @@ export default function Workspace() {
           isDragging={isDragging}
           handleMouseDown={handleMouseDown}
           containerRef={containerRef}
+          cycleViewMode={cycleViewMode}
         />
       </CodeEditorProvider>
     </WhiteboardProvider>
