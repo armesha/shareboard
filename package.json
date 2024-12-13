@@ -18,6 +18,8 @@
     "hotkeys-js": "^3.13.7",
     "lodash": "^4.17.21",
     "mermaid": "^11.4.1",
+    "nomnoml": "^1.6.3",
+    "plantuml-encoder": "^1.4.0",
     "postcss": "^8.4.24",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
