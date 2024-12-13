@@ -9,7 +9,7 @@ export default function Workspace() {
   const { workspaceId } = useParams();
   const socket = useSocket();
   const [status, setStatus] = useState('connecting');
-  const [viewMode, setViewMode] = useState('split'); // 'whiteboard', 'code', 'split'
+  const [viewMode, setViewMode] = useState('split'); // 'whiteboard', 'code', 'split', 'diagram'
   const [splitPosition, setSplitPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
