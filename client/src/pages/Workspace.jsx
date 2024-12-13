@@ -43,26 +43,25 @@ export default function Workspace() {
       
       // Limit split position between MIN_WIDTH_PERCENT and MAX_WIDTH_PERCENT
       newPosition = Math.max(MIN_WIDTH_PERCENT, Math.min(MAX_WIDTH_PERCENT, newPosition));
-      
-      // Используем RAF для оптимизации производительности
-      requestAnimationFrame(() => {
-        setSplitPosition(newPosition);
-      });
+      setSplitPosition(newPosition);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
       document.body.style.cursor = 'default';
+      document.body.classList.remove('select-none');
     };
 
     if (isDragging) {
       document.body.style.cursor = 'col-resize';
-      document.addEventListener('mousemove', handleMouseMove, { passive: true });
+      document.body.classList.add('select-none');
+      document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
       document.body.style.cursor = 'default';
+      document.body.classList.remove('select-none');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };

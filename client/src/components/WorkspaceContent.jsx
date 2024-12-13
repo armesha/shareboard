@@ -135,11 +135,21 @@ export default function WorkspaceContent({
               </div>
             )}
           </div>
-          <div
-            className={`w-1.5 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 ${isDragging ? 'bg-blue-500' : ''}`}
-            onMouseDown={handleMouseDown}
-          />
-          <div className="h-full flex-1">
+          {/* Увеличиваем область захвата */}
+          <div className="relative" style={{ width: '12px', margin: '0 -6px' }}>
+            <div
+              className={`absolute inset-0 w-1 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 ${isDragging ? 'bg-blue-500' : ''}`}
+              style={{ left: '50%', transform: 'translateX(-50%)' }}
+            />
+            <div
+              className="absolute inset-0 cursor-col-resize"
+              onMouseDown={handleMouseDown}
+            />
+          </div>
+          <div 
+            className="h-full"
+            style={{ width: `${100 - splitPosition}%` }}
+          >
             {whiteboardContent}
           </div>
         </div>
