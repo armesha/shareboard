@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Editor from '@monaco-editor/react';
 import mermaid from 'mermaid';
 
 // Initialize mermaid
@@ -8,19 +9,23 @@ mermaid.initialize({
   securityLevel: 'loose',
 });
 
-const SAMPLE_DIAGRAM = `
-graph TD
+const SAMPLE_DIAGRAM = `graph TD
     A[Start] --> B{Is it?}
     B -- Yes --> C[OK]
-    B -- No --> D[End]
-`;
+    B -- No --> D[End]`;
 
-export default function DiagramRenderer() {
+const SUPPORTED_DIAGRAM_TYPES = [
+  { value: 'mermaid', label: 'Mermaid Diagram' },
+  { value: 'plantuml', label: 'PlantUML' },
+  { value: 'nomnoml', label: 'Nomnoml' }
+];
+
+export default function DiagramRenderer({ splitPosition, onSplitChange }) {
   const [code, setCode] = useState(SAMPLE_DIAGRAM);
   const [type, setType] = useState('mermaid');
   const [svg, setSvg] = useState('');
-  const editorRef = useRef(null);
   const previewRef = useRef(null);
+  const isDragging = useRef(false);
 
   useEffect(() => {
     const renderDiagram = async () => {
@@ -32,7 +37,6 @@ export default function DiagramRenderer() {
             const { svg } = await mermaid.render('diagram-' + Date.now(), code);
             setSvg(svg);
             break;
-          // Add support for other diagram types here
           default:
             console.warn('Unsupported diagram type:', type);
         }
@@ -48,8 +52,7 @@ export default function DiagramRenderer() {
   useEffect(() => {
     const handleResize = () => {
       if (previewRef.current) {
-        const container = previewRef.current;
-        const svg = container.querySelector('svg');
+        const svg = previewRef.current.querySelector('svg');
         if (svg) {
           svg.style.maxWidth = '100%';
           svg.style.height = 'auto';
@@ -61,39 +64,84 @@ export default function DiagramRenderer() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    isDragging.current = true;
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging.current) return;
+      
+      const container = e.currentTarget;
+      const containerRect = container.getBoundingClientRect();
+      let newPosition = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Limit the split position between 20% and 80%
+      newPosition = Math.max(20, Math.min(80, newPosition));
+      onSplitChange(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      isDragging.current = false;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [onSplitChange]);
+
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-3 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200">
         <select 
-          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           value={type}
           onChange={(e) => setType(e.target.value)}
         >
-          <option value="mermaid">Mermaid</option>
-          <option value="plantuml">PlantUML</option>
-          <option value="nomnoml">Nomnoml</option>
+          {SUPPORTED_DIAGRAM_TYPES.map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </select>
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex overflow-hidden">
         {/* Editor */}
-        <div className="w-full md:w-1/2 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-gray-200">
-          <textarea
-            ref={editorRef}
-            className="w-full h-full p-4 font-mono text-sm resize-none focus:outline-none"
+        <div style={{ width: `${splitPosition}%` }} className="h-full">
+          <Editor
+            height="100%"
+            defaultLanguage="markdown"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Enter your diagram code here..."
+            onChange={setCode}
+            theme="vs-light"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbers: 'on',
+              scrollBeyondLastLine: false,
+              wordWrap: 'on',
+              wrappingIndent: 'indent',
+            }}
           />
         </div>
 
+        {/* Resizer */}
+        <div
+          className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors"
+          onMouseDown={handleMouseDown}
+        />
+
         {/* Preview */}
-        <div className="w-full md:w-1/2 h-1/2 md:h-full overflow-auto p-4 bg-white">
+        <div style={{ width: `${100 - splitPosition}%` }} className="h-full bg-white">
           <div 
             ref={previewRef}
-            className="w-full h-full flex items-center justify-center"
+            className="w-full h-full flex items-center justify-center p-4 overflow-auto"
             dangerouslySetInnerHTML={{ __html: svg }} 
           />
         </div>
