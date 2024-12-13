@@ -217,6 +217,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('whiteboard-clear', ({ workspaceId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (workspace) {
+      workspace.lastActivity = Date.now();
+      workspace.whiteboardElements = [];
+      io.to(workspaceId).emit('whiteboard-clear');
+    }
+  });
+
   socket.on('code-update', ({ workspaceId, language, content }) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {

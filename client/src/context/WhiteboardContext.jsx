@@ -80,16 +80,22 @@ export function WhiteboardProvider({ children }) {
       setActiveUsers(newActiveUsers);
     };
 
+    const handleWhiteboardClear = () => {
+      setElements([]);
+    };
+
     socket.on('whiteboard-update', handleWhiteboardUpdate);
     socket.on('workspace-state', handleWorkspaceState);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
+    socket.on('whiteboard-clear', handleWhiteboardClear);
 
     return () => {
       socket.off('whiteboard-update', handleWhiteboardUpdate);
       socket.off('workspace-state', handleWorkspaceState);
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
+      socket.off('whiteboard-clear', handleWhiteboardClear);
     };
   }, [socket]);
 
@@ -135,6 +141,14 @@ export function WhiteboardProvider({ children }) {
     }
   }, [socket, isConnected]);
 
+  const clearCanvas = useCallback(() => {
+    if (socket && isConnected) {
+      const workspaceId = window.location.pathname.split('/')[2];
+      socket.emit('whiteboard-clear', { workspaceId });
+      setElements([]);
+    }
+  }, [socket, isConnected]);
+
   const value = {
     elements,
     activeUsers,
@@ -147,6 +161,7 @@ export function WhiteboardProvider({ children }) {
     setWidth,
     addElement,
     updateElement,
+    clearCanvas,
     socket
   };
 
