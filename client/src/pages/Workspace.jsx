@@ -9,7 +9,7 @@ export default function Workspace() {
   const { workspaceId } = useParams();
   const socket = useSocket();
   const [status, setStatus] = useState('connecting');
-  const [viewMode, setViewMode] = useState('split'); // 'whiteboard', 'code', 'split', 'diagram'
+  const [viewMode, setViewMode] = useState('whiteboard'); // 'whiteboard', 'code', 'split', 'diagram'
   const [splitPosition, setSplitPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
@@ -45,6 +45,8 @@ export default function Workspace() {
       
       const container = containerRef.current.getBoundingClientRect();
       let newPosition = ((e.clientX - container.left) / container.width) * 100;
+      
+      // Limit split position between 20% and 80%
       newPosition = Math.max(20, Math.min(80, newPosition));
       setSplitPosition(newPosition);
     };
@@ -62,13 +64,14 @@ export default function Workspace() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, containerRef]);
+  }, [isDragging]);
 
   const cycleViewMode = () => {
-    const modes = ['split', 'whiteboard', 'code'];
-    const currentIndex = modes.indexOf(viewMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setViewMode(modes[nextIndex]);
+    if (viewMode === 'whiteboard') {
+      setViewMode('split');
+    } else if (viewMode === 'split') {
+      setViewMode('whiteboard');
+    }
   };
 
   return (
