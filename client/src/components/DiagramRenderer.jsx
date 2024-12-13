@@ -24,8 +24,7 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
   const [code, setCode] = useState(SAMPLE_DIAGRAM);
   const [type, setType] = useState('mermaid');
   const [svg, setSvg] = useState('');
-  const previewRef = useRef(null);
-  const isDragging = useRef(false);
+  const editorRef = useRef(null);
 
   useEffect(() => {
     const renderDiagram = async () => {
@@ -48,103 +47,49 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
     renderDiagram();
   }, [code, type]);
 
-  // Adjust preview size when window resizes
-  useEffect(() => {
-    const handleResize = () => {
-      if (previewRef.current) {
-        const svg = previewRef.current.querySelector('svg');
-        if (svg) {
-          svg.style.maxWidth = '100%';
-          svg.style.height = 'auto';
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    isDragging.current = true;
+  const handleEditorDidMount = (editor) => {
+    editorRef.current = editor;
+    // Focus editor when mounted
+    editor.focus();
   };
 
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging.current) return;
-      
-      const container = e.currentTarget;
-      const containerRect = container.getBoundingClientRect();
-      let newPosition = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-      
-      // Limit the split position between 20% and 80%
-      newPosition = Math.max(20, Math.min(80, newPosition));
-      onSplitChange(newPosition);
-    };
-
-    const handleMouseUp = () => {
-      isDragging.current = false;
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [onSplitChange]);
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-200">
-        <select 
-          className="px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+    <div className="h-full flex flex-col bg-white">
+      <div className="border-b border-gray-200 p-2 flex items-center justify-between">
+        <select
           value={type}
           onChange={(e) => setType(e.target.value)}
+          className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {SUPPORTED_DIAGRAM_TYPES.map(({ value, label }) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
       </div>
-
-      {/* Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Editor */}
-        <div style={{ width: `${splitPosition}%` }} className="h-full">
+      <div className="flex-1 grid grid-cols-2 overflow-hidden">
+        <div className="h-full border-r border-gray-200">
           <Editor
             height="100%"
-            defaultLanguage="markdown"
+            language="markdown"
             value={code}
             onChange={setCode}
-            theme="vs-light"
+            onMount={handleEditorDidMount}
             options={{
               minimap: { enabled: false },
               fontSize: 14,
               lineNumbers: 'on',
               scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              wrappingIndent: 'indent',
+              automaticLayout: true,
+              tabSize: 2,
+              wordWrap: 'on'
             }}
+            theme="vs-light"
           />
         </div>
-
-        {/* Resizer */}
-        <div
-          className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors"
-          onMouseDown={handleMouseDown}
+        <div 
+          className="h-full overflow-auto p-4 bg-white"
+          dangerouslySetInnerHTML={{ __html: svg }}
         />
-
-        {/* Preview */}
-        <div style={{ width: `${100 - splitPosition}%` }} className="h-full bg-white">
-          <div 
-            ref={previewRef}
-            className="w-full h-full flex items-center justify-center p-4 overflow-auto"
-            dangerouslySetInnerHTML={{ __html: svg }} 
-          />
-        </div>
       </div>
     </div>
   );

@@ -98,9 +98,7 @@ export default function WorkspaceContent({
 
   const renderContent = () => {
     const whiteboardContent = (
-      <div className={`h-full transition-all duration-300 ease-in-out ${
-        viewMode === 'split' ? `w-[${100 - splitPosition}%]` : 'w-full'
-      }`}>
+      <div className={`h-full ${viewMode === 'split' ? `w-[${100 - splitPosition}%]` : 'w-full'}`}>
         <Whiteboard 
           ref={whiteboardRef} 
           socket={socket} 
@@ -121,9 +119,9 @@ export default function WorkspaceContent({
 
     if (viewMode === 'split') {
       return (
-        <div className="flex-1 flex relative" ref={containerRef}>
+        <div className="flex-1 flex relative h-full" ref={containerRef}>
           <div 
-            className="h-full transition-all duration-300 ease-in-out"
+            className="h-full flex flex-col bg-white relative"
             style={{ width: `${splitPosition}%` }}
           >
             {diagramMode ? (
@@ -132,14 +130,18 @@ export default function WorkspaceContent({
                 onSplitChange={setDiagramSplitPosition}
               />
             ) : (
-              <CodeEditor socket={socket} workspaceId={workspaceId} />
+              <div className="absolute inset-0">
+                <CodeEditor socket={socket} workspaceId={workspaceId} />
+              </div>
             )}
           </div>
           <div
-            className="w-1 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 transition-colors duration-200"
+            className={`w-1.5 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 ${isDragging ? 'bg-blue-500' : ''}`}
             onMouseDown={handleMouseDown}
           />
-          {whiteboardContent}
+          <div className="h-full flex-1">
+            {whiteboardContent}
+          </div>
         </div>
       );
     }
@@ -148,7 +150,7 @@ export default function WorkspaceContent({
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden relative">
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       {renderHeader()}
       <div className="flex-1 relative bg-gray-50">
         {renderContent()}

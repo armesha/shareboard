@@ -10,10 +10,11 @@ export default function Workspace() {
   const socket = useSocket();
   const [status, setStatus] = useState('connecting');
   const [viewMode, setViewMode] = useState('whiteboard'); // 'whiteboard', 'code', 'split', 'diagram'
-  const [splitPosition, setSplitPosition] = useState(50);
+  const [splitPosition, setSplitPosition] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20; // Minimum width for each panel
+  const MAX_WIDTH_PERCENT = 80;
 
   useEffect(() => {
     if (!socket) return;
@@ -33,12 +34,6 @@ export default function Workspace() {
     };
   }, [socket, workspaceId]);
 
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();  // Предотвращаем всплытие события
-    setIsDragging(true);
-  };
-
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging || !containerRef.current) return;
@@ -46,29 +41,43 @@ export default function Workspace() {
       const container = containerRef.current.getBoundingClientRect();
       let newPosition = ((e.clientX - container.left) / container.width) * 100;
       
-      // Limit split position between 20% and 80%
-      newPosition = Math.max(20, Math.min(80, newPosition));
-      setSplitPosition(newPosition);
+      // Limit split position between MIN_WIDTH_PERCENT and MAX_WIDTH_PERCENT
+      newPosition = Math.max(MIN_WIDTH_PERCENT, Math.min(MAX_WIDTH_PERCENT, newPosition));
+      
+      // Используем RAF для оптимизации производительности
+      requestAnimationFrame(() => {
+        setSplitPosition(newPosition);
+      });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      document.body.style.cursor = 'default';
     };
 
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', handleMouseMove, { passive: true });
       document.addEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
+      document.body.style.cursor = 'default';
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
 
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
   const cycleViewMode = () => {
     if (viewMode === 'whiteboard') {
       setViewMode('split');
+      setSplitPosition(40);
     } else if (viewMode === 'split') {
       setViewMode('whiteboard');
     }
