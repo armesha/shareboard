@@ -23,14 +23,33 @@ export function SocketProvider({ children }) {
       transports: ['websocket', 'polling']
     });
 
+    console.log('Initializing socket connection...');
+
     socketInstance.on('connect', () => {
-      console.log('Connected to Socket.IO server');
+      console.log('Connected to Socket.IO server with ID:', socketInstance.id);
+      console.log('Connection details:', {
+        connected: socketInstance.connected,
+        disconnected: socketInstance.disconnected,
+        id: socketInstance.id
+      });
       setConnectionAttempts(0);
     });
 
     socketInstance.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-      setConnectionAttempts(prev => prev + 1);
+      console.error('Connection error:', error.message);
+      console.error('Connection error details:', {
+        connected: socketInstance.connected,
+        disconnected: socketInstance.disconnected,
+        id: socketInstance.id,
+        error: error
+      });
+      setConnectionAttempts(prev => {
+        const newAttempts = prev + 1;
+        if (newAttempts >= maxReconnectAttempts) {
+          console.error('Max reconnection attempts reached. Please check server status.');
+        }
+        return newAttempts;
+      });
     });
 
     socketInstance.on('disconnect', (reason) => {

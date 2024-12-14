@@ -19,6 +19,7 @@ export default function WorkspaceContent({
   socket, 
   workspaceId, 
   status, 
+  setStatus,
   viewMode, 
   splitPosition,
   isDragging,
@@ -51,6 +52,37 @@ export default function WorkspaceContent({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showShapesMenu, selectedShape]);
+
+  useEffect(() => {
+    if (!socket || !workspaceId) return;
+    
+    socket.on('connect', () => {
+      setStatus('connected');
+      console.log('Joining workspace:', workspaceId);
+      socket.emit('join-workspace', workspaceId);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from workspace');
+      setStatus('disconnected');
+    });
+    
+    socket.on('error', (error) => {
+      console.error('Workspace error:', error);
+      setStatus('error');
+    });
+
+    // Request initial workspace state
+    if (socket.connected) {
+      socket.emit('join-workspace', workspaceId);
+    }
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('error');
+    };
+  }, [socket, workspaceId]);
 
   // Header
   const renderHeader = () => (

@@ -178,16 +178,11 @@ io.on('connection', (socket) => {
     if (workspace) {
       workspace.lastActivity = Date.now();
       
-      // Initialize whiteboardElements if it doesn't exist
-      if (!workspace.whiteboardElements) {
-        workspace.whiteboardElements = [];
-      }
-
-      // Обновляем все элементы целиком, а не по одному
+      // Полностью заменяем массив элементов новым состоянием
       workspace.whiteboardElements = elements;
 
       // Отправляем обновление всем клиентам в этом workspace
-      io.to(workspaceId).emit('whiteboard-update', elements);
+      io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
     }
   });
 

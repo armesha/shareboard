@@ -89,6 +89,7 @@ export default function Workspace() {
           socket={socket}
           workspaceId={workspaceId}
           status={status}
+          setStatus={setStatus}
           viewMode={viewMode}
           splitPosition={splitPosition}
           isDragging={isDragging}

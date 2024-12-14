@@ -20,6 +20,18 @@ export default function WhiteboardToolbar() {
 
         <button
           className={`w-full px-4 py-2 rounded ${
+            tool === 'select' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}
+          onClick={() => {
+            setTool('select');
+            setSelectedShape(null);
+          }}
+        >
+          ⭐ Select
+        </button>
+
+        <button
+          className={`w-full px-4 py-2 rounded ${
             tool === 'shapes' && selectedShape === 'rectangle' ? 'bg-blue-500 text-white' : 'bg-gray-200'
           }`}
           onClick={() => {
@@ -27,7 +39,7 @@ export default function WhiteboardToolbar() {
             setSelectedShape('rectangle');
           }}
         >
-          □ Rectangle
+          ▭ Rectangle
         </button>
 
         <button
@@ -39,7 +51,7 @@ export default function WhiteboardToolbar() {
             setSelectedShape(null);
           }}
         >
-          Text
+          T Text
         </button>
       </div>
 
