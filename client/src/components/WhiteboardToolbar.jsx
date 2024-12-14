@@ -44,6 +44,18 @@ export default function WhiteboardToolbar() {
 
         <button
           className={`w-full px-4 py-2 rounded ${
+            tool === 'shapes' && selectedShape === 'arrow' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}
+          onClick={() => {
+            setTool('shapes');
+            setSelectedShape('arrow');
+          }}
+        >
+          ➜ Arrow
+        </button>
+
+        <button
+          className={`w-full px-4 py-2 rounded ${
             tool === 'text' ? 'bg-blue-500 text-white' : 'bg-gray-200'
           }`}
           onClick={() => {

@@ -113,6 +113,33 @@ export function WhiteboardProvider({ children }) {
     return obj;
   }, []);
 
+  // Update canvas properties when tool/color/width changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Update drawing mode and selection based on current tool
+    canvas.isDrawingMode = tool === 'pen';
+    canvas.selection = tool === 'select';
+
+    // Update brush properties
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = color;
+      canvas.freeDrawingBrush.width = width;
+    }
+
+    // Update object properties without recreating them
+    canvas.getObjects().forEach(obj => {
+      obj.set({
+        selectable: tool === 'select',
+        hasControls: tool === 'select',
+        hasBorders: tool === 'select'
+      });
+    });
+
+    canvas.renderAll();
+  }, [tool, color, width]);
+
   // Handle whiteboard updates
   useEffect(() => {
     if (!socket || !canvasRef.current) return;
@@ -133,17 +160,19 @@ export function WhiteboardProvider({ children }) {
       setElements(Array.from(elementsMapRef.current.values()));
 
       // Update canvas objects
+      const currentObjects = new Map(canvas.getObjects().map(obj => [obj.id, obj]));
+      
       updatedElements.forEach(element => {
-        let obj = canvas.getObjects().find(o => o.id === element.id);
+        let obj = currentObjects.get(element.id);
         
         if (!obj) {
-          // Create new object
+          // Create new object if it doesn't exist
           obj = createFabricObject(element, tool === 'select');
           if (obj) {
             canvas.add(obj);
           }
         } else {
-          // Update existing object
+          // Update existing object properties
           obj.set({
             ...element.data,
             selectable: tool === 'select',
@@ -171,6 +200,7 @@ export function WhiteboardProvider({ children }) {
           }
         });
         
+        // Update canvas with all elements
         handleWhiteboardUpdate(state.whiteboardElements);
       }
       
@@ -193,6 +223,12 @@ export function WhiteboardProvider({ children }) {
     socket.on('whiteboard-update', handleWhiteboardUpdate);
     socket.on('workspace-state', handleWorkspaceState);
     socket.on('whiteboard-clear', handleWhiteboardClear);
+
+    // Request initial state when connecting
+    const workspaceId = window.location.pathname.split('/')[2];
+    if (workspaceId) {
+      socket.emit('join-workspace', workspaceId);
+    }
 
     return () => {
       socket.off('whiteboard-update', handleWhiteboardUpdate);
@@ -225,7 +261,7 @@ export function WhiteboardProvider({ children }) {
       console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: [elementWithProps]
+        elements: Array.from(elementsMapRef.current.values()) // Send all elements
       });
     }
   }, [socket, tool]);
@@ -253,7 +289,7 @@ export function WhiteboardProvider({ children }) {
       console.log('Sending updated element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: [elementWithProps]
+        elements: Array.from(elementsMapRef.current.values()) // Send all elements
       });
     }
   }, [socket, tool]);
