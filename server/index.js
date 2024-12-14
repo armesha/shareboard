@@ -65,24 +65,17 @@ app.get('/', (req, res) => {
   res.sendFile(join(__dirname, '../client/index.html'));
 });
 
-// Create new workspace
-app.get('/api/workspace/new', (req, res) => {
-  let key;
-  do {
-    key = generateWorkspaceKey();
-  } while (workspaces.has(key));
-
-  // Initialize workspace with default state
-  workspaces.set(key, {
-    whiteboardElements: [],
-    codeSnippets: { language: 'javascript', content: '' },
-    diagramDefinitions: [],
-    permissions: { default: 'read-write' },
-    createdAt: Date.now(),
-    lastActivity: Date.now()
+// Create a new workspace
+app.post('/api/workspaces', (req, res) => {
+  const workspaceId = generateWorkspaceKey();
+  workspaces.set(workspaceId, {
+    id: workspaceId,
+    created: Date.now(),
+    lastActivity: Date.now(),
+    diagrams: new Map(),
+    drawings: []
   });
-
-  res.json({ key });
+  res.json({ workspaceId });
 });
 
 // Serve the main app for workspace routes
@@ -115,10 +108,18 @@ io.on('connection', (socket) => {
 
   socket.on('join-workspace', (workspaceId) => {
     console.log(`User ${socket.id} joining workspace ${workspaceId}`);
-    const workspace = workspaces.get(workspaceId);
+    let workspace = workspaces.get(workspaceId);
+    
+    // Create workspace if it doesn't exist
     if (!workspace) {
-      socket.emit('error', { message: 'Workspace not found' });
-      return;
+      workspace = {
+        id: workspaceId,
+        created: Date.now(),
+        lastActivity: Date.now(),
+        diagrams: new Map(),
+        drawings: []
+      };
+      workspaces.set(workspaceId, workspace);
     }
 
     // Leave previous workspace if any
@@ -154,14 +155,13 @@ io.on('connection', (socket) => {
     diagramHandler.initialize(socket, io.to(workspaceId));
 
     console.log(`Workspace ${workspaceId} state:`, {
-      elements: workspace.whiteboardElements?.length || 0,
+      elements: workspace.drawings?.length || 0,
       activeUsers: activeConnections.get(workspaceId).size
     });
 
     // Send initial state to the joining user
     socket.emit('workspace-state', {
-      whiteboardElements: workspace.whiteboardElements || [],
-      codeSnippets: workspace.codeSnippets || { language: 'javascript', content: '' },
+      drawings: workspace.drawings || [],
       activeUsers: activeConnections.get(workspaceId).size
     });
     
@@ -180,7 +180,7 @@ io.on('connection', (socket) => {
     workspace.lastActivity = Date.now();
     
     // Эффективное обновление элементов
-    const elementsMap = new Map(workspace.whiteboardElements?.map(el => [el.id, el]) || []);
+    const elementsMap = new Map(workspace.drawings?.map(el => [el.id, el]) || []);
     
     elements.forEach(element => {
       if (element && element.id) {
@@ -188,17 +188,17 @@ io.on('connection', (socket) => {
       }
     });
     
-    workspace.whiteboardElements = Array.from(elementsMap.values());
+    workspace.drawings = Array.from(elementsMap.values());
 
     // Отправляем обновление только тем клиентам, которые не являются отправителем
-    socket.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
+    socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
   socket.on('whiteboard-clear', ({ workspaceId }) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.lastActivity = Date.now();
-      workspace.whiteboardElements = [];
+      workspace.drawings = [];
       io.to(workspaceId).emit('whiteboard-clear');
     }
   });
@@ -216,7 +216,7 @@ io.on('connection', (socket) => {
     if (!workspace || !elementId) return;
 
     workspace.lastActivity = Date.now();
-    workspace.whiteboardElements = workspace.whiteboardElements.filter(el => el.id !== elementId);
+    workspace.drawings = workspace.drawings.filter(el => el.id !== elementId);
     
     // Отправляем обновление всем клиентам в workspace
     io.to(workspaceId).emit('element-deleted', { elementId });

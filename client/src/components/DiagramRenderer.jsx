@@ -3,6 +3,8 @@ import Editor from '@monaco-editor/react';
 import mermaid from 'mermaid';
 import nomnoml from 'nomnoml';
 import plantumlEncoder from 'plantuml-encoder';
+import html2canvas from 'html2canvas';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 
 // Initialize mermaid
 mermaid.initialize({
@@ -38,11 +40,17 @@ const SUPPORTED_DIAGRAM_TYPES = [
   { value: 'nomnoml', label: 'Nomnoml' }
 ];
 
-export default function DiagramRenderer({ splitPosition, onSplitChange }) {
+export default function DiagramRenderer({ splitPosition = 50, onSplitChange, onAddImageToWhiteboard }) {
   const [code, setCode] = useState(SAMPLE_DIAGRAMS.mermaid);
   const [type, setType] = useState('mermaid');
   const [svg, setSvg] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentSplit, setCurrentSplit] = useState(splitPosition);
+  const containerRef = useRef(null);
+  const diagramRef = useRef(null);
   const editorRef = useRef(null);
+  const initialMouseX = useRef(0);
+  const initialSplit = useRef(0);
 
   useEffect(() => {
     const renderDiagram = async () => {
@@ -59,7 +67,6 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
             setSvg(nomnomlSvg);
             break;
           case 'plantuml':
-            // Using PlantUML server for rendering
             const encoded = plantumlEncoder.encode(code);
             const plantUmlSvg = `http://www.plantuml.com/plantuml/svg/${encoded}`;
             setSvg(`<img src="${plantUmlSvg}" alt="PlantUML diagram" />`);
@@ -76,9 +83,87 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
     renderDiagram();
   }, [code, type]);
 
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    initialMouseX.current = e.clientX;
+    initialSplit.current = currentSplit;
+    
+    const handleMouseMove = (e) => {
+      if (!isDragging || !containerRef.current) return;
+      
+      const container = containerRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - initialMouseX.current;
+      const deltaPercent = (deltaX / container.width) * 100;
+      const newSplit = initialSplit.current + deltaPercent;
+      
+      // Ограничиваем размер от 20% до 80%
+      const clampedSplit = Math.min(Math.max(20, newSplit), 80);
+      setCurrentSplit(clampedSplit);
+      
+      if (onSplitChange) {
+        onSplitChange(clampedSplit);
+      }
+      
+      // Обновляем размер редактора
+      if (editorRef.current) {
+        editorRef.current.layout();
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleExportToWhiteboard = async () => {
+    try {
+      const svgElement = diagramRef.current?.querySelector('svg');
+      if (!svgElement) {
+        console.error('No SVG element found');
+        return;
+      }
+
+      // Создаем временный контейнер для SVG
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.visibility = 'hidden';
+      tempContainer.style.width = svgElement.getAttribute('width') || '800px';
+      tempContainer.style.height = svgElement.getAttribute('height') || '600px';
+      
+      // Клонируем SVG и добавляем в контейнер
+      const svgClone = svgElement.cloneNode(true);
+      tempContainer.appendChild(svgClone);
+      document.body.appendChild(tempContainer);
+
+      const canvas = await html2canvas(tempContainer, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+
+      document.body.removeChild(tempContainer);
+
+      canvas.toBlob((blob) => {
+        if (blob && onAddImageToWhiteboard) {
+          const imageUrl = URL.createObjectURL(blob);
+          onAddImageToWhiteboard(imageUrl);
+        }
+      }, 'image/png', 1.0);
+    } catch (error) {
+      console.error('Error exporting diagram:', error);
+    }
+  };
+
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;
-    // Focus editor when mounted
     editor.focus();
   };
 
@@ -88,20 +173,29 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div ref={containerRef} className="h-full flex flex-col bg-white">
       <div className="border-b border-gray-200 p-2 flex items-center justify-between">
-        <select
-          value={type}
-          onChange={(e) => handleTypeChange(e.target.value)}
-          className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {SUPPORTED_DIAGRAM_TYPES.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={type}
+            onChange={(e) => handleTypeChange(e.target.value)}
+            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {SUPPORTED_DIAGRAM_TYPES.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleExportToWhiteboard}
+            className="p-1.5 text-gray-700 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 rounded-md"
+            title="Add to Whiteboard"
+          >
+            <AddPhotoAlternateIcon />
+          </button>
+        </div>
       </div>
-      <div className="flex-1 grid grid-cols-2 overflow-hidden">
-        <div className="h-full border-r border-gray-200">
+      <div className="flex-1 flex overflow-hidden relative">
+        <div style={{ width: `${currentSplit}%` }} className="h-full">
           <Editor
             height="100%"
             language="markdown"
@@ -120,10 +214,21 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
             theme="vs-light"
           />
         </div>
-        <div 
-          className="h-full overflow-auto p-4 bg-white"
-          dangerouslySetInnerHTML={{ __html: svg }}
+        
+        {/* Разделитель */}
+        <div
+          className={`w-1 h-full bg-gray-200 hover:bg-blue-300 cursor-col-resize ${isDragging ? 'bg-blue-400' : ''}`}
+          onMouseDown={handleMouseDown}
+          style={{ cursor: 'col-resize' }}
         />
+
+        <div style={{ width: `${100 - currentSplit}%` }} className="h-full">
+          <div 
+            ref={diagramRef}
+            className="h-full overflow-auto p-4 bg-white diagram-container"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        </div>
       </div>
     </div>
   );

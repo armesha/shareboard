@@ -11,12 +11,17 @@ export default function LandingPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch('/api/workspace/new');
+      const response = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to create workspace');
       }
       const data = await response.json();
-      navigate(`/w/${data.key}`);
+      navigate(`/w/${data.workspaceId}`);
     } catch (error) {
       console.error('Error creating workspace:', error);
       setError('Failed to create workspace. Please try again.');

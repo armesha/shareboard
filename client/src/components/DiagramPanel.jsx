@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
+import html2canvas from 'html2canvas';
 
-const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams }) => {
+const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams, onAddImageToWhiteboard }) => {
   const [diagramDefinition, setDiagramDefinition] = useState(currentDiagram?.definition || '');
   const [diagramTitle, setDiagramTitle] = useState(currentDiagram?.title || '');
   const [lineWidth, setLineWidth] = useState(2);
@@ -50,6 +51,27 @@ const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams }) => {
       title: diagramTitle,
       definition: diagramDefinition,
     });
+  };
+
+  const saveAsImage = async () => {
+    if (diagramRef.current) {
+      try {
+        const svgElement = diagramRef.current.querySelector('svg');
+        if (!svgElement) return;
+
+        const canvas = await html2canvas(svgElement, {
+          backgroundColor: null,
+          scale: 2, // Better quality
+        });
+
+        canvas.toBlob((blob) => {
+          const imageUrl = URL.createObjectURL(blob);
+          onAddImageToWhiteboard(imageUrl);
+        }, 'image/png');
+      } catch (error) {
+        console.error('Failed to save diagram as image:', error);
+      }
+    }
   };
 
   return (
@@ -113,12 +135,21 @@ const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams }) => {
           />
         </div>
         
-        <button
-          type="submit"
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          {currentDiagram ? 'Update Diagram' : 'Create Diagram'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            {currentDiagram ? 'Update Diagram' : 'Create Diagram'}
+          </button>
+          <button
+            type="button"
+            onClick={saveAsImage}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Add to Whiteboard
+          </button>
+        </div>
       </form>
 
       <div className="mt-4">

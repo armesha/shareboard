@@ -83,6 +83,62 @@ export default function WorkspaceContent({
     };
   }, [socket, workspaceId]);
 
+  const handleAddImageToWhiteboard = (imageUrl) => {
+    console.log('Adding image to whiteboard:', imageUrl); // Отладочный лог
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Добавляем поддержку CORS
+    
+    img.onload = () => {
+      const canvas = whiteboardRef.current;
+      if (!canvas) {
+        console.error('Canvas not found');
+        return;
+      }
+      
+      console.log('Canvas found, drawing image...'); // Отладочный лог
+      const ctx = canvas.getContext('2d');
+      
+      // Вычисляем размеры с сохранением пропорций
+      const maxWidth = canvas.width * 0.5;
+      const maxHeight = canvas.height * 0.5;
+      let newWidth = img.width;
+      let newHeight = img.height;
+      
+      const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+      newWidth = img.width * ratio;
+      newHeight = img.height * ratio;
+      
+      // Центрируем изображение
+      const x = (canvas.width - newWidth) / 2;
+      const y = (canvas.height - newHeight) / 2;
+      
+      // Рисуем изображение
+      ctx.drawImage(img, x, y, newWidth, newHeight);
+      console.log('Image drawn successfully'); // Отладочный лог
+      
+      // Отправляем событие через сокет
+      if (socket) {
+        const drawData = {
+          type: 'image',
+          imageUrl,
+          x,
+          y,
+          width: newWidth,
+          height: newHeight,
+          workspaceId
+        };
+        console.log('Emitting draw event:', drawData); // Отладочный лог
+        socket.emit('draw', drawData);
+      }
+    };
+
+    img.onerror = (error) => {
+      console.error('Error loading image:', error);
+    };
+
+    img.src = imageUrl;
+  };
+
   // Header
   const renderHeader = () => (
     <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
@@ -284,10 +340,13 @@ export default function WorkspaceContent({
         {/* Content */}
         <div className="flex-1 h-full overflow-hidden">
           {diagramMode ? (
-            <DiagramRenderer 
-              splitPosition={diagramSplitPosition}
-              onSplitChange={setDiagramSplitPosition}
-            />
+            <div ref={containerRef} className="flex flex-1 h-full overflow-hidden">
+              <DiagramRenderer 
+                splitPosition={diagramSplitPosition}
+                onSplitChange={setDiagramSplitPosition}
+                onAddImageToWhiteboard={handleAddImageToWhiteboard}
+              />
+            </div>
           ) : (
             <div className="h-full">
               <CodeEditor socket={socket} workspaceId={workspaceId} />
