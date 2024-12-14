@@ -1,4 +1,4 @@
-Code Snapshot - 2024-12-14 02:40:38.727248
+Code Snapshot - 2024-12-14 14:17:04.516724
 ================================================================================
 
 
@@ -399,328 +399,276 @@ export default function DiagramRenderer({ splitPosition, onSplitChange }) {
 File: client\src\components\Whiteboard.jsx
 --------------------------------------------------------------------------------
 
-import { useEffect, useRef, forwardRef, useCallback } from 'react';
-import { fabric } from 'fabric';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
+import { useSocket } from '../context/SocketContext';
+import { v4 as uuidv4 } from 'uuid';
 
-const Whiteboard = forwardRef(({ socket }, ref) => {
+const Whiteboard = React.memo(() => {
   const canvasRef = useRef(null);
-  const fabricRef = useRef(null);
   const isDrawing = useRef(false);
   const currentShape = useRef(null);
   const startPoint = useRef(null);
-  const { tool, color, width, selectedShape } = useWhiteboard();
+  const socket = useSocket();
+  const { 
+    tool, 
+    color, 
+    width, 
+    selectedShape,
+    initCanvas,
+    canvasRef: fabricCanvasRef,
+    addElement,
+    updateElement
+  } = useWhiteboard();
 
   const ARROW_HEAD_SIZE = 10;
   const ARROW_HEAD_ANGLE = Math.PI / 7;
 
   // Initialize canvas
   useEffect(() => {
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      isDrawingMode: false,
-      width: window.innerWidth * 0.8,
-      height: window.innerHeight * 0.8,
-      backgroundColor: '#ffffff',
-      selection: true
-    });
+    if (!canvasRef.current) return;
+    const cleanup = initCanvas(canvasRef.current);
+    return cleanup;
+  }, [initCanvas]);
 
-    fabricRef.current = canvas;
+  // Update canvas properties when tool/color/width changes
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
 
-    // Initialize brush
-    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    canvas.isDrawingMode = tool === 'pen';
+    canvas.selection = tool === 'select';
     canvas.freeDrawingBrush.color = color;
     canvas.freeDrawingBrush.width = width;
 
-    // Set initial tool state
-    canvas.isDrawingMode = tool === 'pen';
-    canvas.selection = tool === 'select';
-
-    // Save canvas state after each modification
-    canvas.on('object:modified', () => {
-      const objects = canvas.getObjects();
-      socket.emit('whiteboard-update', {
-        workspaceId: window.location.pathname.split('/')[2],
-        elements: objects.map(obj => ({
-          id: obj.id || uuidv4(),
-          type: obj.type,
-          data: obj.toObject(['id'])
-        }))
-      });
-    });
-
-    return () => {
-      canvas.dispose();
-      fabricRef.current = null;
-    };
-  }, []); // Empty dependency array to initialize only once
-
-  // Update brush properties when color or width changes
-  useEffect(() => {
-    if (!fabricRef.current) return;
-    const canvas = fabricRef.current;
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = color;
-      canvas.freeDrawingBrush.width = width;
-    }
-  }, [color, width]);
-
-  // Update tool settings
-  useEffect(() => {
-    if (!fabricRef.current) return;
-    const canvas = fabricRef.current;
-
-    canvas.isDrawingMode = tool === 'pen';
-    canvas.selection = tool === 'select';
-
-    // Update cursor style
-    switch (tool) {
-      case 'pen':
-        canvas.defaultCursor = 'crosshair';
-        break;
-      case 'select':
-        canvas.defaultCursor = 'default';
-        break;
-      case 'shapes':
-        canvas.defaultCursor = 'crosshair';
-        break;
-      case 'text':
-        canvas.defaultCursor = 'text';
-        break;
-      default:
-        canvas.defaultCursor = 'default';
-    }
-
-    // Update object properties
     canvas.getObjects().forEach(obj => {
       obj.set({
         selectable: tool === 'select',
-        evented: tool === 'select',
         hasControls: tool === 'select',
         hasBorders: tool === 'select'
       });
     });
 
     canvas.renderAll();
-  }, [tool]);
+  }, [tool, color, width, fabricCanvasRef]);
 
-  // Handle mouse events
-  const handleMouseDown = useCallback((options) => {
-    if (!fabricRef.current) return;
-    const canvas = fabricRef.current;
-    const pointer = canvas.getPointer(options.e);
+  // Handle object modifications
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
 
-    if (tool === 'shapes') {
-      isDrawing.current = true;
-      startPoint.current = { x: pointer.x, y: pointer.y };
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj) return;
 
-      if (selectedShape === 'arrow') {
-        const pathData = `M ${pointer.x} ${pointer.y} L ${pointer.x} ${pointer.y}`;
-        currentShape.current = new fabric.Path(pathData, {
-          stroke: color,
-          strokeWidth: width,
-          fill: 'transparent',
-          selectable: false,
-          evented: false,
-          originX: 'center',
-          originY: 'center',
-          id: uuidv4(),
-          perPixelTargetFind: true,
-          strokeUniform: true,
-          objectCaching: false,
-          transparentCorners: true,
-          hasBorders: false
-        });
-        canvas.add(currentShape.current);
-      } else if (selectedShape === 'square') {
-        const square = new fabric.Rect({
-          left: pointer.x,
-          top: pointer.y,
-          width: 0,
-          height: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: width,
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          id: uuidv4()
-        });
-        currentShape.current = square;
-        canvas.add(square);
-      } else if (selectedShape === 'circle') {
-        const circle = new fabric.Circle({
-          left: pointer.x,
-          top: pointer.y,
-          radius: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: width,
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          originX: 'center',
-          originY: 'center',
-          id: uuidv4()
-        });
-        currentShape.current = circle;
-        canvas.add(circle);
-      } else if (selectedShape === 'triangle') {
-        const triangle = new fabric.Triangle({
-          left: pointer.x,
-          top: pointer.y,
-          width: 0,
-          height: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: width,
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          id: uuidv4(),
-          originX: 'left',
-          originY: 'top'
-        });
-        currentShape.current = triangle;
-        canvas.add(triangle);
-      } else if (selectedShape === 'rectangle') {
-        const rectangle = new fabric.Rect({
-          left: pointer.x,
-          top: pointer.y,
-          width: 0,
-          height: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: width,
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          id: uuidv4()
-        });
-        currentShape.current = rectangle;
-        canvas.add(rectangle);
+      updateElement(obj.id, {
+        type: obj.type,
+        data: obj.toObject(['id'])
+      });
+    };
+
+    canvas.on('object:modified', handleObjectModified);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+    };
+  }, [fabricCanvasRef, updateElement]);
+
+  const handleMouseDown = useCallback((e) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || tool === 'select') return;
+
+    // Only handle left mouse button
+    if (e.e.button !== 0) return;
+
+    isDrawing.current = true;
+    const pointer = canvas.getPointer(e.e);
+    startPoint.current = pointer;
+
+    if (selectedShape) {
+      let shapeObj;
+      const commonProps = {
+        left: pointer.x,
+        top: pointer.y,
+        fill: 'transparent',
+        stroke: color,
+        strokeWidth: width,
+        selectable: false,
+        evented: false,
+        id: uuidv4()
+      };
+
+      switch (selectedShape) {
+        case 'rectangle':
+          shapeObj = new fabric.Rect({
+            ...commonProps,
+            width: 0,
+            height: 0
+          });
+          break;
+        case 'circle':
+          shapeObj = new fabric.Circle({
+            ...commonProps,
+            radius: 0
+          });
+          break;
+        case 'triangle':
+          shapeObj = new fabric.Triangle({
+            ...commonProps,
+            width: 0,
+            height: 0
+          });
+          break;
+        case 'arrow':
+          shapeObj = new fabric.Path('M 0 0', {
+            ...commonProps,
+            fill: null,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+            originX: 'left',
+            originY: 'top'
+          });
+          break;
       }
+
+      if (shapeObj) {
+        canvas.add(shapeObj);
+        currentShape.current = shapeObj;
+      }
+    }
+  }, [tool, selectedShape, color, width, fabricCanvasRef]);
+
+  const handleMouseMove = useCallback((e) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isDrawing.current || !startPoint.current) return;
+
+    const pointer = canvas.getPointer(e.e);
+
+    if (selectedShape && currentShape.current) {
+      const shape = currentShape.current;
+      const startX = startPoint.current.x;
+      const startY = startPoint.current.y;
+      const width = pointer.x - startX;
+      const height = pointer.y - startY;
+
+      switch (selectedShape) {
+        case 'rectangle':
+          shape.set({
+            width: Math.abs(width),
+            height: Math.abs(height),
+            left: width > 0 ? startX : pointer.x,
+            top: height > 0 ? startY : pointer.y
+          });
+          break;
+        case 'circle':
+          const radius = Math.sqrt(width * width + height * height) / 2;
+          shape.set({
+            radius: radius,
+            left: startX - radius,
+            top: startY - radius
+          });
+          break;
+        case 'triangle':
+          shape.set({
+            width: Math.abs(width),
+            height: Math.abs(height),
+            left: width > 0 ? startX : pointer.x,
+            top: height > 0 ? startY : pointer.y
+          });
+          break;
+        case 'arrow':
+          const angle = Math.atan2(height, width);
+          
+          // Calculate coordinates relative to the start point
+          const dx = pointer.x - startX;
+          const dy = pointer.y - startY;
+          
+          // Calculate arrowhead points
+          const headSize = ARROW_HEAD_SIZE;
+          const leftHeadX = dx - headSize * Math.cos(angle - ARROW_HEAD_ANGLE);
+          const leftHeadY = dy - headSize * Math.sin(angle - ARROW_HEAD_ANGLE);
+          const rightHeadX = dx - headSize * Math.cos(angle + ARROW_HEAD_ANGLE);
+          const rightHeadY = dy - headSize * Math.sin(angle + ARROW_HEAD_ANGLE);
+          
+          // Create path using natural coordinates
+          const path = [
+            ['M', 0, 0],
+            ['L', dx, dy],
+            ['L', leftHeadX, leftHeadY],
+            ['M', dx, dy],
+            ['L', rightHeadX, rightHeadY]
+          ];
+          
+          shape.set({
+            path: path,
+            left: startX,
+            top: startY
+          });
+          shape.setCoords();
+          break;
+      }
+
       canvas.renderAll();
     }
-  }, [tool, selectedShape, color, width]);
-
-  const handleMouseMove = useCallback((options) => {
-    if (!isDrawing.current || !fabricRef.current || !currentShape.current || !startPoint.current) return;
-    const canvas = fabricRef.current;
-    const pointer = canvas.getPointer(options.e);
-
-    if (tool === 'shapes') {
-      if (selectedShape === 'arrow') {
-        const dx = pointer.x - startPoint.current.x;
-        const dy = pointer.y - startPoint.current.y;
-        const angle = Math.atan2(dy, dx);
-        const length = Math.sqrt(dx * dx + dy * dy);
-
-        // Координаты конца стрелки
-        const arrowEndX = startPoint.current.x + (length * Math.cos(angle));
-        const arrowEndY = startPoint.current.y + (length * Math.sin(angle));
-
-        // Рассчёт координат для стрелочного наконечника
-        const x1 = arrowEndX - ARROW_HEAD_SIZE * Math.cos(angle - ARROW_HEAD_ANGLE);
-        const y1 = arrowEndY - ARROW_HEAD_SIZE * Math.sin(angle - ARROW_HEAD_ANGLE);
-        const x2 = arrowEndX - ARROW_HEAD_SIZE * Math.cos(angle + ARROW_HEAD_ANGLE);
-        const y2 = arrowEndY - ARROW_HEAD_SIZE * Math.sin(angle + ARROW_HEAD_ANGLE);
-
-        // Формируем path с наконечником
-        const pathData = [
-          `M ${startPoint.current.x} ${startPoint.current.y}`,
-          `L ${arrowEndX} ${arrowEndY}`,
-          `L ${x1} ${y1}`,
-          `M ${arrowEndX} ${arrowEndY}`,
-          `L ${x2} ${y2}`
-        ].join(' ');
-
-        currentShape.current.set({ path: new fabric.Path(pathData).path });
-        currentShape.current.setCoords();
-      } else if (selectedShape === 'square') {
-        const dx = pointer.x - startPoint.current.x;
-        const dy = pointer.y - startPoint.current.y;
-        const size = Math.min(Math.abs(dx), Math.abs(dy));
-        
-        const left = dx > 0 ? startPoint.current.x : startPoint.current.x - size;
-        const top = dy > 0 ? startPoint.current.y : startPoint.current.y - size;
-        
-        currentShape.current.set({
-          left: left,
-          top: top,
-          width: size,
-          height: size
-        });
-      } else if (selectedShape === 'circle') {
-        const dx = pointer.x - startPoint.current.x;
-        const dy = pointer.y - startPoint.current.y;
-        const radius = Math.sqrt(dx * dx + dy * dy);
-        currentShape.current.set({
-          radius: radius
-        });
-      } else if (selectedShape === 'triangle') {
-        const dx = pointer.x - startPoint.current.x;
-        const dy = pointer.y - startPoint.current.y;
-        
-        const left = dx > 0 ? startPoint.current.x : pointer.x;
-        const top = dy > 0 ? startPoint.current.y : pointer.y;
-        
-        currentShape.current.set({
-          left: left,
-          top: top,
-          width: Math.abs(dx),
-          height: Math.abs(dy)
-        });
-        currentShape.current.setCoords();
-      } else if (selectedShape === 'rectangle') {
-        const dx = pointer.x - startPoint.current.x;
-        const dy = pointer.y - startPoint.current.y;
-        
-        const left = dx > 0 ? startPoint.current.x : pointer.x;
-        const top = dy > 0 ? startPoint.current.y : pointer.y;
-        
-        currentShape.current.set({
-          left: left,
-          top: top,
-          width: Math.abs(dx),
-          height: Math.abs(dy)
-        });
-      }
-      canvas.renderAll();
-    }
-  }, [tool, selectedShape]);
+  }, [selectedShape, fabricCanvasRef]);
 
   const handleMouseUp = useCallback(() => {
-    if (!fabricRef.current || !isDrawing.current) return;
-    const canvas = fabricRef.current;
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isDrawing.current) return;
 
     isDrawing.current = false;
+    
     if (currentShape.current) {
-      currentShape.current.set({
+      const shape = currentShape.current;
+      
+      // Set final properties
+      shape.set({
         selectable: tool === 'select',
-        evented: tool === 'select',
         hasControls: tool === 'select',
         hasBorders: tool === 'select'
       });
-      currentShape.current.setCoords();
+
+      // Add to shared state
+      addElement({
+        id: shape.id,
+        type: shape.type,
+        data: shape.toObject(['id'])
+      });
+
       currentShape.current = null;
     }
-    startPoint.current = null;
 
-    const objects = canvas.getObjects().map(obj => ({
-      id: obj.id || uuidv4(),
-      type: obj.type,
-      data: obj.toObject(['id'])
-    }));
-    socket.emit('whiteboard-update', {
-      workspaceId: window.location.pathname.split('/')[2],
-      elements: objects
-    });
-  }, [tool, socket]);
+    startPoint.current = null;
+    canvas.renderAll();
+  }, [addElement, tool, fabricCanvasRef]);
+
+  // Handle path creation when using pen tool
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handlePathCreated = (e) => {
+      const path = e.path;
+      if (!path) return;
+
+      path.id = uuidv4();
+      addElement({
+        id: path.id,
+        type: 'path',
+        data: path.toObject(['id'])
+      });
+    };
+
+    canvas.on('path:created', handlePathCreated);
+
+    return () => {
+      canvas.off('path:created', handlePathCreated);
+    };
+  }, [fabricCanvasRef, addElement]);
 
   useEffect(() => {
-    if (!fabricRef.current) return;
-    const canvas = fabricRef.current;
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
 
     canvas.on('mouse:down', handleMouseDown);
     canvas.on('mouse:move', handleMouseMove);
@@ -736,107 +684,19 @@ const Whiteboard = forwardRef(({ socket }, ref) => {
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      if (fabricRef.current) {
-        fabricRef.current.setDimensions({
-          width: window.innerWidth * 0.8,
-          height: window.innerHeight * 0.8
-        });
-      }
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) return;
+
+      canvas.setDimensions({
+        width: window.innerWidth * 0.8,
+        height: window.innerHeight * 0.8
+      });
+      canvas.renderAll();
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Handle whiteboard updates from server
-  useEffect(() => {
-    if (!socket || !fabricRef.current) return;
-
-    const handleWhiteboardUpdate = (elements) => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-
-      elements.forEach(element => {
-        let obj = canvas.getObjects().find(o => o.id === element.id);
-
-        if (!obj) {
-          switch (element.type) {
-            case 'i-text':
-              obj = new fabric.IText(element.data.text || '', {
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'rect':
-              obj = new fabric.Rect({
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'circle':
-              obj = new fabric.Circle({
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'triangle':
-              obj = new fabric.Triangle({
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'path':  // Для стрелок
-              obj = new fabric.Path(element.data.path, {
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'group':  // Для стрелок
-              obj = new fabric.Group(element.data.objects, {
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            case 'polyline':  // Для стрелок
-              obj = new fabric.Polyline(element.data.points, {
-                ...element.data,
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
-              });
-              break;
-            default:
-              console.warn('Unknown shape type:', element.type);
-              return;
-          }
-          canvas.add(obj);
-        } else {
-          obj.set(element.data);
-          obj.setCoords();
-        }
-      });
-
-      canvas.renderAll();
-    };
-
-    socket.on('whiteboard-update', handleWhiteboardUpdate);
-
-    return () => {
-      socket.off('whiteboard-update', handleWhiteboardUpdate);
-    };
-  }, [socket, tool]);
 
   return (
     <div className="relative w-full h-full flex justify-center items-center bg-gray-50">
@@ -894,6 +754,18 @@ export default function WhiteboardToolbar() {
           }}
         >
           ▭ Rectangle
+        </button>
+
+        <button
+          className={`w-full px-4 py-2 rounded ${
+            tool === 'shapes' && selectedShape === 'arrow' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}
+          onClick={() => {
+            setTool('shapes');
+            setSelectedShape('arrow');
+          }}
+        >
+          ➜ Arrow
         </button>
 
         <button
@@ -1576,6 +1448,8 @@ File: client\src\context\WhiteboardContext.jsx
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
+import { fabric } from 'fabric';
+import { v4 as uuidv4 } from 'uuid';
 
 const WhiteboardContext = createContext(null);
 
@@ -1592,7 +1466,34 @@ export function WhiteboardProvider({ children }) {
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
   const [isConnected, setIsConnected] = useState(false);
-  const pendingElements = useRef(new Map());
+  const canvasRef = useRef(null);
+  const elementsMapRef = useRef(new Map());
+
+  // Initialize canvas
+  const initCanvas = useCallback((canvasElement) => {
+    if (!canvasElement) return;
+
+    const canvas = new fabric.Canvas(canvasElement, {
+      isDrawingMode: false,
+      width: window.innerWidth * 0.8,
+      height: window.innerHeight * 0.8,
+      backgroundColor: '#ffffff',
+      selection: true
+    });
+
+    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    canvas.freeDrawingBrush.color = color;
+    canvas.freeDrawingBrush.width = width;
+    canvas.isDrawingMode = tool === 'pen';
+    canvas.selection = tool === 'select';
+
+    canvasRef.current = canvas;
+    
+    return () => {
+      canvas.dispose();
+      canvasRef.current = null;
+    };
+  }, [color, width, tool]);
 
   // Handle socket connection events
   useEffect(() => {
@@ -1623,129 +1524,229 @@ export function WhiteboardProvider({ children }) {
     };
   }, [socket]);
 
-  // Handle whiteboard updates and workspace state
+  // Create Fabric object from element data
+  const createFabricObject = useCallback((element, isSelectable = false) => {
+    if (!element || !element.type || !element.data) return null;
+
+    let obj;
+    const commonProps = {
+      ...element.data,
+      id: element.id,
+      selectable: isSelectable,
+      hasControls: isSelectable,
+      hasBorders: isSelectable
+    };
+
+    switch (element.type) {
+      case 'rect':
+        obj = new fabric.Rect(commonProps);
+        break;
+      case 'circle':
+        obj = new fabric.Circle(commonProps);
+        break;
+      case 'triangle':
+        obj = new fabric.Triangle(commonProps);
+        break;
+      case 'path':
+        obj = new fabric.Path(element.data.path || '', commonProps);
+        break;
+      case 'i-text':
+        obj = new fabric.IText(element.data.text || '', commonProps);
+        break;
+      default:
+        console.warn('Unknown shape type:', element.type);
+        return null;
+    }
+
+    return obj;
+  }, []);
+
+  // Update canvas properties when tool/color/width changes
   useEffect(() => {
-    if (!socket) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Update drawing mode and selection based on current tool
+    canvas.isDrawingMode = tool === 'pen';
+    canvas.selection = tool === 'select';
+
+    // Update brush properties
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = color;
+      canvas.freeDrawingBrush.width = width;
+    }
+
+    // Update object properties without recreating them
+    canvas.getObjects().forEach(obj => {
+      obj.set({
+        selectable: tool === 'select',
+        hasControls: tool === 'select',
+        hasBorders: tool === 'select'
+      });
+    });
+
+    canvas.renderAll();
+  }, [tool, color, width]);
+
+  // Handle whiteboard updates
+  useEffect(() => {
+    if (!socket || !canvasRef.current) return;
 
     const handleWhiteboardUpdate = (updatedElements) => {
-      setElements(prev => {
-        // Create a Map of current elements for quick lookup
-        const currentElementsMap = new Map(prev.map(el => [el.id, el]));
-        
-        // Update or add new elements
-        updatedElements.forEach(element => {
-          if (!element.id) return; // Skip elements without ID
-          currentElementsMap.set(element.id, {
-            ...element,
-            selectable: tool === 'select',
-            evented: tool === 'select'
-          });
-        });
+      console.log('Received whiteboard update, elements:', updatedElements?.length);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-        // Add pending elements that haven't been synced yet
-        pendingElements.current.forEach((element, id) => {
-          if (!currentElementsMap.has(id)) {
-            currentElementsMap.set(id, element);
-          }
-        });
-
-        return Array.from(currentElementsMap.values());
+      // Update elements map
+      updatedElements.forEach(element => {
+        if (element.id) {
+          elementsMapRef.current.set(element.id, element);
+        }
       });
+
+      // Update React state with all current elements
+      setElements(Array.from(elementsMapRef.current.values()));
+
+      // Update canvas objects
+      const currentObjects = new Map(canvas.getObjects().map(obj => [obj.id, obj]));
+      
+      updatedElements.forEach(element => {
+        let obj = currentObjects.get(element.id);
+        
+        if (!obj) {
+          // Create new object if it doesn't exist
+          obj = createFabricObject(element, tool === 'select');
+          if (obj) {
+            canvas.add(obj);
+          }
+        } else {
+          // Update existing object properties
+          obj.set({
+            ...element.data,
+            selectable: tool === 'select',
+            hasControls: tool === 'select',
+            hasBorders: tool === 'select'
+          });
+          obj.setCoords();
+        }
+      });
+
+      canvas.renderAll();
     };
 
     const handleWorkspaceState = (state) => {
+      console.log('Received workspace state:', state);
+      
+      // Reset elements map
+      elementsMapRef.current.clear();
+      
       if (state.whiteboardElements) {
-        setElements(state.whiteboardElements.map(element => ({
-          ...element,
-          selectable: tool === 'select',
-          evented: tool === 'select'
-        })));
-        pendingElements.current.clear();
+        // Initialize elements map with workspace state
+        state.whiteboardElements.forEach(element => {
+          if (element.id) {
+            elementsMapRef.current.set(element.id, element);
+          }
+        });
+        
+        // Update canvas with all elements
+        handleWhiteboardUpdate(state.whiteboardElements);
       }
+      
       if (state.activeUsers !== undefined) {
         setActiveUsers(state.activeUsers);
       }
     };
 
-    const handleUserJoined = ({ userId, activeUsers: newActiveUsers }) => {
-      setActiveUsers(newActiveUsers);
-    };
-
-    const handleUserLeft = ({ userId, activeUsers: newActiveUsers }) => {
-      setActiveUsers(newActiveUsers);
-    };
-
     const handleWhiteboardClear = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.clear();
+        canvas.backgroundColor = '#ffffff';
+        canvas.renderAll();
+      }
       setElements([]);
-      pendingElements.current.clear();
+      elementsMapRef.current.clear();
     };
 
     socket.on('whiteboard-update', handleWhiteboardUpdate);
     socket.on('workspace-state', handleWorkspaceState);
-    socket.on('user-joined', handleUserJoined);
-    socket.on('user-left', handleUserLeft);
     socket.on('whiteboard-clear', handleWhiteboardClear);
+
+    // Request initial state when connecting
+    const workspaceId = window.location.pathname.split('/')[2];
+    if (workspaceId) {
+      socket.emit('join-workspace', workspaceId);
+    }
 
     return () => {
       socket.off('whiteboard-update', handleWhiteboardUpdate);
       socket.off('workspace-state', handleWorkspaceState);
-      socket.off('user-joined', handleUserJoined);
-      socket.off('user-left', handleUserLeft);
       socket.off('whiteboard-clear', handleWhiteboardClear);
     };
-  }, [socket, tool]);
+  }, [socket, tool, createFabricObject]);
 
+  // Add new element
   const addElement = useCallback((element) => {
+    if (!element.id) {
+      element.id = uuidv4();
+    }
+
     const elementWithProps = {
       ...element,
       selectable: tool === 'select',
       evented: tool === 'select'
     };
+
+    // Add to local map
+    elementsMapRef.current.set(element.id, elementWithProps);
     
-    pendingElements.current.set(element.id, elementWithProps);
-    setElements(prev => [...prev, elementWithProps]);
+    // Update React state
+    setElements(Array.from(elementsMapRef.current.values()));
     
+    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket) {
+      console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: [elementWithProps]
+        elements: Array.from(elementsMapRef.current.values()) // Send all elements
       });
     }
   }, [socket, tool]);
 
+  // Update existing element
   const updateElement = useCallback((id, element) => {
+    if (!id || !elementsMapRef.current.has(id)) return;
+
     const elementWithProps = {
       ...element,
+      id,
       selectable: tool === 'select',
       evented: tool === 'select'
     };
 
-    setElements(prev => {
-      const index = prev.findIndex(el => el.id === id);
-      if (index === -1) return prev;
+    // Update local map
+    elementsMapRef.current.set(id, elementWithProps);
+    
+    // Update React state
+    setElements(Array.from(elementsMapRef.current.values()));
 
-      const newElements = [...prev];
-      newElements[index] = elementWithProps;
-      
-      const workspaceId = window.location.pathname.split('/')[2];
-      if (workspaceId && socket) {
-        socket.emit('whiteboard-update', {
-          workspaceId,
-          elements: [elementWithProps]
-        });
-      }
-
-      return newElements;
-    });
+    // Send to server
+    const workspaceId = window.location.pathname.split('/')[2];
+    if (workspaceId && socket) {
+      console.log('Sending updated element to server:', elementWithProps);
+      socket.emit('whiteboard-update', {
+        workspaceId,
+        elements: Array.from(elementsMapRef.current.values()) // Send all elements
+      });
+    }
   }, [socket, tool]);
 
+  // Clear canvas
   const clearCanvas = useCallback(() => {
     if (socket && isConnected) {
       const workspaceId = window.location.pathname.split('/')[2];
       socket.emit('whiteboard-clear', { workspaceId });
-      setElements([]);
-      pendingElements.current.clear();
     }
   }, [socket, isConnected]);
 
@@ -1764,13 +1765,279 @@ export function WhiteboardProvider({ children }) {
     addElement,
     updateElement,
     clearCanvas,
-    socket
+    initCanvas,
+    canvasRef
   };
 
   return (
     <WhiteboardContext.Provider value={value}>
       {children}
     </WhiteboardContext.Provider>
+  );
+}
+
+
+
+Directory: client/src/pages
+================================================================================
+
+
+File: client\src\pages\DiagramWorkspace.jsx
+--------------------------------------------------------------------------------
+
+import React from 'react';
+import DiagramPanel from '../components/DiagramPanel';
+import DiagramList from '../components/DiagramList';
+import { useDiagram } from '../context/DiagramContext';
+
+const DiagramWorkspace = () => {
+  const {
+    diagrams,
+    currentDiagram,
+    createDiagram,
+    updateDiagram,
+    deleteDiagram,
+    selectDiagram,
+  } = useDiagram();
+
+  const handleDiagramSubmit = (diagramData) => {
+    if (currentDiagram) {
+      updateDiagram(diagramData);
+    } else {
+      createDiagram(diagramData);
+    }
+  };
+
+  return (
+    <div className="flex h-screen">
+      <div className="w-1/4 border-r overflow-y-auto">
+        <DiagramList
+          diagrams={diagrams}
+          currentDiagramId={currentDiagram?.id}
+          onSelectDiagram={selectDiagram}
+          onDeleteDiagram={deleteDiagram}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <DiagramPanel
+          onDiagramSubmit={handleDiagramSubmit}
+          currentDiagram={currentDiagram}
+          diagrams={diagrams}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default DiagramWorkspace;
+
+
+
+File: client\src\pages\LandingPage.jsx
+--------------------------------------------------------------------------------
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function LandingPage() {
+  const [workspaceKey, setWorkspaceKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const createNewWorkspace = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch('/api/workspace/new');
+      if (!response.ok) {
+        throw new Error('Failed to create workspace');
+      }
+      const data = await response.json();
+      navigate(`/w/${data.key}`);
+    } catch (error) {
+      console.error('Error creating workspace:', error);
+      setError('Failed to create workspace. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const joinWorkspace = (e) => {
+    e.preventDefault();
+    if (workspaceKey.trim()) {
+      navigate(`/w/${workspaceKey.trim()}`);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            ShareBoard
+          </h1>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Real-time collaborative whiteboard and code editor
+          </p>
+        </div>
+        
+        <div className="mt-8 space-y-6">
+          <button
+            onClick={createNewWorkspace}
+            disabled={isLoading}
+            className={`w-full btn btn-primary ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoading ? 'Creating...' : 'Create New Workspace'}
+          </button>
+
+          {error && (
+            <div className="text-red-600 text-sm text-center">
+              {error}
+            </div>
+          )}
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-50 text-gray-500">
+                Or join existing
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={joinWorkspace} className="mt-8 space-y-6">
+            <input
+              type="text"
+              required
+              className="w-full input"
+              placeholder="Enter workspace key"
+              value={workspaceKey}
+              onChange={(e) => setWorkspaceKey(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="w-full btn btn-secondary"
+            >
+              Join Workspace
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+File: client\src\pages\Workspace.jsx
+--------------------------------------------------------------------------------
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
+import { WhiteboardProvider } from '../context/WhiteboardContext';
+import { CodeEditorProvider } from '../context/CodeEditorContext';
+import WorkspaceContent from '../components/WorkspaceContent';
+
+export default function Workspace() {
+  const { workspaceId } = useParams();
+  const socket = useSocket();
+  const [status, setStatus] = useState('connecting');
+  const [viewMode, setViewMode] = useState('whiteboard'); // 'whiteboard', 'code', 'split', 'diagram'
+  const [splitPosition, setSplitPosition] = useState(40);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+  const MIN_WIDTH_PERCENT = 20; // Minimum width for each panel
+  const MAX_WIDTH_PERCENT = 80;
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    socket.on('connect', () => {
+      setStatus('connected');
+      socket.emit('join-workspace', workspaceId);
+    });
+
+    socket.on('disconnect', () => setStatus('disconnected'));
+    socket.on('error', () => setStatus('error'));
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('error');
+    };
+  }, [socket, workspaceId]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging || !containerRef.current) return;
+      
+      const container = containerRef.current.getBoundingClientRect();
+      let newPosition = ((e.clientX - container.left) / container.width) * 100;
+      
+      // Limit split position between MIN_WIDTH_PERCENT and MAX_WIDTH_PERCENT
+      newPosition = Math.max(MIN_WIDTH_PERCENT, Math.min(MAX_WIDTH_PERCENT, newPosition));
+      setSplitPosition(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.body.style.cursor = 'default';
+      document.body.classList.remove('select-none');
+    };
+
+    if (isDragging) {
+      document.body.style.cursor = 'col-resize';
+      document.body.classList.add('select-none');
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.body.style.cursor = 'default';
+      document.body.classList.remove('select-none');
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const cycleViewMode = () => {
+    if (viewMode === 'whiteboard') {
+      setViewMode('split');
+      setSplitPosition(40);
+    } else if (viewMode === 'split') {
+      setViewMode('whiteboard');
+    }
+  };
+
+  return (
+    <WhiteboardProvider>
+      <CodeEditorProvider>
+        <WorkspaceContent
+          socket={socket}
+          workspaceId={workspaceId}
+          status={status}
+          setStatus={setStatus}
+          viewMode={viewMode}
+          splitPosition={splitPosition}
+          isDragging={isDragging}
+          handleMouseDown={handleMouseDown}
+          containerRef={containerRef}
+          cycleViewMode={cycleViewMode}
+        />
+      </CodeEditorProvider>
+    </WhiteboardProvider>
   );
 }
 
@@ -1986,10 +2253,27 @@ io.on('connection', (socket) => {
   let diagramHandler = null;
 
   socket.on('join-workspace', (workspaceId) => {
+    console.log(`User ${socket.id} joining workspace ${workspaceId}`);
     const workspace = workspaces.get(workspaceId);
     if (!workspace) {
       socket.emit('error', { message: 'Workspace not found' });
       return;
+    }
+
+    // Leave previous workspace if any
+    if (currentWorkspace) {
+      const prevWorkspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
+      if (prevWorkspaceId) {
+        socket.leave(prevWorkspaceId);
+        const connections = activeConnections.get(prevWorkspaceId);
+        if (connections) {
+          connections.delete(socket.id);
+          io.to(prevWorkspaceId).emit('user-left', {
+            userId: socket.id,
+            activeUsers: connections.size
+          });
+        }
+      }
     }
 
     // Track active connections
@@ -2008,53 +2292,52 @@ io.on('connection', (socket) => {
     diagramHandler.loadFromWorkspaceState(workspace);
     diagramHandler.initialize(socket, io.to(workspaceId));
 
+    console.log(`Workspace ${workspaceId} state:`, {
+      elements: workspace.whiteboardElements?.length || 0,
+      activeUsers: activeConnections.get(workspaceId).size
+    });
+
     // Send initial state to the joining user
     socket.emit('workspace-state', {
-      ...workspace,
-      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+      whiteboardElements: workspace.whiteboardElements || [],
+      codeSnippets: workspace.codeSnippets || { language: 'javascript', content: '' },
+      activeUsers: activeConnections.get(workspaceId).size
     });
     
     // Notify other users in the workspace
     socket.to(workspaceId).emit('user-joined', { 
       userId: socket.id,
-      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+      activeUsers: activeConnections.get(workspaceId).size
     });
   });
 
-  // Handle real-time drawing
-  socket.on('drawing', (data) => {
-    if (currentWorkspace) {
-      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
-      if (workspaceId) {
-        socket.to(workspaceId).emit('drawing', {
-          ...data,
-          userId: socket.id
-        });
-      }
-    }
-  });
-
-  socket.on('drawing-end', () => {
-    if (currentWorkspace) {
-      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
-      if (workspaceId) {
-        socket.to(workspaceId).emit('drawing-end', {
-          userId: socket.id
-        });
-      }
-    }
-  });
-
+  // Handle whiteboard updates
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
+    console.log(`Received whiteboard update for workspace ${workspaceId} from ${socket.id}`);
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.lastActivity = Date.now();
       
-      // Полностью заменяем массив элементов новым состоянием
-      workspace.whiteboardElements = elements;
+      // Update the workspace state with new elements
+      if (Array.isArray(elements)) {
+        // If receiving an array of elements, merge them with existing elements
+        const currentElements = workspace.whiteboardElements || [];
+        const elementsMap = new Map(currentElements.map(el => [el.id, el]));
+        
+        elements.forEach(element => {
+          if (element.id) {
+            elementsMap.set(element.id, element);
+          }
+        });
+        
+        workspace.whiteboardElements = Array.from(elementsMap.values());
+      }
 
-      // Отправляем обновление всем клиентам в этом workspace
+      // Broadcast the update to all clients in the workspace, including sender
       io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
+      
+      console.log(`Broadcasted whiteboard update to workspace ${workspaceId}, elements:`, 
+        workspace.whiteboardElements.length);
     }
   });
 
@@ -2071,11 +2354,12 @@ io.on('connection', (socket) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.codeSnippets = { language, content };
-      socket.to(workspaceId).emit('code-update', { language, content });
+      io.to(workspaceId).emit('code-update', { language, content });
     }
   });
 
   socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
     if (currentWorkspace) {
       const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
       if (workspaceId) {

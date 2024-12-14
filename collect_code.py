@@ -6,6 +6,7 @@ def collect_code():
     directories_to_scan = [
         'client/src/components',
         'client/src/context',
+        'client/src/pages',
         'server/src/handlers',
         'server'
     ]

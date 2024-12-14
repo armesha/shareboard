@@ -121,7 +121,12 @@ const Whiteboard = React.memo(() => {
         case 'arrow':
           shapeObj = new fabric.Path('M 0 0', {
             ...commonProps,
-            fill: undefined
+            fill: null,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+            originX: 'left',
+            originY: 'top',
+            objectCaching: false
           });
           break;
       }
@@ -173,23 +178,33 @@ const Whiteboard = React.memo(() => {
           break;
         case 'arrow':
           const angle = Math.atan2(height, width);
-          const headX = pointer.x - ARROW_HEAD_SIZE * Math.cos(angle);
-          const headY = pointer.y - ARROW_HEAD_SIZE * Math.sin(angle);
           
+          // Calculate coordinates relative to the start point
+          const dx = pointer.x - startX;
+          const dy = pointer.y - startY;
+          
+          // Calculate arrowhead points
+          const headSize = ARROW_HEAD_SIZE;
+          const leftHeadX = dx - headSize * Math.cos(angle - ARROW_HEAD_ANGLE);
+          const leftHeadY = dy - headSize * Math.sin(angle - ARROW_HEAD_ANGLE);
+          const rightHeadX = dx - headSize * Math.cos(angle + ARROW_HEAD_ANGLE);
+          const rightHeadY = dy - headSize * Math.sin(angle + ARROW_HEAD_ANGLE);
+          
+          // Create path using natural coordinates
           const path = [
-            'M', startX, startY,
-            'L', pointer.x, pointer.y,
-            'M', headX, headY,
-            'L', 
-            headX - ARROW_HEAD_SIZE * Math.cos(angle - ARROW_HEAD_ANGLE),
-            headY - ARROW_HEAD_SIZE * Math.sin(angle - ARROW_HEAD_ANGLE),
-            'M', headX, headY,
-            'L',
-            headX - ARROW_HEAD_SIZE * Math.cos(angle + ARROW_HEAD_ANGLE),
-            headY - ARROW_HEAD_SIZE * Math.sin(angle + ARROW_HEAD_ANGLE)
+            ['M', 0, 0],
+            ['L', dx, dy],
+            ['L', leftHeadX, leftHeadY],
+            ['M', dx, dy],
+            ['L', rightHeadX, rightHeadY]
           ];
           
-          shape.set({ path: path });
+          shape.set({
+            path: path,
+            left: startX,
+            top: startY
+          });
+          shape.setCoords();
           break;
       }
 
