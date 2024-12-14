@@ -12,7 +12,7 @@ Thumbs.db
 *.bak
 *.tmp
 
-# Python files
+# Python files (own script for collect all code)
 *.py
 *.pyc
 __pycache__/

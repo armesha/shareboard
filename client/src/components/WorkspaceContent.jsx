@@ -256,7 +256,7 @@ export default function WorkspaceContent({
 
   const renderContent = () => {
     const whiteboardContent = (
-      <div className={`h-full ${viewMode === 'split' ? `w-[${100 - splitPosition}%]` : 'w-full'}`}>
+      <div className="h-full w-full">
         <Whiteboard 
           ref={whiteboardRef} 
           socket={socket} 
@@ -264,54 +264,54 @@ export default function WorkspaceContent({
       </div>
     );
 
-    if (viewMode === 'whiteboard') {
-      return (
-        <div className="flex-1 relative">
-          {whiteboardContent}
+    const codeEditorOverlay = viewMode === 'split' && (
+      <div 
+        className="absolute top-0 right-0 h-full bg-white shadow-lg z-10 flex"
+        style={{ 
+          width: `${splitPosition}%`,
+          transition: isDragging ? 'none' : 'width 0.1s ease-out'
+        }}
+      >
+        {/* Left resize handle */}
+        <div 
+          className="absolute top-0 left-0 h-full cursor-col-resize z-20 hover:bg-blue-100"
+          style={{ width: '12px', transform: 'translateX(-50%)' }}
+          onMouseDown={(e) => handleMouseDown(e, 'left')}
+        >
+          <div className={`absolute left-1/2 h-full w-1 ${isDragging ? 'bg-blue-500' : 'bg-gray-300'}`} />
         </div>
-      );
-    }
 
-    if (viewMode === 'split') {
-      return (
-        <div className="flex-1 flex relative h-full" ref={containerRef}>
-          <div 
-            className="h-full flex flex-col bg-white relative"
-            style={{ width: `${splitPosition}%` }}
-          >
-            {diagramMode ? (
-              <DiagramRenderer 
-                splitPosition={diagramSplitPosition}
-                onSplitChange={setDiagramSplitPosition}
-              />
-            ) : (
-              <div className="absolute inset-0">
-                <CodeEditor socket={socket} workspaceId={workspaceId} />
-              </div>
-            )}
-          </div>
-          {/* Увеличиваем область захвата */}
-          <div className="relative" style={{ width: '12px', margin: '0 -6px' }}>
-            <div
-              className={`absolute inset-0 w-1 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 ${isDragging ? 'bg-blue-500' : ''}`}
-              style={{ left: '50%', transform: 'translateX(-50%)' }}
+        {/* Content */}
+        <div className="flex-1 h-full overflow-hidden">
+          {diagramMode ? (
+            <DiagramRenderer 
+              splitPosition={diagramSplitPosition}
+              onSplitChange={setDiagramSplitPosition}
             />
-            <div
-              className="absolute inset-0 cursor-col-resize"
-              onMouseDown={handleMouseDown}
-            />
-          </div>
-          <div 
-            className="h-full"
-            style={{ width: `${100 - splitPosition}%` }}
-          >
-            {whiteboardContent}
-          </div>
+          ) : (
+            <div className="h-full">
+              <CodeEditor socket={socket} workspaceId={workspaceId} />
+            </div>
+          )}
         </div>
-      );
-    }
 
-    return null;
+        {/* Right resize handle */}
+        <div 
+          className="absolute top-0 right-0 h-full cursor-col-resize z-20 hover:bg-blue-100"
+          style={{ width: '12px', transform: 'translateX(50%)' }}
+          onMouseDown={(e) => handleMouseDown(e, 'right')}
+        >
+          <div className={`absolute left-1/2 h-full w-1 ${isDragging ? 'bg-blue-500' : 'bg-gray-300'}`} />
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="flex-1 relative" ref={containerRef}>
+        {whiteboardContent}
+        {codeEditorOverlay}
+      </div>
+    );
   };
 
   return (

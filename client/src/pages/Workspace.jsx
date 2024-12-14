@@ -12,6 +12,9 @@ export default function Workspace() {
   const [viewMode, setViewMode] = useState('whiteboard'); // 'whiteboard', 'code', 'split', 'diagram'
   const [splitPosition, setSplitPosition] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState(null);
+  const [initialMouseX, setInitialMouseX] = useState(null);
+  const [initialWidth, setInitialWidth] = useState(null);
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20; // Minimum width for each panel
   const MAX_WIDTH_PERCENT = 80;
@@ -36,18 +39,31 @@ export default function Workspace() {
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!isDragging || !containerRef.current) return;
+      if (!isDragging || !containerRef.current || initialMouseX === null) return;
       
       const container = containerRef.current.getBoundingClientRect();
-      let newPosition = ((e.clientX - container.left) / container.width) * 100;
+      const deltaX = e.clientX - initialMouseX;
+      const deltaPercent = (deltaX / container.width) * 100;
+      let newPosition;
+
+      if (resizeDirection === 'left') {
+        // Тянем за левую ручку
+        newPosition = initialWidth - deltaPercent;
+      } else {
+        // Тянем за правую ручку
+        newPosition = initialWidth + deltaPercent;
+      }
       
-      // Limit split position between MIN_WIDTH_PERCENT and MAX_WIDTH_PERCENT
-      newPosition = Math.max(MIN_WIDTH_PERCENT, Math.min(MAX_WIDTH_PERCENT, newPosition));
+      // Жестко ограничиваем пределы
+      newPosition = Math.min(Math.max(newPosition, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT);
       setSplitPosition(newPosition);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setResizeDirection(null);
+      setInitialMouseX(null);
+      setInitialWidth(null);
       document.body.style.cursor = 'default';
       document.body.classList.remove('select-none');
     };
@@ -65,18 +81,21 @@ export default function Workspace() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, resizeDirection, initialMouseX, initialWidth]);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e, direction) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
+    setResizeDirection(direction);
+    setInitialMouseX(e.clientX);
+    setInitialWidth(splitPosition);
   };
 
   const cycleViewMode = () => {
     if (viewMode === 'whiteboard') {
       setViewMode('split');
-      setSplitPosition(40);
+      setSplitPosition(40); // Начальная ширина при открытии
     } else if (viewMode === 'split') {
       setViewMode('whiteboard');
     }
