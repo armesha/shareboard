@@ -114,10 +114,27 @@ io.on('connection', (socket) => {
   let diagramHandler = null;
 
   socket.on('join-workspace', (workspaceId) => {
+    console.log(`User ${socket.id} joining workspace ${workspaceId}`);
     const workspace = workspaces.get(workspaceId);
     if (!workspace) {
       socket.emit('error', { message: 'Workspace not found' });
       return;
+    }
+
+    // Leave previous workspace if any
+    if (currentWorkspace) {
+      const prevWorkspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
+      if (prevWorkspaceId) {
+        socket.leave(prevWorkspaceId);
+        const connections = activeConnections.get(prevWorkspaceId);
+        if (connections) {
+          connections.delete(socket.id);
+          io.to(prevWorkspaceId).emit('user-left', {
+            userId: socket.id,
+            activeUsers: connections.size
+          });
+        }
+      }
     }
 
     // Track active connections
@@ -136,53 +153,52 @@ io.on('connection', (socket) => {
     diagramHandler.loadFromWorkspaceState(workspace);
     diagramHandler.initialize(socket, io.to(workspaceId));
 
+    console.log(`Workspace ${workspaceId} state:`, {
+      elements: workspace.whiteboardElements?.length || 0,
+      activeUsers: activeConnections.get(workspaceId).size
+    });
+
     // Send initial state to the joining user
     socket.emit('workspace-state', {
-      ...workspace,
-      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+      whiteboardElements: workspace.whiteboardElements || [],
+      codeSnippets: workspace.codeSnippets || { language: 'javascript', content: '' },
+      activeUsers: activeConnections.get(workspaceId).size
     });
     
     // Notify other users in the workspace
     socket.to(workspaceId).emit('user-joined', { 
       userId: socket.id,
-      activeUsers: Array.from(activeConnections.get(workspaceId)).length
+      activeUsers: activeConnections.get(workspaceId).size
     });
   });
 
-  // Handle real-time drawing
-  socket.on('drawing', (data) => {
-    if (currentWorkspace) {
-      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
-      if (workspaceId) {
-        socket.to(workspaceId).emit('drawing', {
-          ...data,
-          userId: socket.id
-        });
-      }
-    }
-  });
-
-  socket.on('drawing-end', () => {
-    if (currentWorkspace) {
-      const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
-      if (workspaceId) {
-        socket.to(workspaceId).emit('drawing-end', {
-          userId: socket.id
-        });
-      }
-    }
-  });
-
+  // Handle whiteboard updates
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
+    console.log(`Received whiteboard update for workspace ${workspaceId} from ${socket.id}`);
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.lastActivity = Date.now();
       
-      // Полностью заменяем массив элементов новым состоянием
-      workspace.whiteboardElements = elements;
+      // Update the workspace state with new elements
+      if (Array.isArray(elements)) {
+        // If receiving an array of elements, merge them with existing elements
+        const currentElements = workspace.whiteboardElements || [];
+        const elementsMap = new Map(currentElements.map(el => [el.id, el]));
+        
+        elements.forEach(element => {
+          if (element.id) {
+            elementsMap.set(element.id, element);
+          }
+        });
+        
+        workspace.whiteboardElements = Array.from(elementsMap.values());
+      }
 
-      // Отправляем обновление всем клиентам в этом workspace
+      // Broadcast the update to all clients in the workspace, including sender
       io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
+      
+      console.log(`Broadcasted whiteboard update to workspace ${workspaceId}, elements:`, 
+        workspace.whiteboardElements.length);
     }
   });
 
@@ -199,11 +215,12 @@ io.on('connection', (socket) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.codeSnippets = { language, content };
-      socket.to(workspaceId).emit('code-update', { language, content });
+      io.to(workspaceId).emit('code-update', { language, content });
     }
   });
 
   socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
     if (currentWorkspace) {
       const workspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
       if (workspaceId) {

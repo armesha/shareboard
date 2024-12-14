@@ -19,7 +19,7 @@ export function WhiteboardProvider({ children }) {
   const [width, setWidth] = useState(2);
   const [isConnected, setIsConnected] = useState(false);
   const canvasRef = useRef(null);
-  const pendingElements = useRef(new Map());
+  const elementsMapRef = useRef(new Map());
 
   // Initialize canvas
   const initCanvas = useCallback((canvasElement) => {
@@ -76,46 +76,74 @@ export function WhiteboardProvider({ children }) {
     };
   }, [socket]);
 
+  // Create Fabric object from element data
+  const createFabricObject = useCallback((element, isSelectable = false) => {
+    if (!element || !element.type || !element.data) return null;
+
+    let obj;
+    const commonProps = {
+      ...element.data,
+      id: element.id,
+      selectable: isSelectable,
+      hasControls: isSelectable,
+      hasBorders: isSelectable
+    };
+
+    switch (element.type) {
+      case 'rect':
+        obj = new fabric.Rect(commonProps);
+        break;
+      case 'circle':
+        obj = new fabric.Circle(commonProps);
+        break;
+      case 'triangle':
+        obj = new fabric.Triangle(commonProps);
+        break;
+      case 'path':
+        obj = new fabric.Path(element.data.path || '', commonProps);
+        break;
+      case 'i-text':
+        obj = new fabric.IText(element.data.text || '', commonProps);
+        break;
+      default:
+        console.warn('Unknown shape type:', element.type);
+        return null;
+    }
+
+    return obj;
+  }, []);
+
   // Handle whiteboard updates
   useEffect(() => {
     if (!socket || !canvasRef.current) return;
 
     const handleWhiteboardUpdate = (updatedElements) => {
+      console.log('Received whiteboard update, elements:', updatedElements?.length);
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Update React state
-      setElements(prev => {
-        const currentElementsMap = new Map(prev.map(el => [el.id, el]));
-        
-        updatedElements.forEach(element => {
-          if (!element.id) return;
-          currentElementsMap.set(element.id, {
-            ...element,
-            selectable: tool === 'select',
-            evented: tool === 'select'
-          });
-        });
-
-        pendingElements.current.forEach((element, id) => {
-          if (!currentElementsMap.has(id)) {
-            currentElementsMap.set(id, element);
-          }
-        });
-
-        return Array.from(currentElementsMap.values());
+      // Update elements map
+      updatedElements.forEach(element => {
+        if (element.id) {
+          elementsMapRef.current.set(element.id, element);
+        }
       });
 
-      // Update Fabric.js canvas
+      // Update React state with all current elements
+      setElements(Array.from(elementsMapRef.current.values()));
+
+      // Update canvas objects
       updatedElements.forEach(element => {
         let obj = canvas.getObjects().find(o => o.id === element.id);
-
+        
         if (!obj) {
+          // Create new object
           obj = createFabricObject(element, tool === 'select');
           if (obj) {
             canvas.add(obj);
           }
         } else {
+          // Update existing object
           obj.set({
             ...element.data,
             selectable: tool === 'select',
@@ -130,9 +158,22 @@ export function WhiteboardProvider({ children }) {
     };
 
     const handleWorkspaceState = (state) => {
+      console.log('Received workspace state:', state);
+      
+      // Reset elements map
+      elementsMapRef.current.clear();
+      
       if (state.whiteboardElements) {
+        // Initialize elements map with workspace state
+        state.whiteboardElements.forEach(element => {
+          if (element.id) {
+            elementsMapRef.current.set(element.id, element);
+          }
+        });
+        
         handleWhiteboardUpdate(state.whiteboardElements);
       }
+      
       if (state.activeUsers !== undefined) {
         setActiveUsers(state.activeUsers);
       }
@@ -146,7 +187,7 @@ export function WhiteboardProvider({ children }) {
         canvas.renderAll();
       }
       setElements([]);
-      pendingElements.current.clear();
+      elementsMapRef.current.clear();
     };
 
     socket.on('whiteboard-update', handleWhiteboardUpdate);
@@ -158,89 +199,30 @@ export function WhiteboardProvider({ children }) {
       socket.off('workspace-state', handleWorkspaceState);
       socket.off('whiteboard-clear', handleWhiteboardClear);
     };
-  }, [socket, tool]);
-
-  // Helper function to create Fabric.js objects
-  const createFabricObject = (element, isSelectable) => {
-    let obj;
-    switch (element.type) {
-      case 'i-text':
-        obj = new fabric.IText(element.data.text || '', {
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'rect':
-        obj = new fabric.Rect({
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'circle':
-        obj = new fabric.Circle({
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'triangle':
-        obj = new fabric.Triangle({
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'path':
-        obj = new fabric.Path(element.data.path, {
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'group':
-        obj = new fabric.Group(element.data.objects, {
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      case 'polyline':
-        obj = new fabric.Polyline(element.data.points, {
-          ...element.data,
-          selectable: isSelectable,
-          hasControls: isSelectable,
-          hasBorders: isSelectable
-        });
-        break;
-      default:
-        console.warn('Unknown shape type:', element.type);
-        return null;
-    }
-    obj.id = element.id;
-    return obj;
-  };
+  }, [socket, tool, createFabricObject]);
 
   // Add new element
   const addElement = useCallback((element) => {
+    if (!element.id) {
+      element.id = uuidv4();
+    }
+
     const elementWithProps = {
       ...element,
-      id: element.id || uuidv4(),
       selectable: tool === 'select',
       evented: tool === 'select'
     };
+
+    // Add to local map
+    elementsMapRef.current.set(element.id, elementWithProps);
     
-    pendingElements.current.set(elementWithProps.id, elementWithProps);
+    // Update React state
+    setElements(Array.from(elementsMapRef.current.values()));
     
+    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket) {
+      console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
         elements: [elementWithProps]
@@ -250,14 +232,25 @@ export function WhiteboardProvider({ children }) {
 
   // Update existing element
   const updateElement = useCallback((id, element) => {
+    if (!id || !elementsMapRef.current.has(id)) return;
+
     const elementWithProps = {
       ...element,
+      id,
       selectable: tool === 'select',
       evented: tool === 'select'
     };
 
+    // Update local map
+    elementsMapRef.current.set(id, elementWithProps);
+    
+    // Update React state
+    setElements(Array.from(elementsMapRef.current.values()));
+
+    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket) {
+      console.log('Sending updated element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
         elements: [elementWithProps]

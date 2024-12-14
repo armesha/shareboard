@@ -16,7 +16,8 @@ const Whiteboard = React.memo(() => {
     selectedShape,
     initCanvas,
     canvasRef: fabricCanvasRef,
-    addElement
+    addElement,
+    updateElement
   } = useWhiteboard();
 
   const ARROW_HEAD_SIZE = 10;
@@ -39,7 +40,6 @@ const Whiteboard = React.memo(() => {
     canvas.freeDrawingBrush.color = color;
     canvas.freeDrawingBrush.width = width;
 
-    // Update selectability of all objects
     canvas.getObjects().forEach(obj => {
       obj.set({
         selectable: tool === 'select',
@@ -51,9 +51,34 @@ const Whiteboard = React.memo(() => {
     canvas.renderAll();
   }, [tool, color, width, fabricCanvasRef]);
 
+  // Handle object modifications
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj) return;
+
+      updateElement(obj.id, {
+        type: obj.type,
+        data: obj.toObject(['id'])
+      });
+    };
+
+    canvas.on('object:modified', handleObjectModified);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+    };
+  }, [fabricCanvasRef, updateElement]);
+
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || tool === 'select' || e.button !== 1) return;
+    if (!canvas || tool === 'select') return;
+
+    // Only handle left mouse button
+    if (e.e.button !== 0) return;
 
     isDrawing.current = true;
     const pointer = canvas.getPointer(e.e);
@@ -68,7 +93,8 @@ const Whiteboard = React.memo(() => {
         stroke: color,
         strokeWidth: width,
         selectable: false,
-        evented: false
+        evented: false,
+        id: uuidv4()
       };
 
       switch (selectedShape) {
@@ -101,7 +127,6 @@ const Whiteboard = React.memo(() => {
       }
 
       if (shapeObj) {
-        shapeObj.id = uuidv4();
         canvas.add(shapeObj);
         currentShape.current = shapeObj;
       }
@@ -177,17 +202,54 @@ const Whiteboard = React.memo(() => {
     if (!canvas || !isDrawing.current) return;
 
     isDrawing.current = false;
+    
     if (currentShape.current) {
       const shape = currentShape.current;
+      
+      // Set final properties
+      shape.set({
+        selectable: tool === 'select',
+        hasControls: tool === 'select',
+        hasBorders: tool === 'select'
+      });
+
+      // Add to shared state
       addElement({
         id: shape.id,
         type: shape.type,
         data: shape.toObject(['id'])
       });
+
       currentShape.current = null;
     }
+
     startPoint.current = null;
-  }, [addElement, fabricCanvasRef]);
+    canvas.renderAll();
+  }, [addElement, tool, fabricCanvasRef]);
+
+  // Handle path creation when using pen tool
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handlePathCreated = (e) => {
+      const path = e.path;
+      if (!path) return;
+
+      path.id = uuidv4();
+      addElement({
+        id: path.id,
+        type: 'path',
+        data: path.toObject(['id'])
+      });
+    };
+
+    canvas.on('path:created', handlePathCreated);
+
+    return () => {
+      canvas.off('path:created', handlePathCreated);
+    };
+  }, [fabricCanvasRef, addElement]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
