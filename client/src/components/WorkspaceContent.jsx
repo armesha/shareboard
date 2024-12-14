@@ -6,7 +6,6 @@ import DiagramRenderer from './DiagramRenderer';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
-import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import MouseIcon from '@mui/icons-material/Mouse';
 import CreateIcon from '@mui/icons-material/Create';
@@ -138,9 +137,7 @@ export default function WorkspaceContent({
                 title="Shapes"
               >
                 {selectedShape === 'rectangle' ? <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
-                 selectedShape === 'square' ? <CheckBoxOutlineBlankIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
                  selectedShape === 'triangle' ? <ChangeHistoryIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
-                 selectedShape === 'arrow' ? <ArrowRightAltIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
                  selectedShape === 'circle' ? <CircleOutlinedIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
                  <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />}
               </button>
@@ -160,32 +157,12 @@ export default function WorkspaceContent({
                   <button
                     className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => {
-                      setSelectedShape('square');
-                      setTool('shapes');
-                      setShowShapesMenu(false);
-                    }}
-                  >
-                    <CheckBoxOutlineBlankIcon className="text-gray-700" />
-                  </button>
-                  <button
-                    className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => {
                       setSelectedShape('triangle');
                       setTool('shapes');
                       setShowShapesMenu(false);
                     }}
                   >
                     <ChangeHistoryIcon className="text-gray-700" />
-                  </button>
-                  <button
-                    className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => {
-                      setSelectedShape('arrow');
-                      setTool('shapes');
-                      setShowShapesMenu(false);
-                    }}
-                  >
-                    <ArrowRightAltIcon className="text-gray-700" />
                   </button>
                   <button
                     className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"

@@ -20,9 +20,6 @@ const Whiteboard = React.memo(() => {
     updateElement
   } = useWhiteboard();
 
-  const ARROW_HEAD_SIZE = 10;
-  const ARROW_HEAD_ANGLE = Math.PI / 7;
-
   // Initialize canvas
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -118,17 +115,6 @@ const Whiteboard = React.memo(() => {
             height: 0
           });
           break;
-        case 'arrow':
-          shapeObj = new fabric.Path('M 0 0', {
-            ...commonProps,
-            fill: null,
-            strokeLineCap: 'round',
-            strokeLineJoin: 'round',
-            originX: 'left',
-            originY: 'top',
-            objectCaching: false
-          });
-          break;
       }
 
       if (shapeObj) {
@@ -143,6 +129,7 @@ const Whiteboard = React.memo(() => {
     if (!canvas || !isDrawing.current || !startPoint.current) return;
 
     const pointer = canvas.getPointer(e.e);
+    const isCtrlPressed = e.e.ctrlKey;
 
     if (selectedShape && currentShape.current) {
       const shape = currentShape.current;
@@ -153,12 +140,24 @@ const Whiteboard = React.memo(() => {
 
       switch (selectedShape) {
         case 'rectangle':
-          shape.set({
-            width: Math.abs(width),
-            height: Math.abs(height),
-            left: width > 0 ? startX : pointer.x,
-            top: height > 0 ? startY : pointer.y
-          });
+          if (isCtrlPressed) {
+            // Draw square when Ctrl is pressed
+            const size = Math.abs(width) > Math.abs(height) ? Math.abs(width) : Math.abs(height);
+            shape.set({
+              width: size,
+              height: size,
+              left: width > 0 ? startX : startX - size,
+              top: height > 0 ? startY : startY - size
+            });
+          } else {
+            // Draw regular rectangle
+            shape.set({
+              width: Math.abs(width),
+              height: Math.abs(height),
+              left: width > 0 ? startX : pointer.x,
+              top: height > 0 ? startY : pointer.y
+            });
+          }
           break;
         case 'circle':
           const radius = Math.sqrt(width * width + height * height) / 2;
@@ -175,36 +174,6 @@ const Whiteboard = React.memo(() => {
             left: width > 0 ? startX : pointer.x,
             top: height > 0 ? startY : pointer.y
           });
-          break;
-        case 'arrow':
-          const angle = Math.atan2(height, width);
-          
-          // Calculate coordinates relative to the start point
-          const dx = pointer.x - startX;
-          const dy = pointer.y - startY;
-          
-          // Calculate arrowhead points
-          const headSize = ARROW_HEAD_SIZE;
-          const leftHeadX = dx - headSize * Math.cos(angle - ARROW_HEAD_ANGLE);
-          const leftHeadY = dy - headSize * Math.sin(angle - ARROW_HEAD_ANGLE);
-          const rightHeadX = dx - headSize * Math.cos(angle + ARROW_HEAD_ANGLE);
-          const rightHeadY = dy - headSize * Math.sin(angle + ARROW_HEAD_ANGLE);
-          
-          // Create path using natural coordinates
-          const path = [
-            ['M', 0, 0],
-            ['L', dx, dy],
-            ['L', leftHeadX, leftHeadY],
-            ['M', dx, dy],
-            ['L', rightHeadX, rightHeadY]
-          ];
-          
-          shape.set({
-            path: path,
-            left: startX,
-            top: startY
-          });
-          shape.setCoords();
           break;
       }
 
