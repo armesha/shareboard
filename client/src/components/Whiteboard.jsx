@@ -117,11 +117,11 @@ const Whiteboard = forwardRef(({ color, width, tool, selectedShape, setTool, set
             });
             break;
           case 'arrow':
-            const arrowPath = `M ${pointer.x} ${pointer.y} L ${pointer.x} ${pointer.y}`;
-            shape = new fabric.Path(arrowPath, {
+            shape = new fabric.Path(`M ${pointer.x} ${pointer.y} L ${pointer.x} ${pointer.y}`, {
               ...shapeProps,
               strokeLineCap: 'round',
-              strokeLineJoin: 'round'
+              strokeLineJoin: 'round',
+              objectCaching: false
             });
             break;
         }
@@ -180,23 +180,43 @@ const Whiteboard = forwardRef(({ color, width, tool, selectedShape, setTool, set
             top: centerY - radius
           });
         } else if (selectedShape === 'arrow') {
-          const arrowPath = `M ${startPoint.current.x} ${startPoint.current.y} L ${pointer.x} ${pointer.y}`;
+          // Основная линия стрелки
+          let path = `M ${startPoint.current.x} ${startPoint.current.y} L ${pointer.x} ${pointer.y}`;
           
-          // Вычисляем угол для наконечника стрелки
-          const angle = Math.atan2(pointer.y - startPoint.current.y, pointer.x - startPoint.current.x);
-          const arrowLength = 15;
+          // Вычисляем длину стрелки
+          const dx = pointer.x - startPoint.current.x;
+          const dy = pointer.y - startPoint.current.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
           
-          // Добавляем наконечник стрелки
-          const x2 = pointer.x - arrowLength * Math.cos(angle - Math.PI / 6);
-          const y2 = pointer.y - arrowLength * Math.sin(angle - Math.PI / 6);
-          const x3 = pointer.x - arrowLength * Math.cos(angle + Math.PI / 6);
-          const y3 = pointer.y - arrowLength * Math.sin(angle + Math.PI / 6);
+          if (length > 0) {  // Проверяем, что длина больше 0
+            // Нормализованные векторы направления
+            const unitX = dx / length;
+            const unitY = dy / length;
+            
+            // Длина наконечника стрелки
+            const arrowLength = Math.min(15, length / 3);
+            
+            // Вычисляем точки наконечника стрелки
+            const arrowAngle = Math.PI / 6; // 30 градусов
+            
+            // Левая часть наконечника
+            const leftX = pointer.x - arrowLength * (unitX * Math.cos(arrowAngle) + unitY * Math.sin(arrowAngle));
+            const leftY = pointer.y - arrowLength * (unitY * Math.cos(arrowAngle) - unitX * Math.sin(arrowAngle));
+            
+            // Правая часть наконечника
+            const rightX = pointer.x - arrowLength * (unitX * Math.cos(arrowAngle) - unitY * Math.sin(arrowAngle));
+            const rightY = pointer.y - arrowLength * (unitY * Math.cos(arrowAngle) + unitX * Math.sin(arrowAngle));
+            
+            // Добавляем наконечник к пути
+            path += ` M ${leftX} ${leftY} L ${pointer.x} ${pointer.y} L ${rightX} ${rightY}`;
+          }
           
-          const finalPath = `${arrowPath} M ${x2} ${y2} L ${pointer.x} ${pointer.y} L ${x3} ${y3}`;
-          
-          currentShape.current.set({
-            path: finalPath
-          });
+          try {
+            currentShape.current.set({ path: path });
+            canvas.requestRenderAll();
+          } catch (error) {
+            console.error('Error updating arrow:', error);
+          }
         }
         
         canvas.renderAll();
