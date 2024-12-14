@@ -1,23 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
 
-// Initialize mermaid
-mermaid.initialize({
-  startOnLoad: true,
-  theme: 'default',
-  securityLevel: 'loose',
-});
-
 const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams }) => {
   const [diagramDefinition, setDiagramDefinition] = useState(currentDiagram?.definition || '');
   const [diagramTitle, setDiagramTitle] = useState(currentDiagram?.title || '');
+  const [lineWidth, setLineWidth] = useState(2);
+  const [lineColor, setLineColor] = useState('#000000');
   const diagramRef = useRef(null);
 
   useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      themeVariables: {
+        lineWidth: `${lineWidth}px`,
+        lineColor: lineColor,
+      }
+    });
     if (diagramDefinition) {
       renderDiagram();
     }
-  }, [diagramDefinition]);
+  }, [diagramDefinition, lineWidth, lineColor]);
 
   useEffect(() => {
     if (currentDiagram) {
@@ -64,7 +68,37 @@ const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams }) => {
             required
           />
         </div>
-        
+
+        <div className="flex gap-4">
+          <div>
+            <label htmlFor="lineWidth" className="block text-sm font-medium text-gray-700">
+              Line Width
+            </label>
+            <input
+              type="number"
+              id="lineWidth"
+              value={lineWidth}
+              onChange={(e) => setLineWidth(Number(e.target.value))}
+              min="1"
+              max="10"
+              className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="lineColor" className="block text-sm font-medium text-gray-700">
+              Line Color
+            </label>
+            <input
+              type="color"
+              id="lineColor"
+              value={lineColor}
+              onChange={(e) => setLineColor(e.target.value)}
+              className="mt-1 block w-24 h-9 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
         <div>
           <label htmlFor="diagramDefinition" className="block text-sm font-medium text-gray-700">
             Diagram Definition (Mermaid Syntax)

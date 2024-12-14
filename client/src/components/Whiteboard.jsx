@@ -17,7 +17,10 @@ const Whiteboard = React.memo(() => {
     initCanvas,
     canvasRef: fabricCanvasRef,
     addElement,
-    updateElement
+    updateElement,
+    setTool, 
+    setColor, 
+    setWidth // Add setColor and setWidth to the destructured props
   } = useWhiteboard();
 
   // Initialize canvas
@@ -27,17 +30,19 @@ const Whiteboard = React.memo(() => {
     return cleanup;
   }, [initCanvas]);
 
-  // Update canvas properties when tool/color/width changes
+  // Update canvas properties when tool changes
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-
+    
     canvas.isDrawingMode = tool === 'pen';
     canvas.selection = tool === 'select';
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
 
-    canvas.getObjects().forEach(obj => {
+    // Сохраняем текущие объекты
+    const currentObjects = canvas.getObjects();
+    
+    // Обновляем свойства объектов
+    currentObjects.forEach(obj => {
       obj.set({
         selectable: tool === 'select',
         hasControls: tool === 'select',
@@ -46,7 +51,16 @@ const Whiteboard = React.memo(() => {
     });
 
     canvas.renderAll();
-  }, [tool, color, width, fabricCanvasRef]);
+  }, [tool]);
+
+  // Update brush properties when color or width changes
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas?.freeDrawingBrush) return;
+
+    canvas.freeDrawingBrush.color = color;
+    canvas.freeDrawingBrush.width = width;
+  }, [color, width]);
 
   // Handle object modifications
   useEffect(() => {
@@ -57,10 +71,14 @@ const Whiteboard = React.memo(() => {
       const obj = e.target;
       if (!obj) return;
 
-      updateElement(obj.id, {
-        type: obj.type,
-        data: obj.toObject(['id'])
-      });
+      // Only update if the object has actually changed
+      if (obj.modified) {
+        updateElement(obj.id, {
+          type: obj.type,
+          data: obj.toObject(['id'])
+        });
+        obj.modified = false;
+      }
     };
 
     canvas.on('object:modified', handleObjectModified);
@@ -68,7 +86,71 @@ const Whiteboard = React.memo(() => {
     return () => {
       canvas.off('object:modified', handleObjectModified);
     };
-  }, [fabricCanvasRef, updateElement]);
+  }, [updateElement]);
+
+  // Handle keyboard events for delete
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Delete' && tool === 'select') {
+        const activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+          const workspaceId = window.location.pathname.split('/')[2];
+          
+          activeObjects.forEach(obj => {
+            if (obj.id) {
+              // Отправляем событие удаления на сервер
+              socket.emit('delete-element', { 
+                workspaceId,
+                elementId: obj.id 
+              });
+            }
+          });
+
+          // Очищаем выделение
+          canvas.discardActiveObject();
+          canvas.renderAll();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [fabricCanvasRef, tool, socket]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleScaling = (e) => {
+      const object = e.target;
+      if (object.strokeWidth) {
+        const newStrokeWidth = object.strokeWidth / ((object.scaleX + object.scaleY) / 2);
+        object.set('strokeWidth', newStrokeWidth);
+        object.setCoords();
+      }
+    };
+
+    canvas.on('object:scaling', handleScaling);
+    canvas.on('object:modified', (e) => {
+      const object = e.target;
+      if (object.strokeWidth) {
+        object.set({
+          strokeWidth: object.strokeWidth * ((object.scaleX + object.scaleY) / 2),
+          scaleX: 1,
+          scaleY: 1
+        });
+      }
+    });
+
+    return () => {
+      canvas.off('object:scaling', handleScaling);
+    };
+  }, [fabricCanvasRef]);
 
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
@@ -80,6 +162,32 @@ const Whiteboard = React.memo(() => {
     isDrawing.current = true;
     const pointer = canvas.getPointer(e.e);
     startPoint.current = pointer;
+
+    if (tool === 'text') {
+      const text = new fabric.IText('Text', {
+        left: pointer.x,
+        top: pointer.y,
+        fontSize: 20,
+        fill: color,
+        id: uuidv4()
+      });
+      
+      canvas.add(text);
+      text.enterEditing();
+      text.selectAll();
+      canvas.setActiveObject(text);
+      
+      addElement({
+        id: text.id,
+        type: 'text',
+        data: text.toObject(['id'])
+      });
+
+      // Автоматически переключаемся на инструмент select после создания текста
+      setTool('select');
+      
+      return;
+    }
 
     if (selectedShape) {
       let shapeObj;
@@ -122,7 +230,7 @@ const Whiteboard = React.memo(() => {
         currentShape.current = shapeObj;
       }
     }
-  }, [tool, selectedShape, color, width, fabricCanvasRef]);
+  }, [tool, selectedShape, color, width, fabricCanvasRef, setTool]);
 
   const handleMouseMove = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
@@ -221,6 +329,10 @@ const Whiteboard = React.memo(() => {
       if (!path) return;
 
       path.id = uuidv4();
+      path.selectable = tool === 'select';
+      path.hasControls = tool === 'select';
+      path.hasBorders = tool === 'select';
+
       addElement({
         id: path.id,
         type: 'path',
@@ -233,7 +345,7 @@ const Whiteboard = React.memo(() => {
     return () => {
       canvas.off('path:created', handlePathCreated);
     };
-  }, [fabricCanvasRef, addElement]);
+  }, [addElement, tool]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -268,8 +380,51 @@ const Whiteboard = React.memo(() => {
   }, []);
 
   return (
-    <div className="relative w-full h-full flex justify-center items-center bg-gray-50">
-      <canvas ref={canvasRef} className="border border-gray-300 rounded-lg shadow-lg" />
+    <div className="whiteboard-container" style={{ position: 'relative' }}>
+      <div className="controls" style={{ 
+        position: 'absolute', 
+        top: '10px', 
+        left: '10px', 
+        display: 'flex', 
+        alignItems: 'center',
+        gap: '15px',
+        background: 'white',
+        padding: '10px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        zIndex: 1000
+      }}>
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          title="Choose color"
+          style={{ 
+            width: '30px', 
+            height: '30px',
+            padding: '0',
+            border: '2px solid #eee',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={width}
+            onChange={(e) => setWidth(parseInt(e.target.value))}
+            title="Stroke width"
+            style={{ 
+              width: '100px',
+              accentColor: color 
+            }}
+          />
+          <span style={{ fontSize: '12px' }}>{width}px</span>
+        </div>
+      </div>
+      <canvas ref={canvasRef} />
     </div>
   );
 });

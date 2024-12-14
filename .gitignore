@@ -20,7 +20,7 @@ __pycache__/
 # Text files
 *.txt
 
-# Build артефакты
+# Build 
 dist/
 build/
 

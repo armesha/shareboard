@@ -174,32 +174,24 @@ io.on('connection', (socket) => {
 
   // Handle whiteboard updates
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
-    console.log(`Received whiteboard update for workspace ${workspaceId} from ${socket.id}`);
     const workspace = workspaces.get(workspaceId);
-    if (workspace) {
-      workspace.lastActivity = Date.now();
-      
-      // Update the workspace state with new elements
-      if (Array.isArray(elements)) {
-        // If receiving an array of elements, merge them with existing elements
-        const currentElements = workspace.whiteboardElements || [];
-        const elementsMap = new Map(currentElements.map(el => [el.id, el]));
-        
-        elements.forEach(element => {
-          if (element.id) {
-            elementsMap.set(element.id, element);
-          }
-        });
-        
-        workspace.whiteboardElements = Array.from(elementsMap.values());
-      }
+    if (!workspace || !Array.isArray(elements)) return;
 
-      // Broadcast the update to all clients in the workspace, including sender
-      io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
-      
-      console.log(`Broadcasted whiteboard update to workspace ${workspaceId}, elements:`, 
-        workspace.whiteboardElements.length);
-    }
+    workspace.lastActivity = Date.now();
+    
+    // Эффективное обновление элементов
+    const elementsMap = new Map(workspace.whiteboardElements?.map(el => [el.id, el]) || []);
+    
+    elements.forEach(element => {
+      if (element && element.id) {
+        elementsMap.set(element.id, element);
+      }
+    });
+    
+    workspace.whiteboardElements = Array.from(elementsMap.values());
+
+    // Отправляем обновление только тем клиентам, которые не являются отправителем
+    socket.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
   });
 
   socket.on('whiteboard-clear', ({ workspaceId }) => {
@@ -217,6 +209,17 @@ io.on('connection', (socket) => {
       workspace.codeSnippets = { language, content };
       io.to(workspaceId).emit('code-update', { language, content });
     }
+  });
+
+  socket.on('delete-element', ({ workspaceId, elementId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace || !elementId) return;
+
+    workspace.lastActivity = Date.now();
+    workspace.whiteboardElements = workspace.whiteboardElements.filter(el => el.id !== elementId);
+    
+    // Отправляем обновление всем клиентам в workspace
+    io.to(workspaceId).emit('element-deleted', { elementId });
   });
 
   socket.on('disconnect', () => {

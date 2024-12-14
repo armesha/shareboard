@@ -33,19 +33,50 @@ export function WhiteboardProvider({ children }) {
       selection: true
     });
 
-    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
-    canvas.isDrawingMode = tool === 'pen';
-    canvas.selection = tool === 'select';
-
+    // Initialize brush with default properties
+    const brush = new fabric.PencilBrush(canvas);
+    brush.color = color;
+    brush.width = width;
+    canvas.freeDrawingBrush = brush;
+    
     canvasRef.current = canvas;
     
     return () => {
       canvas.dispose();
       canvasRef.current = null;
     };
-  }, [color, width, tool]);
+  }, []);
+
+  // Simple brush property update
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas?.freeDrawingBrush) return;
+
+    canvas.freeDrawingBrush.color = color;
+    canvas.freeDrawingBrush.width = width;
+  }, [color, width]);
+
+  // Update tool state
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.isDrawingMode = tool === 'pen';
+    canvas.selection = tool === 'select';
+    
+    // Only update object properties when switching to/from select mode
+    if (tool === 'select' || canvas.selection !== (tool === 'select')) {
+      canvas.getObjects().forEach(obj => {
+        obj.set({
+          selectable: tool === 'select',
+          hasControls: tool === 'select',
+          hasBorders: tool === 'select'
+        });
+      });
+    }
+
+    canvas.requestRenderAll();
+  }, [tool]);
 
   // Handle socket connection events
   useEffect(() => {
@@ -63,8 +94,26 @@ export function WhiteboardProvider({ children }) {
       setIsConnected(false);
     };
 
+    const handleElementDeleted = ({ elementId }) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // Удаляем объект с canvas
+      const objects = canvas.getObjects();
+      const objectToRemove = objects.find(obj => obj.id === elementId);
+      if (objectToRemove) {
+        canvas.remove(objectToRemove);
+        canvas.renderAll();
+      }
+
+      // Удаляем из локального состояния
+      elementsMapRef.current.delete(elementId);
+      setElements(prev => prev.filter(elem => elem.id !== elementId));
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
+    socket.on('element-deleted', handleElementDeleted);
 
     if (socket.connected) {
       handleConnect();
@@ -73,6 +122,7 @@ export function WhiteboardProvider({ children }) {
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
+      socket.off('element-deleted', handleElementDeleted);
     };
   }, [socket]);
 
@@ -105,6 +155,15 @@ export function WhiteboardProvider({ children }) {
       case 'i-text':
         obj = new fabric.IText(element.data.text || '', commonProps);
         break;
+      case 'text':
+        obj = new fabric.IText(element.data.text || '', {
+          ...commonProps,
+          left: element.data.left,
+          top: element.data.top,
+          fontSize: 20,
+          fill: element.data.stroke || '#000000'
+        });
+        break;
       default:
         console.warn('Unknown shape type:', element.type);
         return null;
@@ -112,33 +171,6 @@ export function WhiteboardProvider({ children }) {
 
     return obj;
   }, []);
-
-  // Update canvas properties when tool/color/width changes
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Update drawing mode and selection based on current tool
-    canvas.isDrawingMode = tool === 'pen';
-    canvas.selection = tool === 'select';
-
-    // Update brush properties
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = color;
-      canvas.freeDrawingBrush.width = width;
-    }
-
-    // Update object properties without recreating them
-    canvas.getObjects().forEach(obj => {
-      obj.set({
-        selectable: tool === 'select',
-        hasControls: tool === 'select',
-        hasBorders: tool === 'select'
-      });
-    });
-
-    canvas.renderAll();
-  }, [tool, color, width]);
 
   // Handle whiteboard updates
   useEffect(() => {
