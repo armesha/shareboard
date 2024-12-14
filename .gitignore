@@ -12,7 +12,13 @@ Thumbs.db
 *.bak
 *.tmp
 
-.txt
+# Python files
+*.py
+*.pyc
+__pycache__/
+
+# Text files
+*.txt
 
 # Build артефакты
 dist/
