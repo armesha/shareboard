@@ -183,37 +183,11 @@ io.on('connection', (socket) => {
         workspace.whiteboardElements = [];
       }
 
-      // Merge new elements with existing ones, preserving all properties
-      elements.forEach(newElement => {
-        if (newElement.type === 'path') {
-          // Ensure path properties are preserved
-          newElement.data = {
-            ...newElement.data,
-            fill: null,
-            backgroundColor: null
-          };
-        }
-        
-        const existingIndex = workspace.whiteboardElements.findIndex(el => el.id === newElement.id);
-        if (existingIndex === -1) {
-          workspace.whiteboardElements.push(newElement);
-        } else {
-          // Merge with existing element, preserving properties
-          workspace.whiteboardElements[existingIndex] = {
-            ...workspace.whiteboardElements[existingIndex],
-            ...newElement,
-            data: {
-              ...workspace.whiteboardElements[existingIndex].data,
-              ...newElement.data,
-              fill: null,
-              backgroundColor: null
-            }
-          };
-        }
-      });
+      // Обновляем все элементы целиком, а не по одному
+      workspace.whiteboardElements = elements;
 
-      // Broadcast the complete state to all clients in the workspace
-      io.to(workspaceId).emit('whiteboard-update', workspace.whiteboardElements);
+      // Отправляем обновление всем клиентам в этом workspace
+      io.to(workspaceId).emit('whiteboard-update', elements);
     }
   });
 

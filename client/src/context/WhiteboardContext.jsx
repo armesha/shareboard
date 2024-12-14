@@ -12,6 +12,7 @@ export function WhiteboardProvider({ children }) {
   const [elements, setElements] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
   const [tool, setTool] = useState('pen');
+  const [selectedShape, setSelectedShape] = useState(null);
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
   const [isConnected, setIsConnected] = useState(false);
@@ -52,20 +53,30 @@ export function WhiteboardProvider({ children }) {
 
     const handleWhiteboardUpdate = (updatedElements) => {
       setElements(prev => {
-        // Merge with pending elements
-        const newElements = [...updatedElements];
-        pendingElements.current.forEach((element) => {
-          if (!newElements.find(e => e.id === element.id)) {
-            newElements.push(element);
+        // Создаем Map из текущих элементов для быстрого поиска
+        const currentElementsMap = new Map(prev.map(el => [el.id, el]));
+        
+        // Обновляем или добавляем новые элементы
+        updatedElements.forEach(element => {
+          currentElementsMap.set(element.id, element);
+        });
+
+        // Добавляем pending элементы
+        pendingElements.current.forEach((element, id) => {
+          if (!currentElementsMap.has(id)) {
+            currentElementsMap.set(id, element);
           }
         });
-        return newElements;
+
+        return Array.from(currentElementsMap.values());
       });
     };
 
     const handleWorkspaceState = (state) => {
       if (state.whiteboardElements) {
         setElements(state.whiteboardElements);
+        // Очищаем pending элементы при получении полного состояния
+        pendingElements.current.clear();
       }
       if (state.activeUsers !== undefined) {
         setActiveUsers(state.activeUsers);
@@ -82,6 +93,7 @@ export function WhiteboardProvider({ children }) {
 
     const handleWhiteboardClear = () => {
       setElements([]);
+      pendingElements.current.clear();
     };
 
     socket.on('whiteboard-update', handleWhiteboardUpdate);
@@ -100,46 +112,37 @@ export function WhiteboardProvider({ children }) {
   }, [socket]);
 
   const addElement = useCallback((element) => {
-    // Add to pending elements immediately
     pendingElements.current.set(element.id, element);
-
     setElements(prev => [...prev, element]);
     
-    if (socket && isConnected) {
-      const workspaceId = window.location.pathname.split('/')[2];
+    const workspaceId = window.location.pathname.split('/')[2];
+    if (workspaceId && socket) {
       socket.emit('whiteboard-update', {
         workspaceId,
         elements: [element]
       });
-
-      // Remove from pending after successful emit
-      setTimeout(() => {
-        pendingElements.current.delete(element.id);
-      }, 1000);
     }
-  }, [socket, isConnected]);
+  }, [socket]);
 
-  const updateElement = useCallback((elementId, updates) => {
-    const updatedElement = { ...updates, id: elementId };
-    pendingElements.current.set(elementId, updatedElement);
+  const updateElement = useCallback((id, element) => {
+    setElements(prev => {
+      const index = prev.findIndex(el => el.id === id);
+      if (index === -1) return prev;
 
-    setElements(prev => 
-      prev.map(el => el.id === elementId ? { ...el, ...updates } : el)
-    );
-    
-    if (socket && isConnected) {
+      const newElements = [...prev];
+      newElements[index] = element;
+      
       const workspaceId = window.location.pathname.split('/')[2];
-      socket.emit('whiteboard-update', {
-        workspaceId,
-        elements: [updatedElement]
-      });
+      if (workspaceId && socket) {
+        socket.emit('whiteboard-update', {
+          workspaceId,
+          elements: [element]
+        });
+      }
 
-      // Remove from pending after successful emit
-      setTimeout(() => {
-        pendingElements.current.delete(elementId);
-      }, 1000);
-    }
-  }, [socket, isConnected]);
+      return newElements;
+    });
+  }, [socket]);
 
   const clearCanvas = useCallback(() => {
     if (socket && isConnected) {
@@ -152,13 +155,15 @@ export function WhiteboardProvider({ children }) {
   const value = {
     elements,
     activeUsers,
-    isConnected,
     tool,
     setTool,
+    selectedShape,
+    setSelectedShape,
     color,
     setColor,
     width,
     setWidth,
+    isConnected,
     addElement,
     updateElement,
     clearCanvas,

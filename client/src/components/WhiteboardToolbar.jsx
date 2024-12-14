@@ -1,7 +1,7 @@
 import { useWhiteboard } from '../context/WhiteboardContext';
 
 export default function WhiteboardToolbar() {
-  const { tool, setTool, color, setColor, width, setWidth } = useWhiteboard();
+  const { tool, setTool, color, setColor, width, setWidth, selectedShape, setSelectedShape } = useWhiteboard();
 
   return (
     <div className="fixed top-20 left-4 bg-white p-4 rounded-lg shadow-lg space-y-4">
@@ -10,17 +10,36 @@ export default function WhiteboardToolbar() {
           className={`w-full px-4 py-2 rounded ${
             tool === 'pen' ? 'bg-blue-500 text-white' : 'bg-gray-200'
           }`}
-          onClick={() => setTool('pen')}
+          onClick={() => {
+            setTool('pen');
+            setSelectedShape(null);
+          }}
         >
           ✏️ Pen
         </button>
+
         <button
           className={`w-full px-4 py-2 rounded ${
-            tool === 'rect' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+            tool === 'shapes' && selectedShape === 'rectangle' ? 'bg-blue-500 text-white' : 'bg-gray-200'
           }`}
-          onClick={() => setTool('rect')}
+          onClick={() => {
+            setTool('shapes');
+            setSelectedShape('rectangle');
+          }}
         >
           □ Rectangle
+        </button>
+
+        <button
+          className={`w-full px-4 py-2 rounded ${
+            tool === 'text' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}
+          onClick={() => {
+            setTool('text');
+            setSelectedShape(null);
+          }}
+        >
+          Text
         </button>
       </div>
 
