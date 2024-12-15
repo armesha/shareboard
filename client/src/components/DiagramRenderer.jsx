@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import mermaid from 'mermaid';
 import nomnoml from 'nomnoml';
@@ -6,32 +6,18 @@ import plantumlEncoder from 'plantuml-encoder';
 import html2canvas from 'html2canvas';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 
-// Initialize mermaid
-mermaid.initialize({
-  startOnLoad: true,
-  theme: 'default',
-  securityLevel: 'loose',
-});
-
 const SAMPLE_DIAGRAMS = {
   mermaid: `graph TD
     A[Start] --> B{Is it?}
     B -- Yes --> C[OK]
     B -- No --> D[End]`,
-  
+  nomnoml: `[Pirate|eyeCount: Int|raid();pillage()|
+    [beard]--[parrot]
+    [beard]-:>[foul mouth]]`,
   plantuml: `@startuml
     Alice -> Bob: Authentication Request
     Bob --> Alice: Authentication Response
-    Alice -> Bob: Another authentication Request
-    Alice <-- Bob: Another authentication Response
-  @enduml`,
-  
-  nomnoml: `[Pirate|eyeCount: Int|raid();pillage()|
-    [beard]--[parrot]
-    [beard]-:>[rum]
-  ]
-  
-  [<abstract>Marauder]<:--[Pirate]`
+    @enduml`
 };
 
 const SUPPORTED_DIAGRAM_TYPES = [
@@ -51,6 +37,19 @@ export default function DiagramRenderer({ splitPosition = 50, onSplitChange, onA
   const editorRef = useRef(null);
   const initialMouseX = useRef(0);
   const initialSplit = useRef(0);
+
+  // Initialize mermaid with secure settings
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      themeVariables: {
+        fontFamily: 'Arial',
+        fontSize: '16px'
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const renderDiagram = async () => {
@@ -121,42 +120,66 @@ export default function DiagramRenderer({ splitPosition = 50, onSplitChange, onA
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleExportToWhiteboard = async () => {
+  const exportDiagram = async () => {
     try {
+      // Wait for the SVG to be rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const svgElement = diagramRef.current?.querySelector('svg');
       if (!svgElement) {
-        console.error('No SVG element found');
+        console.error('SVG element not found');
         return;
       }
 
-      // Создаем временный контейнер для SVG
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.visibility = 'hidden';
-      tempContainer.style.width = svgElement.getAttribute('width') || '800px';
-      tempContainer.style.height = svgElement.getAttribute('height') || '600px';
-      
-      // Клонируем SVG и добавляем в контейнер
+      // Deep clone the SVG and inline all styles
       const svgClone = svgElement.cloneNode(true);
-      tempContainer.appendChild(svgClone);
-      document.body.appendChild(tempContainer);
-
-      const canvas = await html2canvas(tempContainer, {
-        backgroundColor: null,
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true
+      const computedStyle = window.getComputedStyle(svgElement);
+      
+      // Apply computed styles to the clone
+      Array.from(computedStyle).forEach(key => {
+        svgClone.style[key] = computedStyle.getPropertyValue(key);
       });
 
-      document.body.removeChild(tempContainer);
+      // Set dimensions and background
+      svgClone.setAttribute('width', '800');
+      svgClone.setAttribute('height', '600');
+      svgClone.style.backgroundColor = 'white';
 
-      canvas.toBlob((blob) => {
-        if (blob && onAddImageToWhiteboard) {
-          const imageUrl = URL.createObjectURL(blob);
-          onAddImageToWhiteboard(imageUrl);
-        }
-      }, 'image/png', 1.0);
+      // Convert SVG to a data URL
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svgClone);
+      const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      
+      // Create a safe data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          canvas.width = 800;
+          canvas.height = 600;
+          const ctx = canvas.getContext('2d');
+
+          // Fill white background
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Draw image
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          // Convert to blob and send to whiteboard
+          canvas.toBlob((blob) => {
+            if (blob && onAddImageToWhiteboard) {
+              const imageUrl = URL.createObjectURL(blob);
+              onAddImageToWhiteboard(imageUrl);
+            }
+          }, 'image/png', 1.0);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(svgBlob);
+
     } catch (error) {
       console.error('Error exporting diagram:', error);
     }
@@ -186,7 +209,7 @@ export default function DiagramRenderer({ splitPosition = 50, onSplitChange, onA
             ))}
           </select>
           <button
-            onClick={handleExportToWhiteboard}
+            onClick={exportDiagram}
             className="p-1.5 text-gray-700 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 rounded-md"
             title="Add to Whiteboard"
           >

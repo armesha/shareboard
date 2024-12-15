@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
+import { fabric } from 'fabric';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
@@ -26,8 +27,18 @@ export default function WorkspaceContent({
   containerRef,
   cycleViewMode 
 }) {
-  const { clearCanvas, tool, setTool, selectedShape, setSelectedShape, color, setColor, width, setWidth } = useWhiteboard();
-  const whiteboardRef = useRef(null);
+  const { 
+    clearCanvas, 
+    tool, 
+    setTool, 
+    selectedShape, 
+    setSelectedShape, 
+    color, 
+    setColor, 
+    width, 
+    setWidth,
+    canvasRef 
+  } = useWhiteboard();
   const [diagramMode, setDiagramMode] = useState(false);
   const [diagramSplitPosition, setDiagramSplitPosition] = useState(50);
   const [showShapesMenu, setShowShapesMenu] = useState(false);
@@ -84,58 +95,78 @@ export default function WorkspaceContent({
   }, [socket, workspaceId]);
 
   const handleAddImageToWhiteboard = (imageUrl) => {
-    console.log('Adding image to whiteboard:', imageUrl); // Отладочный лог
+    console.log('Adding image to whiteboard:', imageUrl);
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Добавляем поддержку CORS
+    img.crossOrigin = 'anonymous';
     
     img.onload = () => {
-      const canvas = whiteboardRef.current;
+      const canvas = canvasRef.current;
       if (!canvas) {
-        console.error('Canvas not found');
+        console.error('Fabric Canvas not found');
         return;
       }
       
-      console.log('Canvas found, drawing image...'); // Отладочный лог
-      const ctx = canvas.getContext('2d');
+      console.log('Canvas found, dimensions:', canvas.width, 'x', canvas.height);
       
-      // Вычисляем размеры с сохранением пропорций
-      const maxWidth = canvas.width * 0.5;
-      const maxHeight = canvas.height * 0.5;
-      let newWidth = img.width;
-      let newHeight = img.height;
-      
-      const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-      newWidth = img.width * ratio;
-      newHeight = img.height * ratio;
-      
-      // Центрируем изображение
-      const x = (canvas.width - newWidth) / 2;
-      const y = (canvas.height - newHeight) / 2;
-      
-      // Рисуем изображение
-      ctx.drawImage(img, x, y, newWidth, newHeight);
-      console.log('Image drawn successfully'); // Отладочный лог
-      
-      // Отправляем событие через сокет
-      if (socket) {
-        const drawData = {
-          type: 'image',
-          imageUrl,
-          x,
-          y,
-          width: newWidth,
-          height: newHeight,
-          workspaceId
-        };
-        console.log('Emitting draw event:', drawData); // Отладочный лог
-        socket.emit('draw', drawData);
-      }
+      // Create the image using fabric.Image.fromURL with explicit dimensions
+      fabric.Image.fromURL(imageUrl, (fabricImg) => {
+        console.log('Original image dimensions:', fabricImg.width, 'x', fabricImg.height);
+        
+        // Set fixed dimensions for better visibility
+        const targetWidth = 800;
+        const targetHeight = 600;
+        
+        // Calculate scale to maintain aspect ratio
+        const scale = Math.min(
+          targetWidth / fabricImg.width,
+          targetHeight / fabricImg.height
+        );
+        
+        // Apply transformations
+        fabricImg.set({
+          scaleX: scale,
+          scaleY: scale,
+          originX: 'center',
+          originY: 'center',
+          left: canvas.width / 2,
+          top: canvas.height / 2,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          transparentCorners: false,
+          cornerColor: 'blue',
+          cornerSize: 12,
+          padding: 10
+        });
+        
+        console.log('Adding image with dimensions:', 
+          fabricImg.width * scale, 'x', fabricImg.height * scale,
+          'at position:', canvas.width / 2, ',', canvas.height / 2
+        );
+        
+        // Add the image and make it active
+        canvas.add(fabricImg);
+        canvas.setActiveObject(fabricImg);
+        fabricImg.bringToFront();
+        canvas.requestRenderAll();
+        
+        console.log('Image added and rendered');
+        
+        // Emit the new object to other users
+        if (socket) {
+          socket.emit('canvas-update', {
+            type: 'add',
+            object: fabricImg.toJSON(),
+            workspaceId
+          });
+        }
+      }, { crossOrigin: 'anonymous' });
     };
-
+    
     img.onerror = (error) => {
       console.error('Error loading image:', error);
     };
-
+    
     img.src = imageUrl;
   };
 
@@ -314,7 +345,6 @@ export default function WorkspaceContent({
     const whiteboardContent = (
       <div className="h-full w-full">
         <Whiteboard 
-          ref={whiteboardRef} 
           socket={socket} 
         />
       </div>
