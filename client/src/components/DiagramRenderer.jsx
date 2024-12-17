@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import mermaid from 'mermaid';
 import { fabric } from 'fabric';
+import { useWhiteboard } from '../context/WhiteboardContext';
 
 const SAMPLE_DIAGRAM = `graph TD
   A[Start] --> B{Is it?}
@@ -12,6 +13,7 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
   const [code, setCode] = useState(SAMPLE_DIAGRAM);
   const [svg, setSvg] = useState('');
   const [error, setError] = useState(null);
+  const { setTool, setSelectedShape } = useWhiteboard();
 
   useEffect(() => {
     mermaid.initialize({
@@ -20,7 +22,11 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
       securityLevel: 'loose',
       themeVariables: {
         fontFamily: 'Arial',
-        fontSize: '16px'
+        fontSize: '16px',
+        background: 'transparent',
+        mainBkg: 'transparent',
+        nodeBkg: 'transparent',
+        clusterBkg: 'transparent'
       }
     });
   }, []);
@@ -66,15 +72,17 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
         img.onerror = reject;
       });
 
-      // Draw image with white background
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw image with transparent background
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       
       // Convert to blob and add to whiteboard
       canvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob);
         onAddImageToWhiteboard(url);
+        // Switch to select tool after adding
+        setTool('select');
+        setSelectedShape(null);
       }, 'image/png');
     } catch (error) {
       console.error('Error adding diagram to whiteboard:', error);
@@ -99,7 +107,7 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
             defaultLanguage="markdown"
             value={code}
             onChange={setCode}
-            theme="vs-dark"
+            theme="vs-light"
             options={{
               minimap: { enabled: false },
               fontSize: 14,
@@ -108,8 +116,8 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
             }}
           />
         </div>
-        <div className="w-1/2 h-full bg-white">
-          <div className="h-full overflow-auto p-4" id="diagram-preview">
+        <div className="w-1/2 h-full">
+          <div className="h-full overflow-auto p-4" id="diagram-preview" style={{ background: 'transparent' }}>
             {error ? (
               <div className="text-red-500 p-4 bg-red-50 rounded">
                 <div className="font-medium">Error rendering diagram:</div>

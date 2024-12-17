@@ -219,22 +219,22 @@ export default function WorkspaceContent({
             </button>
 
             <div className="h-6 w-px bg-gray-200 mx-1" />
-            <button
-              className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-              onClick={clearCanvas}
-              title="Clear Drawing"
-            >
-              <DeleteOutlineIcon className="text-gray-700" />
-            </button>
-            {viewMode === 'split' && (
+            <div className="flex items-center space-x-2">
+              <button
+                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                onClick={() => clearCanvas()}
+                title="Clear Canvas"
+              >
+                <DeleteOutlineIcon className="text-gray-700" />
+              </button>
               <button
                 className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
                 onClick={cycleViewMode}
-                title="Open Code Editor"
+                title={viewMode === 'split' ? 'Close CodeBoard' : 'Open CodeBoard'}
               >
-                <ComputerIcon />
+                <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
               </button>
-            )}
+            </div>
           </div>
         </div>
         <div className="text-sm text-gray-600">
