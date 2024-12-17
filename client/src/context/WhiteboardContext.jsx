@@ -221,19 +221,39 @@ export function WhiteboardProvider({ children }) {
     const handleWorkspaceState = (state) => {
       console.log('Received workspace state:', state);
       
+      if (!canvasRef.current) {
+        console.warn('Canvas not initialized when receiving workspace state');
+        return;
+      }
+      
       // Reset elements map
       elementsMapRef.current.clear();
       
-      if (state.whiteboardElements) {
-        // Initialize elements map with workspace state
+      if (state.whiteboardElements && Array.isArray(state.whiteboardElements)) {
+        console.log('Processing whiteboard elements:', state.whiteboardElements.length);
+        
+        // Очищаем текущий холст
+        canvasRef.current.clear();
+        
+        // Добавляем все элементы
         state.whiteboardElements.forEach(element => {
-          if (element.id) {
+          if (element && element.id) {
+            // Сохраняем в map
             elementsMapRef.current.set(element.id, element);
+            
+            // Создаем и добавляем объект на холст
+            const obj = createFabricObject(element, tool === 'select');
+            if (obj) {
+              canvasRef.current.add(obj);
+            }
           }
         });
         
-        // Update canvas with all elements
-        handleWhiteboardUpdate(state.whiteboardElements);
+        // Обновляем состояние React
+        setElements(Array.from(elementsMapRef.current.values()));
+        
+        // Перерисовываем холст
+        canvasRef.current.renderAll();
       }
       
       if (state.activeUsers !== undefined) {

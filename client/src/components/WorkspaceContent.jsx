@@ -104,6 +104,8 @@ export default function WorkspaceContent({
       setStatus('connected');
       console.log('Joining workspace:', workspaceId);
       socket.emit('join-workspace', workspaceId);
+      // Запрашиваем текущее состояние холста
+      socket.emit('request-canvas-state', workspaceId);
     });
 
     socket.on('disconnect', () => {
@@ -116,14 +118,25 @@ export default function WorkspaceContent({
       setStatus('error');
     });
 
+    // Обработчик получения состояния холста
+    socket.on('canvas-state', (canvasState) => {
+      if (canvasState && canvasRef.current) {
+        canvasRef.current.loadFromJSON(canvasState, () => {
+          canvasRef.current.renderAll();
+        });
+      }
+    });
+
     if (socket.connected) {
       socket.emit('join-workspace', workspaceId);
+      socket.emit('request-canvas-state', workspaceId);
     }
 
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('error');
+      socket.off('canvas-state');
     };
   }, [socket, workspaceId]);
 

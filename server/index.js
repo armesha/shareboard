@@ -161,7 +161,7 @@ io.on('connection', (socket) => {
 
     // Send initial state to the joining user
     socket.emit('workspace-state', {
-      drawings: workspace.drawings || [],
+      whiteboardElements: workspace.drawings || [],
       activeUsers: activeConnections.get(workspaceId).size
     });
     
@@ -190,8 +190,19 @@ io.on('connection', (socket) => {
     
     workspace.drawings = Array.from(elementsMap.values());
 
-    // Отправляем обновление только тем клиентам, которые не являются отправителем
-    socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
+    // Отправляем обновление всем клиентам в workspace
+    io.to(workspaceId).emit('whiteboard-update', workspace.drawings);
+  });
+
+  // Обработчик запроса текущего состояния холста
+  socket.on('request-canvas-state', (workspaceId) => {
+    const workspace = workspaces.get(workspaceId);
+    if (workspace && workspace.drawings) {
+      socket.emit('workspace-state', {
+        whiteboardElements: workspace.drawings || [],
+        activeUsers: activeConnections.get(workspaceId).size
+      });
+    }
   });
 
   socket.on('whiteboard-clear', ({ workspaceId }) => {

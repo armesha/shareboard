@@ -101,7 +101,10 @@ const Whiteboard = React.memo(() => {
           
           activeObjects.forEach(obj => {
             if (obj.id) {
-              // Отправляем событие удаления на сервер
+              // Remove object from canvas
+              canvas.remove(obj);
+              
+              // Emit delete event to server
               socket.emit('delete-element', { 
                 workspaceId,
                 elementId: obj.id 
@@ -109,7 +112,7 @@ const Whiteboard = React.memo(() => {
             }
           });
 
-          // Очищаем выделение
+          // Clear selection and render
           canvas.discardActiveObject();
           canvas.renderAll();
         }
@@ -151,6 +154,71 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:scaling', handleScaling);
     };
   }, [fabricCanvasRef]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !socket) return;
+
+    const handleWhiteboardUpdate = (drawings) => {
+      if (!Array.isArray(drawings)) return;
+
+      // Очищаем текущий холст
+      canvas.clear();
+
+      // Добавляем все элементы из полученного состояния
+      drawings.forEach(element => {
+        if (!element || !element.type || !element.data) return;
+
+        let obj;
+        const commonProps = {
+          ...element.data,
+          id: element.id,
+          selectable: tool === 'select',
+          hasControls: tool === 'select',
+          hasBorders: tool === 'select'
+        };
+
+        switch (element.type) {
+          case 'rect':
+            obj = new fabric.Rect(commonProps);
+            break;
+          case 'circle':
+            obj = new fabric.Circle(commonProps);
+            break;
+          case 'triangle':
+            obj = new fabric.Triangle(commonProps);
+            break;
+          case 'path':
+            obj = new fabric.Path(element.data.path || '', commonProps);
+            break;
+          case 'text':
+            obj = new fabric.IText(element.data.text || '', {
+              ...commonProps,
+              left: element.data.left,
+              top: element.data.top,
+              fontSize: element.data.fontSize || 20,
+              fill: element.data.fill || color
+            });
+            break;
+          default:
+            console.warn('Unknown shape type:', element.type);
+            return;
+        }
+
+        if (obj) {
+          canvas.add(obj);
+        }
+      });
+
+      canvas.renderAll();
+    };
+
+    socket.on('whiteboard-update', handleWhiteboardUpdate);
+
+    return () => {
+      socket.off('whiteboard-update', handleWhiteboardUpdate);
+    };
+  }, [socket, tool, color]);
 
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
