@@ -1,10 +1,35 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import Workspace from './pages/Workspace';
-import { SocketProvider } from './context/SocketContext';
+import { SocketProvider, useSocket } from './context/SocketContext';
 
 function App() {
+  const socket = useSocket();
+  const [viewMode, setViewMode] = useState('split');
+  const [status, setStatus] = useState('');
+  const { workspaceId } = useParams();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConnect = () => {
+      console.log('Socket connected successfully');
+    };
+
+    const handleError = (error) => {
+      console.error('Socket error:', error);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('error', handleError);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('error', handleError);
+    };
+  }, [socket]);
+
   return (
     <Router>
       <SocketProvider>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
+import { useNavigate } from 'react-router-dom';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
@@ -13,6 +14,7 @@ import CreateIcon from '@mui/icons-material/Create';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
+import HomeIcon from '@mui/icons-material/Home';
 
 export default function WorkspaceContent({ 
   socket, 
@@ -20,6 +22,7 @@ export default function WorkspaceContent({
   status, 
   setStatus,
   viewMode, 
+  setViewMode,
   splitPosition,
   isDragging,
   handleMouseDown,
@@ -36,11 +39,13 @@ export default function WorkspaceContent({
     setColor, 
     width, 
     setWidth,
-    canvasRef 
+    canvasRef, 
+    setCanvasState 
   } = useWhiteboard();
   
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,6 +66,36 @@ export default function WorkspaceContent({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showShapesMenu, selectedShape]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      socket.emit('join_workspace', workspaceId);
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    // Set initial connection state
+    setIsConnected(socket.connected);
+
+    // Listen for connection events
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // Join workspace if already connected
+    if (socket.connected) {
+      socket.emit('join_workspace', workspaceId);
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket, workspaceId]);
 
   useEffect(() => {
     if (!socket || !workspaceId) return;
@@ -111,138 +146,162 @@ export default function WorkspaceContent({
     img.src = imageUrl;
   };
 
-  const renderHeader = () => (
-    <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
-      <h1 className="text-xl font-semibold">Workspace: {workspaceId}</h1>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center w-full">
-          <div className="flex items-center space-x-3 bg-white rounded-full shadow px-4 py-1">
-            {/* Select/Cursor tool */}
-            <button
-              className={`p-2 rounded-full transition-all duration-200 ${
-                tool === 'select' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => {
-                setTool('select');
-                setSelectedShape(null);
-              }}
-              title="Select"
-            >
-              <MouseIcon className={tool === 'select' ? 'text-white' : 'text-gray-700'} />
-            </button>
+  const ConnectionStatus = () => {
+    if (!socket) return null;
+    
+    return (
+      <div className={`flex items-center gap-2 ${isConnected ? 'text-green-600' : 'text-yellow-600'}`}>
+        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-600' : 'bg-yellow-600'}`} />
+        <span className="text-sm font-medium">
+          {isConnected ? 'Online' : 'Connecting...'}
+        </span>
+      </div>
+    );
+  };
 
-            <button
-              className={`p-2 rounded-full transition-all duration-200 ${
-                tool === 'pen' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => {
-                setTool('pen');
-                setSelectedShape(null);
-                setShowShapesMenu(false);
-              }}
-              title="Pen"
-            >
-              <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
-            </button>
-
-            {/* Shapes dropdown */}
-            <div className="relative shapes-menu-container">
+  const renderHeader = () => {
+    const navigate = useNavigate();
+    
+    return (
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+            title="Return to Home"
+          >
+            <HomeIcon className="text-gray-700" />
+          </button>
+          <h1 className="text-xl font-semibold">Workspace: {workspaceId}</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center w-full">
+            <div className="flex items-center space-x-3 bg-white rounded-full shadow px-4 py-1">
+              {/* Select/Cursor tool */}
               <button
-                className={`p-2 rounded-full transition-all duration-200 shapes-button ${
-                  selectedShape ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  tool === 'select' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
                 }`}
                 onClick={() => {
-                  if (showShapesMenu) {
-                    setShowShapesMenu(false);
-                    setSelectedShape(null);
-                    setTool('pen');
-                  } else {
-                    setShowShapesMenu(true);
-                    setTool('select');
-                  }
+                  setTool('select');
+                  setSelectedShape(null);
                 }}
-                title="Shapes"
+                title="Select"
               >
-                {selectedShape === 'rectangle' ? <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
-                 selectedShape === 'triangle' ? <ChangeHistoryIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
-                 selectedShape === 'circle' ? <CircleOutlinedIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
-                 <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />}
+                <MouseIcon className={tool === 'select' ? 'text-white' : 'text-gray-700'} />
               </button>
-              
-              {showShapesMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <button
-                    className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => {
-                      setSelectedShape('rectangle');
-                      setTool('shapes');
-                      setShowShapesMenu(false);
-                    }}
-                  >
-                    <CropSquareIcon className="text-gray-700" />
-                  </button>
-                  <button
-                    className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => {
-                      setSelectedShape('triangle');
-                      setTool('shapes');
-                      setShowShapesMenu(false);
-                    }}
-                  >
-                    <ChangeHistoryIcon className="text-gray-700" />
-                  </button>
-                  <button
-                    className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => {
-                      setSelectedShape('circle');
-                      setTool('shapes');
-                      setShowShapesMenu(false);
-                    }}
-                  >
-                    <CircleOutlinedIcon className="text-gray-700" />
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <button
-              className={`p-2 rounded-full transition-all duration-200 ${
-                tool === 'text' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => {
-                setTool(tool === 'text' ? 'select' : 'text');
-                setSelectedShape(null);
-              }}
-              title="Text"
-            >
-              <TextFieldsIcon className={tool === 'text' ? 'text-white' : 'text-gray-700'} />
-            </button>
+              <button
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  tool === 'pen' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  setTool('pen');
+                  setSelectedShape(null);
+                  setShowShapesMenu(false);
+                }}
+                title="Pen"
+              >
+                <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
+              </button>
 
-            <div className="h-6 w-px bg-gray-200 mx-1" />
-            <div className="flex items-center space-x-2">
+              {/* Shapes dropdown */}
+              <div className="relative shapes-menu-container">
+                <button
+                  className={`p-2 rounded-full transition-all duration-200 shapes-button ${
+                    selectedShape ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                  }`}
+                  onClick={() => {
+                    if (showShapesMenu) {
+                      setShowShapesMenu(false);
+                      setSelectedShape(null);
+                      setTool('pen');
+                    } else {
+                      setShowShapesMenu(true);
+                      setTool('select');
+                    }
+                  }}
+                  title="Shapes"
+                >
+                  {selectedShape === 'rectangle' ? <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
+                   selectedShape === 'triangle' ? <ChangeHistoryIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
+                   selectedShape === 'circle' ? <CircleOutlinedIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
+                   <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />}
+                </button>
+                
+                {showShapesMenu && (
+                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                      onClick={() => {
+                        setSelectedShape('rectangle');
+                        setTool('shapes');
+                        setShowShapesMenu(false);
+                      }}
+                    >
+                      <CropSquareIcon className="text-gray-700" />
+                    </button>
+                    <button
+                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                      onClick={() => {
+                        setSelectedShape('triangle');
+                        setTool('shapes');
+                        setShowShapesMenu(false);
+                      }}
+                    >
+                      <ChangeHistoryIcon className="text-gray-700" />
+                    </button>
+                    <button
+                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                      onClick={() => {
+                        setSelectedShape('circle');
+                        setTool('shapes');
+                        setShowShapesMenu(false);
+                      }}
+                    >
+                      <CircleOutlinedIcon className="text-gray-700" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
-                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                onClick={() => clearCanvas()}
-                title="Clear Canvas"
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  tool === 'text' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  setTool(tool === 'text' ? 'select' : 'text');
+                  setSelectedShape(null);
+                }}
+                title="Text"
               >
-                <DeleteOutlineIcon className="text-gray-700" />
+                <TextFieldsIcon className={tool === 'text' ? 'text-white' : 'text-gray-700'} />
               </button>
-              <button
-                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                onClick={cycleViewMode}
-                title={viewMode === 'split' ? 'Close CodeBoard' : 'Open CodeBoard'}
-              >
-                <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
-              </button>
+
+              <div className="h-6 w-px bg-gray-200 mx-1" />
+              <div className="flex items-center space-x-2">
+                <button
+                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                  onClick={() => clearCanvas()}
+                  title="Clear Canvas"
+                >
+                  <DeleteOutlineIcon className="text-gray-700" />
+                </button>
+                <button
+                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                  onClick={cycleViewMode}
+                  title={viewMode === 'split' ? 'Close CodeBoard' : 'Open CodeBoard'}
+                >
+                  <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="text-sm text-gray-600">
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          <ConnectionStatus />
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCodeSection = () => (
     <div className="h-full flex flex-col">
