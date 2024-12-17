@@ -87,38 +87,37 @@ export default function DiagramRenderer({ splitPosition = 50, onSplitChange, onA
     setIsDragging(true);
     initialMouseX.current = e.clientX;
     initialSplit.current = currentSplit;
-    
-    const handleMouseMove = (e) => {
-      if (!isDragging || !containerRef.current) return;
-      
-      const container = containerRef.current.getBoundingClientRect();
-      const deltaX = e.clientX - initialMouseX.current;
-      const deltaPercent = (deltaX / container.width) * 100;
-      const newSplit = initialSplit.current + deltaPercent;
-      
-      // Ограничиваем размер от 20% до 80%
-      const clampedSplit = Math.min(Math.max(20, newSplit), 80);
-      setCurrentSplit(clampedSplit);
-      
-      if (onSplitChange) {
-        onSplitChange(clampedSplit);
-      }
-      
-      // Обновляем размер редактора
-      if (editorRef.current) {
-        editorRef.current.layout();
-      }
-    };
-    
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !containerRef.current) return;
+    
+    const container = containerRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - initialMouseX.current;
+    const deltaPercent = (deltaX / container.width) * 100;
+    const newSplit = initialSplit.current + deltaPercent;
+    
+    // Limit size between 20% and 80%
+    const clampedSplit = Math.min(Math.max(20, newSplit), 80);
+    setCurrentSplit(clampedSplit);
+    onSplitChange?.(clampedSplit);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const exportDiagram = async () => {
     try {
