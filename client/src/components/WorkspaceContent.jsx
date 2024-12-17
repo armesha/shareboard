@@ -13,7 +13,6 @@ import CreateIcon from '@mui/icons-material/Create';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
 export default function WorkspaceContent({ 
   socket, 
@@ -39,9 +38,9 @@ export default function WorkspaceContent({
     setWidth,
     canvasRef 
   } = useWhiteboard();
-  const [diagramMode, setDiagramMode] = useState(false);
-  const [diagramSplitPosition, setDiagramSplitPosition] = useState(50);
+  
   const [showShapesMenu, setShowShapesMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -82,7 +81,6 @@ export default function WorkspaceContent({
       setStatus('error');
     });
 
-    // Request initial workspace state
     if (socket.connected) {
       socket.emit('join-workspace', workspaceId);
     }
@@ -98,79 +96,21 @@ export default function WorkspaceContent({
     console.log('Adding image to whiteboard:', imageUrl);
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    
     img.onload = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        console.error('Fabric Canvas not found');
-        return;
-      }
-      
-      console.log('Canvas found, dimensions:', canvas.width, 'x', canvas.height);
-      
-      // Create the image using fabric.Image.fromURL with explicit dimensions
-      fabric.Image.fromURL(imageUrl, (fabricImg) => {
-        console.log('Original image dimensions:', fabricImg.width, 'x', fabricImg.height);
-        
-        // Set fixed dimensions for better visibility
-        const targetWidth = 800;
-        const targetHeight = 600;
-        
-        // Calculate scale to maintain aspect ratio
-        const scale = Math.min(
-          targetWidth / fabricImg.width,
-          targetHeight / fabricImg.height
-        );
-        
-        // Apply transformations
-        fabricImg.set({
-          scaleX: scale,
-          scaleY: scale,
-          originX: 'center',
-          originY: 'center',
-          left: canvas.width / 2,
-          top: canvas.height / 2,
-          selectable: true,
-          hasControls: true,
-          hasBorders: true,
-          transparentCorners: false,
-          cornerColor: 'blue',
-          cornerSize: 12,
-          padding: 10
-        });
-        
-        console.log('Adding image with dimensions:', 
-          fabricImg.width * scale, 'x', fabricImg.height * scale,
-          'at position:', canvas.width / 2, ',', canvas.height / 2
-        );
-        
-        // Add the image and make it active
-        canvas.add(fabricImg);
-        canvas.setActiveObject(fabricImg);
-        fabricImg.bringToFront();
-        canvas.requestRenderAll();
-        
-        console.log('Image added and rendered');
-        
-        // Emit the new object to other users
-        if (socket) {
-          socket.emit('canvas-update', {
-            type: 'add',
-            object: fabricImg.toJSON(),
-            workspaceId
-          });
-        }
-      }, { crossOrigin: 'anonymous' });
+      const fabricImage = new fabric.Image(img);
+      fabricImage.set({
+        left: 100,
+        top: 100,
+        scaleX: 0.5,
+        scaleY: 0.5
+      });
+      canvasRef.current?.add(fabricImage);
+      canvasRef.current?.renderAll();
+      URL.revokeObjectURL(imageUrl);
     };
-    
-    img.onerror = (error) => {
-      console.error('Error loading image:', error);
-    };
-    
     img.src = imageUrl;
   };
 
-  // Header
   const renderHeader = () => (
     <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
       <h1 className="text-xl font-semibold">Workspace: {workspaceId}</h1>
@@ -286,32 +226,7 @@ export default function WorkspaceContent({
             >
               <DeleteOutlineIcon className="text-gray-700" />
             </button>
-            {viewMode === 'split' ? (
-              <>
-                <button
-                  className={`p-2 rounded-full transition-all duration-200 ${
-                    !diagramMode ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                  }`}
-                  onClick={() => setDiagramMode(false)}
-                  title="Code Editor"
-                >
-                  <div className={!diagramMode ? 'text-white' : 'text-gray-700'}>
-                    <ComputerIcon />
-                  </div>
-                </button>
-                <button
-                  className={`p-2 rounded-full transition-all duration-200 ${
-                    diagramMode ? 'bg-purple-500 hover:bg-purple-600' : 'hover:bg-gray-100'
-                  }`}
-                  onClick={() => setDiagramMode(true)}
-                  title="Diagram Editor"
-                >
-                  <div className={diagramMode ? 'text-white' : 'text-gray-700'}>
-                    <AccountTreeIcon />
-                  </div>
-                </button>
-              </>
-            ) : (
+            {viewMode === 'split' && (
               <button
                 className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
                 onClick={cycleViewMode}
@@ -320,23 +235,41 @@ export default function WorkspaceContent({
                 <ComputerIcon />
               </button>
             )}
-            {viewMode === 'split' && (
-              <>
-                <div className="h-6 w-px bg-gray-200 mx-1" />
-                <button
-                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                  onClick={cycleViewMode}
-                  title="Full Screen"
-                >
-                  ⛶
-                </button>
-              </>
-            )}
           </div>
         </div>
         <div className="text-sm text-gray-600">
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </div>
+      </div>
+    </div>
+  );
+
+  const renderCodeSection = () => (
+    <div className="h-full flex flex-col">
+      <div className="flex border-b border-gray-200">
+        <button
+          className={`px-4 py-2 ${activeTab === 'code' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
+          onClick={() => setActiveTab('code')}
+        >
+          <ComputerIcon className="mr-2" />
+          Code Editor
+        </button>
+        <button
+          className={`px-4 py-2 ${activeTab === 'diagram' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
+          onClick={() => setActiveTab('diagram')}
+        >
+          <svg className="w-5 h-5 inline-block mr-2" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h4v4H7V7zm0 6h4v4H7v-4zm6-6h4v4h-4V7zm0 6h4v4h-4v-4z" />
+          </svg>
+          Diagram Editor
+        </button>
+      </div>
+      <div className="flex-1">
+        {activeTab === 'code' ? (
+          <CodeEditor socket={socket} workspaceId={workspaceId} />
+        ) : (
+          <DiagramRenderer onAddImageToWhiteboard={handleAddImageToWhiteboard} />
+        )}
       </div>
     </div>
   );
@@ -369,19 +302,7 @@ export default function WorkspaceContent({
 
         {/* Content */}
         <div className="flex-1 h-full overflow-hidden">
-          {diagramMode ? (
-            <div ref={containerRef} className="flex flex-1 h-full overflow-hidden">
-              <DiagramRenderer 
-                splitPosition={diagramSplitPosition}
-                onSplitChange={setDiagramSplitPosition}
-                onAddImageToWhiteboard={handleAddImageToWhiteboard}
-              />
-            </div>
-          ) : (
-            <div className="h-full">
-              <CodeEditor socket={socket} workspaceId={workspaceId} />
-            </div>
-          )}
+          {renderCodeSection()}
         </div>
 
         {/* Right resize handle */}
