@@ -6,7 +6,6 @@ import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
 import { fabric } from 'fabric';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
-import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import MouseIcon from '@mui/icons-material/Mouse';
@@ -35,12 +34,7 @@ export default function WorkspaceContent({
     setTool, 
     selectedShape, 
     setSelectedShape, 
-    color, 
-    setColor, 
-    width, 
-    setWidth,
-    canvasRef, 
-    setCanvasState 
+    canvasRef 
   } = useWhiteboard();
   
   const [showShapesMenu, setShowShapesMenu] = useState(false);
@@ -65,14 +59,14 @@ export default function WorkspaceContent({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showShapesMenu, selectedShape]);
+  }, [showShapesMenu, selectedShape, setTool]);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleConnect = () => {
       setIsConnected(true);
-      socket.emit('join_workspace', workspaceId);
+      socket.emit('join-workspace', workspaceId);
     };
 
     const handleDisconnect = () => {
@@ -88,7 +82,7 @@ export default function WorkspaceContent({
 
     // Join workspace if already connected
     if (socket.connected) {
-      socket.emit('join_workspace', workspaceId);
+      socket.emit('join-workspace', workspaceId);
     }
 
     return () => {
@@ -138,7 +132,7 @@ export default function WorkspaceContent({
       socket.off('error');
       socket.off('canvas-state');
     };
-  }, [socket, workspaceId]);
+  }, [socket, workspaceId, canvasRef, setStatus]);
 
   const handleAddImageToWhiteboard = (imageUrl) => {
     console.log('Adding image to whiteboard:', imageUrl);
@@ -349,9 +343,7 @@ export default function WorkspaceContent({
   const renderContent = () => {
     const whiteboardContent = (
       <div className="h-full w-full">
-        <Whiteboard 
-          socket={socket} 
-        />
+        <Whiteboard socket={socket} />
       </div>
     );
 
