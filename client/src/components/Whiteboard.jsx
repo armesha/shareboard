@@ -162,51 +162,62 @@ const Whiteboard = React.memo(() => {
     const handleWhiteboardUpdate = (drawings) => {
       if (!Array.isArray(drawings)) return;
 
-      // Очищаем текущий холст
-      canvas.clear();
-
-      // Добавляем все элементы из полученного состояния
       drawings.forEach(element => {
         if (!element || !element.type || !element.data) return;
 
-        let obj;
-        const commonProps = {
-          ...element.data,
-          id: element.id,
-          selectable: tool === 'select',
-          hasControls: tool === 'select',
-          hasBorders: tool === 'select'
-        };
+        // Find existing object with this id
+        const existingObj = canvas.getObjects().find(obj => obj.id === element.id);
+        
+        if (existingObj) {
+          // Update existing object
+          existingObj.set({
+            ...element.data,
+            selectable: tool === 'select',
+            hasControls: tool === 'select',
+            hasBorders: tool === 'select'
+          });
+          existingObj.setCoords();
+        } else {
+          // Create new object if it doesn't exist
+          let obj;
+          const commonProps = {
+            ...element.data,
+            id: element.id,
+            selectable: tool === 'select',
+            hasControls: tool === 'select',
+            hasBorders: tool === 'select'
+          };
 
-        switch (element.type) {
-          case 'rect':
-            obj = new fabric.Rect(commonProps);
-            break;
-          case 'circle':
-            obj = new fabric.Circle(commonProps);
-            break;
-          case 'triangle':
-            obj = new fabric.Triangle(commonProps);
-            break;
-          case 'path':
-            obj = new fabric.Path(element.data.path || '', commonProps);
-            break;
-          case 'text':
-            obj = new fabric.IText(element.data.text || '', {
-              ...commonProps,
-              left: element.data.left,
-              top: element.data.top,
-              fontSize: element.data.fontSize || 20,
-              fill: element.data.fill || color
-            });
-            break;
-          default:
-            console.warn('Unknown shape type:', element.type);
-            return;
-        }
+          switch (element.type) {
+            case 'rect':
+              obj = new fabric.Rect(commonProps);
+              break;
+            case 'circle':
+              obj = new fabric.Circle(commonProps);
+              break;
+            case 'triangle':
+              obj = new fabric.Triangle(commonProps);
+              break;
+            case 'path':
+              obj = new fabric.Path(element.data.path || '', commonProps);
+              break;
+            case 'text':
+              obj = new fabric.IText(element.data.text || '', {
+                ...commonProps,
+                left: element.data.left,
+                top: element.data.top,
+                fontSize: element.data.fontSize || 20,
+                fill: element.data.fill || color
+              });
+              break;
+            default:
+              console.warn('Unknown shape type:', element.type);
+              return;
+          }
 
-        if (obj) {
-          canvas.add(obj);
+          if (obj) {
+            canvas.add(obj);
+          }
         }
       });
 
@@ -447,51 +458,72 @@ const Whiteboard = React.memo(() => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !socket) return;
+
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      const workspaceId = window.location.pathname.split('/')[2];
+      
+      // Send real-time update during movement
+      socket.emit('whiteboard-update', {
+        workspaceId,
+        elements: [{
+          id: obj.id,
+          type: obj.type,
+          data: obj.toObject(['id'])
+        }]
+      });
+    };
+
+    canvas.on('object:moving', handleObjectMoving);
+
+    return () => {
+      canvas.off('object:moving', handleObjectMoving);
+    };
+  }, [socket]);
+
+  const handleAddImage = useCallback((imageUrl) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    fabric.Image.fromURL(imageUrl, (img) => {
+      const id = uuidv4();
+      img.set({
+        left: 50,
+        top: 50,
+        id: id,
+        type: 'diagram'
+      });
+      canvas.add(img);
+      canvas.setActiveObject(img);
+      canvas.renderAll();
+
+      // Send the diagram to other users
+      const workspaceId = window.location.pathname.split('/')[2];
+      if (workspaceId && socket) {
+        socket.emit('whiteboard-update', {
+          workspaceId,
+          elements: [{
+            id: id,
+            type: 'diagram',
+            src: imageUrl,
+            left: 50,
+            top: 50,
+            scaleX: img.scaleX,
+            scaleY: img.scaleY,
+            angle: img.angle
+          }]
+        });
+      }
+    });
+  }, [socket]);
+
   return (
-    <div className="whiteboard-container" style={{ position: 'relative' }}>
-      <div className="controls" style={{ 
-        position: 'absolute', 
-        top: '10px', 
-        left: '10px', 
-        display: 'flex', 
-        alignItems: 'center',
-        gap: '15px',
-        background: 'white',
-        padding: '10px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        zIndex: 1000
-      }}>
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          title="Choose color"
-          style={{ 
-            width: '30px', 
-            height: '30px',
-            padding: '0',
-            border: '2px solid #eee',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="range"
-            min="1"
-            max="20"
-            value={width}
-            onChange={(e) => setWidth(parseInt(e.target.value))}
-            title="Stroke width"
-            style={{ 
-              width: '100px',
-              accentColor: color 
-            }}
-          />
-          <span style={{ fontSize: '12px' }}>{width}px</span>
-        </div>
-      </div>
+    <div className="whiteboard-container" style={{ width: '100%', height: '100%' }}>
       <canvas ref={canvasRef} />
     </div>
   );

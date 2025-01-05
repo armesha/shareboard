@@ -94,35 +94,85 @@ export function WhiteboardProvider({ children }) {
       setIsConnected(false);
     };
 
-    const handleElementDeleted = ({ elementId }) => {
+    const handleWorkspaceState = (state) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Удаляем объект с canvas
-      const objects = canvas.getObjects();
-      const objectToRemove = objects.find(obj => obj.id === elementId);
-      if (objectToRemove) {
-        canvas.remove(objectToRemove);
-        canvas.renderAll();
+      // Clear existing elements
+      canvas.clear();
+
+      // Load all elements including diagrams
+      if (state.whiteboardElements) {
+        state.whiteboardElements.forEach(element => {
+          if (element.type === 'diagram') {
+            // Handle diagrams specially
+            fabric.Image.fromURL(element.src, (img) => {
+              img.set({
+                left: element.left,
+                top: element.top,
+                scaleX: element.scaleX,
+                scaleY: element.scaleY,
+                angle: element.angle,
+                id: element.id,
+                type: 'diagram'
+              });
+              canvas.add(img);
+              canvas.requestRenderAll();
+            });
+          } else {
+            // Handle other elements
+            const fabricObject = new fabric[element.type](element);
+            canvas.add(fabricObject);
+          }
+        });
       }
 
-      // Удаляем из локального состояния
-      elementsMapRef.current.delete(elementId);
-      setElements(prev => prev.filter(elem => elem.id !== elementId));
+      // Add any additional diagrams from the diagrams collection
+      if (state.diagrams) {
+        state.diagrams.forEach(diagram => {
+          if (!canvas.getObjects().find(obj => obj.id === diagram.id)) {
+            fabric.Image.fromURL(diagram.src, (img) => {
+              img.set({
+                left: diagram.left,
+                top: diagram.top,
+                scaleX: diagram.scaleX,
+                scaleY: diagram.scaleY,
+                angle: diagram.angle,
+                id: diagram.id,
+                type: 'diagram'
+              });
+              canvas.add(img);
+              canvas.requestRenderAll();
+            });
+          }
+        });
+      }
+
+      canvas.requestRenderAll();
+      setActiveUsers(state.activeUsers);
+    };
+
+    const handleDiagramDeleted = ({ diagramId }) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const diagram = canvas.getObjects().find(obj => obj.id === diagramId);
+      if (diagram) {
+        canvas.remove(diagram);
+        canvas.requestRenderAll();
+      }
     };
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
-    socket.on('element-deleted', handleElementDeleted);
-
-    if (socket.connected) {
-      handleConnect();
-    }
+    socket.on('workspace-state', handleWorkspaceState);
+    socket.on('diagram-deleted', handleDiagramDeleted);
 
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
-      socket.off('element-deleted', handleElementDeleted);
+      socket.off('workspace-state', handleWorkspaceState);
+      socket.off('diagram-deleted', handleDiagramDeleted);
     };
   }, [socket]);
 
@@ -177,117 +227,91 @@ export function WhiteboardProvider({ children }) {
     if (!socket || !canvasRef.current) return;
 
     const handleWhiteboardUpdate = (updatedElements) => {
-      console.log('Received whiteboard update, elements:', updatedElements?.length);
+      console.log('Received whiteboard update:', updatedElements);
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Update elements map
       updatedElements.forEach(element => {
-        if (element.id) {
+        if (element && element.id) {
+          // Store in elements map
           elementsMapRef.current.set(element.id, element);
-        }
-      });
 
-      // Update React state with all current elements
-      setElements(Array.from(elementsMapRef.current.values()));
-
-      // Update canvas objects
-      const currentObjects = new Map(canvas.getObjects().map(obj => [obj.id, obj]));
-      
-      updatedElements.forEach(element => {
-        let obj = currentObjects.get(element.id);
-        
-        if (!obj) {
-          // Create new object if it doesn't exist
-          obj = createFabricObject(element, tool === 'select');
-          if (obj) {
-            canvas.add(obj);
+          // Handle diagram elements
+          if (element.type === 'diagram') {
+            const existingObj = canvas.getObjects().find(obj => obj.id === element.id);
+            if (!existingObj) {
+              // Create new diagram
+              fabric.Image.fromURL(element.src, (img) => {
+                img.set({
+                  left: element.left || 50,
+                  top: element.top || 50,
+                  scaleX: element.scaleX || 1,
+                  scaleY: element.scaleY || 1,
+                  angle: element.angle || 0,
+                  id: element.id,
+                  type: 'diagram',
+                  selectable: tool === 'select',
+                  hasControls: tool === 'select',
+                  hasBorders: tool === 'select'
+                });
+                canvas.add(img);
+                canvas.requestRenderAll();
+              });
+            } else {
+              // Update existing diagram
+              existingObj.set({
+                left: element.left,
+                top: element.top,
+                scaleX: element.scaleX,
+                scaleY: element.scaleY,
+                angle: element.angle,
+                selectable: tool === 'select',
+                hasControls: tool === 'select',
+                hasBorders: tool === 'select'
+              });
+              existingObj.setCoords();
+            }
           }
-        } else {
-          // Update existing object properties
-          obj.set({
-            ...element.data,
-            selectable: tool === 'select',
-            hasControls: tool === 'select',
-            hasBorders: tool === 'select'
-          });
-          obj.setCoords();
         }
       });
 
-      canvas.renderAll();
+      // Update React state
+      setElements(Array.from(elementsMapRef.current.values()));
+      canvas.requestRenderAll();
     };
 
     const handleWorkspaceState = (state) => {
       console.log('Received workspace state:', state);
-      
-      if (!canvasRef.current) {
-        console.warn('Canvas not initialized when receiving workspace state');
-        return;
-      }
-      
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // Clear canvas
+      canvas.clear();
+
       // Reset elements map
       elementsMapRef.current.clear();
-      
-      if (state.whiteboardElements && Array.isArray(state.whiteboardElements)) {
-        console.log('Processing whiteboard elements:', state.whiteboardElements.length);
-        
-        // Очищаем текущий холст
-        canvasRef.current.clear();
-        
-        // Добавляем все элементы
-        state.whiteboardElements.forEach(element => {
-          if (element && element.id) {
-            // Сохраняем в map
-            elementsMapRef.current.set(element.id, element);
-            
-            // Создаем и добавляем объект на холст
-            const obj = createFabricObject(element, tool === 'select');
-            if (obj) {
-              canvasRef.current.add(obj);
-            }
-          }
-        });
-        
-        // Обновляем состояние React
-        setElements(Array.from(elementsMapRef.current.values()));
-        
-        // Перерисовываем холст
-        canvasRef.current.renderAll();
-      }
-      
-      if (state.activeUsers !== undefined) {
-        setActiveUsers(state.activeUsers);
-      }
-    };
 
-    const handleWhiteboardClear = () => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        canvas.clear();
-        canvas.backgroundColor = '#ffffff';
-        canvas.renderAll();
+      // Add all elements
+      if (state.whiteboardElements) {
+        handleWhiteboardUpdate(state.whiteboardElements);
       }
-      setElements([]);
-      elementsMapRef.current.clear();
+
+      // Add diagrams separately if they exist
+      if (state.diagrams) {
+        handleWhiteboardUpdate(Array.from(state.diagrams.values()));
+      }
+
+      setActiveUsers(state.activeUsers);
     };
 
     socket.on('whiteboard-update', handleWhiteboardUpdate);
     socket.on('workspace-state', handleWorkspaceState);
-    socket.on('whiteboard-clear', handleWhiteboardClear);
-
-    // Request initial state when connecting
-    const workspaceId = window.location.pathname.split('/')[2];
-    if (workspaceId) {
-      socket.emit('join-workspace', workspaceId);
-    }
 
     return () => {
       socket.off('whiteboard-update', handleWhiteboardUpdate);
       socket.off('workspace-state', handleWorkspaceState);
-      socket.off('whiteboard-clear', handleWhiteboardClear);
     };
-  }, [socket, tool, createFabricObject]);
+  }, [socket, tool]);
 
   // Add new element
   const addElement = useCallback((element) => {
