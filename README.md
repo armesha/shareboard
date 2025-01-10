@@ -1,3 +1,5 @@
+npm run dev:all
+
 # ShareBoard - Collaborative Whiteboard & Code Editor
 
 A real-time collaborative workspace that combines whiteboard functionality with code editing capabilities.

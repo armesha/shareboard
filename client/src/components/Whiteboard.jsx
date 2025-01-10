@@ -276,8 +276,10 @@ const Whiteboard = React.memo(() => {
         fill: 'transparent',
         stroke: color,
         strokeWidth: width,
-        selectable: false,
-        evented: false,
+        selectable: true,
+        hasControls: true,
+        hasBorders: true,
+        evented: true,
         id: uuidv4()
       };
 
@@ -379,9 +381,9 @@ const Whiteboard = React.memo(() => {
       
       // Set final properties
       shape.set({
-        selectable: tool === 'select',
-        hasControls: tool === 'select',
-        hasBorders: tool === 'select'
+        selectable: true,
+        hasControls: true,
+        hasBorders: true
       });
 
       // Add to shared state
@@ -396,7 +398,7 @@ const Whiteboard = React.memo(() => {
 
     startPoint.current = null;
     canvas.renderAll();
-  }, [addElement, tool, fabricCanvasRef]);
+  }, [addElement, fabricCanvasRef]);
 
   // Handle path creation when using pen tool
   useEffect(() => {
@@ -408,9 +410,9 @@ const Whiteboard = React.memo(() => {
       if (!path) return;
 
       path.id = uuidv4();
-      path.selectable = tool === 'select';
-      path.hasControls = tool === 'select';
-      path.hasBorders = tool === 'select';
+      path.selectable = true;
+      path.hasControls = true;
+      path.hasBorders = true;
 
       addElement({
         id: path.id,
@@ -424,7 +426,7 @@ const Whiteboard = React.memo(() => {
     return () => {
       canvas.off('path:created', handlePathCreated);
     };
-  }, [addElement, tool]);
+  }, [addElement]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;

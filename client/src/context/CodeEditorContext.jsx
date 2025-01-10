@@ -13,35 +13,46 @@ export function CodeEditorProvider({ children }) {
   const [content, setContent] = useState('');
   const [language, setLanguage] = useState('javascript');
   const [isEditing, setIsEditing] = useState(false);
+  const [lastEmittedContent, setLastEmittedContent] = useState('');
 
-  // Debounced function to emit code changes
+  // Emit code changes immediately for small changes (single characters)
+  const emitCodeChange = useCallback((workspaceId, language, newContent) => {
+    if (socket && newContent !== lastEmittedContent) {
+      socket.emit('code-update', {
+        workspaceId,
+        language,
+        content: newContent
+      });
+      setLastEmittedContent(newContent);
+    }
+  }, [socket, lastEmittedContent]);
+
+  // Debounced emit for larger changes
   const debouncedEmit = useCallback(
     debounce((workspaceId, language, content) => {
-      if (socket) {
-        socket.emit('code-update', {
-          workspaceId,
-          language,
-          content
-        });
-      }
-    }, 1000),
-    [socket]
+      emitCodeChange(workspaceId, language, content);
+    }, 250), // Reduced from 1000ms to 250ms
+    [emitCodeChange]
   );
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('code-update', ({ language: newLanguage, content: newContent }) => {
-      if (!isEditing) {
+    const handleCodeUpdate = ({ language: newLanguage, content: newContent }) => {
+      if (!isEditing || newContent !== content) {
         setLanguage(newLanguage);
         setContent(newContent);
+        setLastEmittedContent(newContent);
       }
-    });
+    };
+
+    socket.on('code-update', handleCodeUpdate);
 
     socket.on('workspace-state', (state) => {
       if (state.codeSnippets) {
         setLanguage(state.codeSnippets.language);
         setContent(state.codeSnippets.content);
+        setLastEmittedContent(state.codeSnippets.content);
       }
     });
 
@@ -49,23 +60,26 @@ export function CodeEditorProvider({ children }) {
       socket.off('code-update');
       socket.off('workspace-state');
     };
-  }, [socket, isEditing]);
+  }, [socket, isEditing, content]);
 
   const updateCode = useCallback((newContent) => {
     setContent(newContent);
     const workspaceId = window.location.pathname.split('/')[2];
-    debouncedEmit(workspaceId, language, newContent);
-  }, [language, debouncedEmit]);
+    
+    // If it's a single character change, emit immediately
+    if (Math.abs(newContent.length - content.length) <= 1) {
+      emitCodeChange(workspaceId, language, newContent);
+    } else {
+      // For larger changes, use debounced emit
+      debouncedEmit(workspaceId, language, newContent);
+    }
+  }, [language, content, emitCodeChange, debouncedEmit]);
 
   const updateLanguage = useCallback((newLanguage) => {
     setLanguage(newLanguage);
     const workspaceId = window.location.pathname.split('/')[2];
-    socket?.emit('code-update', {
-      workspaceId,
-      language: newLanguage,
-      content
-    });
-  }, [content, socket]);
+    emitCodeChange(workspaceId, newLanguage, content);
+  }, [content, emitCodeChange]);
 
   const value = {
     content,
