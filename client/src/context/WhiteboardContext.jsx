@@ -18,6 +18,8 @@ export function WhiteboardProvider({ children }) {
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState('connecting'); // 'connecting', 'connected', 'disconnected'
   const canvasRef = useRef(null);
   const elementsMapRef = useRef(new Map());
 
@@ -120,6 +122,7 @@ export function WhiteboardProvider({ children }) {
 
     const handleConnect = () => {
       setIsConnected(true);
+      setConnectionStatus('connected');
       const workspaceId = window.location.pathname.split('/')[2];
       if (workspaceId) {
         socket.emit('join-workspace', workspaceId);
@@ -128,6 +131,8 @@ export function WhiteboardProvider({ children }) {
 
     const handleDisconnect = () => {
       setIsConnected(false);
+      setConnectionStatus('disconnected');
+      setIsLoading(true);
     };
 
     const handleWorkspaceState = (state) => {
@@ -160,30 +165,28 @@ export function WhiteboardProvider({ children }) {
       }
 
       setActiveUsers(state.activeUsers);
-    };
-
-    const handleDiagramDeleted = ({ diagramId }) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const diagram = canvas.getObjects().find(obj => obj.id === diagramId);
-      if (diagram) {
-        canvas.remove(diagram);
-        canvas.requestRenderAll();
-      }
+      setIsLoading(false); // Set loading to false after processing workspace state
     };
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('workspace-state', handleWorkspaceState);
-    socket.on('diagram-deleted', handleDiagramDeleted);
     socket.on('whiteboard-update', handleWhiteboardUpdate);
+
+    // Set initial connection status
+    if (socket.connected) {
+      setIsConnected(true);
+      setConnectionStatus('connected');
+      const workspaceId = window.location.pathname.split('/')[2];
+      if (workspaceId) {
+        socket.emit('join-workspace', workspaceId);
+      }
+    }
 
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('workspace-state', handleWorkspaceState);
-      socket.off('diagram-deleted', handleDiagramDeleted);
       socket.off('whiteboard-update', handleWhiteboardUpdate);
     };
   }, [socket, handleWhiteboardUpdate]);
@@ -228,22 +231,25 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.isDrawingMode = tool === 'pen';
-    canvas.selection = tool === 'select';
+    // Disable drawing if loading or disconnected
+    const canDraw = !isLoading && isConnected;
+    
+    canvas.isDrawingMode = canDraw && tool === 'pen';
+    canvas.selection = canDraw && tool === 'select';
     
     // Only update object properties when switching to/from select mode
     if (tool === 'select' || canvas.selection !== (tool === 'select')) {
       canvas.getObjects().forEach(obj => {
         obj.set({
-          selectable: tool === 'select',
-          hasControls: tool === 'select',
-          hasBorders: tool === 'select'
+          selectable: canDraw && tool === 'select',
+          hasControls: canDraw && tool === 'select',
+          hasBorders: canDraw && tool === 'select'
         });
       });
     }
 
     canvas.requestRenderAll();
-  }, [tool]);
+  }, [tool, isLoading, isConnected]);
 
   // Add new element
   const addElement = useCallback((element) => {
@@ -314,18 +320,20 @@ export function WhiteboardProvider({ children }) {
     elements,
     activeUsers,
     tool,
-    setTool,
     selectedShape,
-    setSelectedShape,
     color,
-    setColor,
     width,
-    setWidth,
     isConnected,
+    isLoading,
+    connectionStatus,
+    setTool,
+    setSelectedShape,
+    setColor,
+    setWidth,
+    initCanvas,
     addElement,
     updateElement,
     clearCanvas,
-    initCanvas,
     canvasRef
   };
 

@@ -1,114 +1,100 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
-import { WhiteboardProvider } from '../context/WhiteboardContext';
+import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 
-export default function Workspace() {
+function WorkspaceLayout() {
   const { workspaceId } = useParams();
   const socket = useSocket();
-  const [status, setStatus] = useState('connecting');
-  const [viewMode, setViewMode] = useState('whiteboard'); // 'whiteboard', 'code', 'split', 'diagram'
+  const { isLoading, connectionStatus } = useWhiteboard();
+  const [viewMode, setViewMode] = useState('whiteboard');
   const [splitPosition, setSplitPosition] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState(null);
   const [initialMouseX, setInitialMouseX] = useState(null);
   const [initialWidth, setInitialWidth] = useState(null);
   const containerRef = useRef(null);
-  const MIN_WIDTH_PERCENT = 20; // Minimum width for each panel
+  const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
 
-  useEffect(() => {
-    if (!socket) return;
-    
-    socket.on('connect', () => {
-      setStatus('connected');
-      socket.emit('join-workspace', workspaceId);
-    });
-
-    socket.on('disconnect', () => setStatus('disconnected'));
-    socket.on('error', () => setStatus('error'));
-
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('error');
-    };
-  }, [socket, workspaceId]);
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setInitialMouseX(e.clientX);
+    setInitialWidth(splitPosition);
+  };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!isDragging || !containerRef.current || initialMouseX === null) return;
+      if (!isDragging || !containerRef.current) return;
       
       const container = containerRef.current.getBoundingClientRect();
       const deltaX = e.clientX - initialMouseX;
       const deltaPercent = (deltaX / container.width) * 100;
-      let newPosition;
-
-      if (resizeDirection === 'left') {
-        // Тянем за левую ручку
-        newPosition = initialWidth - deltaPercent;
-      } else {
-        // Тянем за правую ручку
-        newPosition = initialWidth + deltaPercent;
-      }
+      const newPosition = initialWidth + deltaPercent;
       
-      // Жестко ограничиваем пределы
-      newPosition = Math.min(Math.max(newPosition, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT);
-      setSplitPosition(newPosition);
+      setSplitPosition(Math.min(Math.max(newPosition, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT));
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      setResizeDirection(null);
       setInitialMouseX(null);
       setInitialWidth(null);
-      document.body.style.cursor = 'default';
-      document.body.classList.remove('select-none');
     };
 
     if (isDragging) {
-      document.body.style.cursor = 'col-resize';
-      document.body.classList.add('select-none');
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
-      document.body.style.cursor = 'default';
-      document.body.classList.remove('select-none');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, resizeDirection, initialMouseX, initialWidth]);
-
-  const handleMouseDown = (e, direction) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-    setResizeDirection(direction);
-    setInitialMouseX(e.clientX);
-    setInitialWidth(splitPosition);
-  };
+  }, [isDragging, initialMouseX, initialWidth]);
 
   const cycleViewMode = () => {
-    if (viewMode === 'whiteboard') {
-      setViewMode('split');
-      setSplitPosition(40); // Начальная ширина при открытии
-    } else if (viewMode === 'split') {
-      setViewMode('whiteboard');
-    }
+    setViewMode(viewMode === 'whiteboard' ? 'split' : 'whiteboard');
+    setSplitPosition(40);
   };
 
   return (
-    <WhiteboardProvider>
-      <CodeEditorProvider>
+    <div className="fixed inset-0 flex flex-col bg-gray-100">
+      {/* Loading overlay */}
+      {(isLoading || connectionStatus !== 'connected') && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white bg-opacity-80">
+          <div className="text-center">
+            {connectionStatus === 'connecting' && (
+              <>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                <p className="text-lg text-gray-700">Connecting to workspace...</p>
+              </>
+            )}
+            {connectionStatus === 'connected' && isLoading && (
+              <>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent mb-4"></div>
+                <p className="text-lg text-gray-700">Loading drawing history...</p>
+              </>
+            )}
+            {connectionStatus === 'disconnected' && (
+              <>
+                <div className="inline-block h-8 w-8 text-red-500 mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <p className="text-lg text-red-600">Connection lost. Reconnecting...</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 h-full">
         <WorkspaceContent
-          socket={socket}
           workspaceId={workspaceId}
-          status={status}
-          setStatus={setStatus}
           viewMode={viewMode}
           splitPosition={splitPosition}
           isDragging={isDragging}
@@ -116,6 +102,16 @@ export default function Workspace() {
           containerRef={containerRef}
           cycleViewMode={cycleViewMode}
         />
+      </div>
+    </div>
+  );
+}
+
+export default function Workspace() {
+  return (
+    <WhiteboardProvider>
+      <CodeEditorProvider>
+        <WorkspaceLayout />
       </CodeEditorProvider>
     </WhiteboardProvider>
   );
