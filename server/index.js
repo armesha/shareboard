@@ -190,41 +190,44 @@ io.on('connection', (socket) => {
 
     workspace.lastActivity = Date.now();
     
-    // Store the current state
-    workspace.drawings = elements;
+    // Create a map of existing drawings for faster lookup
+    const existingDrawings = new Map(workspace.drawings.map(d => [d.id, d]));
     
-    console.log(`Received whiteboard update in workspace ${workspaceId}:`, {
-      elementsCount: elements.length,
-      currentDrawingsCount: workspace.drawings.length,
-      allDrawingsCount: workspace.allDrawings.length
-    });
-    
-    // Add new elements to history with timestamps
+    // Update or add new elements
     elements.forEach(element => {
       if (element && element.id) {
-        const elementWithTimestamp = {
+        existingDrawings.set(element.id, {
           ...element,
           timestamp: Date.now()
-        };
+        });
         
         // Add to complete history if it's not already there
         const existingIndex = workspace.allDrawings.findIndex(e => e.id === element.id);
         if (existingIndex === -1) {
-          workspace.allDrawings.push(elementWithTimestamp);
+          workspace.allDrawings.push({
+            ...element,
+            timestamp: Date.now()
+          });
         } else {
-          // Update existing element
-          workspace.allDrawings[existingIndex] = elementWithTimestamp;
+          // Update existing element in history
+          workspace.allDrawings[existingIndex] = {
+            ...element,
+            timestamp: Date.now()
+          };
         }
       }
     });
-
+    
+    // Convert map back to array and update workspace drawings
+    workspace.drawings = Array.from(existingDrawings.values());
+    
     console.log(`Updated workspace ${workspaceId} state:`, {
       currentDrawingsCount: workspace.drawings.length,
       allDrawingsCount: workspace.allDrawings.length
     });
 
     // Broadcast the update to all clients in the workspace
-    io.to(workspaceId).emit('whiteboard-update', elements);
+    io.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
   // Обработчик запроса текущего состояния холста
