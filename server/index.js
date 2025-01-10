@@ -73,7 +73,9 @@ app.post('/api/workspaces', (req, res) => {
     created: Date.now(),
     lastActivity: Date.now(),
     diagrams: new Map(),
-    drawings: []
+    drawings: [],
+    allDrawings: [], // Complete history of all drawings
+    drawingHistory: [] // Add drawing history with timestamps
   });
   res.json({ workspaceId });
 });
@@ -117,7 +119,8 @@ io.on('connection', (socket) => {
         created: Date.now(),
         lastActivity: Date.now(),
         diagrams: new Map(),
-        drawings: []
+        drawings: [], // Current state of drawings
+        allDrawings: [] // Complete history of all drawings
       };
       workspaces.set(workspaceId, workspace);
     }
@@ -148,23 +151,30 @@ io.on('connection', (socket) => {
     socket.join(workspaceId);
     currentWorkspace = workspace;
     workspace.lastActivity = Date.now();
-    
-    // Initialize diagram handler for this workspace
-    diagramHandler = new DiagramHandler(workspace);
-    diagramHandler.loadFromWorkspaceState(workspace);
-    diagramHandler.initialize(socket, io.to(workspaceId));
 
     console.log(`Workspace ${workspaceId} state:`, {
       elements: workspace.drawings?.length || 0,
-      activeUsers: activeConnections.get(workspaceId).size
+      activeUsers: activeConnections.get(workspaceId).size,
+      currentDrawings: workspace.drawings?.length || 0,
+      allDrawingsHistory: workspace.allDrawings?.length || 0
     });
 
     // Send initial state to the joining user
-    socket.emit('workspace-state', {
+    const initialState = {
       whiteboardElements: workspace.drawings || [],
       diagrams: Array.from(workspace.diagrams.values()) || [],
-      activeUsers: activeConnections.get(workspaceId).size
+      activeUsers: activeConnections.get(workspaceId).size,
+      allDrawings: workspace.allDrawings || []
+    };
+
+    console.log(`Sending initial state to user ${socket.id}:`, {
+      whiteboardElementsCount: initialState.whiteboardElements.length,
+      diagramsCount: initialState.diagrams.length,
+      allDrawingsCount: initialState.allDrawings.length,
+      activeUsers: initialState.activeUsers
     });
+
+    socket.emit('workspace-state', initialState);
     
     // Notify other users in the workspace
     socket.to(workspaceId).emit('user-joined', { 
@@ -180,41 +190,54 @@ io.on('connection', (socket) => {
 
     workspace.lastActivity = Date.now();
     
+    // Store the current state
+    workspace.drawings = elements;
+    
+    console.log(`Received whiteboard update in workspace ${workspaceId}:`, {
+      elementsCount: elements.length,
+      currentDrawingsCount: workspace.drawings.length,
+      allDrawingsCount: workspace.allDrawings.length
+    });
+    
+    // Add new elements to history with timestamps
     elements.forEach(element => {
       if (element && element.id) {
-        // If it's a diagram, store it in both maps
-        if (element.type === 'diagram') {
-          const diagramData = {
-            id: element.id,
-            type: 'diagram',
-            src: element.src,
-            left: element.left,
-            top: element.top,
-            scaleX: element.scaleX,
-            scaleY: element.scaleY,
-            angle: element.angle
-          };
-          workspace.diagrams.set(element.id, diagramData);
-          workspace.drawings = workspace.drawings.map(el => 
-            el.id === element.id ? diagramData : el
-          );
-          if (!workspace.drawings.find(el => el.id === element.id)) {
-            workspace.drawings.push(diagramData);
-          }
+        const elementWithTimestamp = {
+          ...element,
+          timestamp: Date.now()
+        };
+        
+        // Add to complete history if it's not already there
+        const existingIndex = workspace.allDrawings.findIndex(e => e.id === element.id);
+        if (existingIndex === -1) {
+          workspace.allDrawings.push(elementWithTimestamp);
         } else {
-          // For non-diagram elements, just update the drawings array
-          const index = workspace.drawings.findIndex(el => el.id === element.id);
-          if (index !== -1) {
-            workspace.drawings[index] = element;
-          } else {
-            workspace.drawings.push(element);
-          }
+          // Update existing element
+          workspace.allDrawings[existingIndex] = elementWithTimestamp;
         }
       }
     });
 
-    // Broadcast update to all clients in the workspace
+    console.log(`Updated workspace ${workspaceId} state:`, {
+      currentDrawingsCount: workspace.drawings.length,
+      allDrawingsCount: workspace.allDrawings.length
+    });
+
+    // Broadcast the update to all clients in the workspace
     io.to(workspaceId).emit('whiteboard-update', elements);
+  });
+
+  // Обработчик запроса текущего состояния холста
+  socket.on('request-canvas-state', (workspaceId) => {
+    const workspace = workspaces.get(workspaceId);
+    if (workspace) {
+      socket.emit('workspace-state', {
+        whiteboardElements: workspace.drawings || [],
+        diagrams: Array.from(workspace.diagrams.values()) || [],
+        activeUsers: activeConnections.get(workspaceId).size,
+        allDrawings: workspace.allDrawings || [] // Send complete drawing history
+      });
+    }
   });
 
   // Handle diagram deletion
@@ -232,27 +255,19 @@ io.on('connection', (socket) => {
     io.to(workspaceId).emit('diagram-deleted', { diagramId });
   });
 
-  // Обработчик запроса текущего состояния холста
-  socket.on('request-canvas-state', (workspaceId) => {
-    const workspace = workspaces.get(workspaceId);
-    if (workspace) {
-      socket.emit('workspace-state', {
-        whiteboardElements: workspace.drawings || [],
-        diagrams: Array.from(workspace.diagrams.values()) || [],
-        activeUsers: activeConnections.get(workspaceId).size
-      });
-    }
-  });
-
+  // Handle whiteboard clear
   socket.on('whiteboard-clear', ({ workspaceId }) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
       workspace.lastActivity = Date.now();
       workspace.drawings = [];
+      workspace.drawingHistory = [];
+      workspace.allDrawings = [];
       io.to(workspaceId).emit('whiteboard-clear');
     }
   });
 
+  // Handle code update
   socket.on('code-update', ({ workspaceId, language, content }) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
@@ -261,14 +276,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle delete element
   socket.on('delete-element', ({ workspaceId, elementId }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace || !elementId) return;
 
     workspace.lastActivity = Date.now();
     workspace.drawings = workspace.drawings.filter(el => el.id !== elementId);
+    workspace.drawingHistory = workspace.drawingHistory.filter(el => el.id !== elementId);
+    workspace.allDrawings = workspace.allDrawings.filter(el => el.id !== elementId);
     
-    // Отправляем обновление всем клиентам в workspace
+    // Send update to all clients in the workspace
     io.to(workspaceId).emit('element-deleted', { elementId });
   });
 
