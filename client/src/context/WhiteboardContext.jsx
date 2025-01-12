@@ -23,7 +23,6 @@ export function WhiteboardProvider({ children }) {
   const canvasRef = useRef(null);
   const elementsMapRef = useRef(new Map());
 
-  // Add new element
   const addElement = useCallback((element) => {
     if (!element.id) {
       element.id = uuidv4();
@@ -35,25 +34,21 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
-    // Add to local map
     elementsMapRef.current.set(element.id, elementWithProps);
     
-    // Update React state with all elements
     const allElements = Array.from(elementsMapRef.current.values());
     setElements(allElements);
     
-    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket) {
       console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: allElements // Send all elements
+        elements: allElements
       });
     }
   }, [socket, tool]);
 
-  // Update existing element
   const updateElement = useCallback((id, element) => {
     if (!id || !elementsMapRef.current.has(id)) return;
 
@@ -64,25 +59,21 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
-    // Update local map
     elementsMapRef.current.set(id, elementWithProps);
     
-    // Update React state with all elements
     const allElements = Array.from(elementsMapRef.current.values());
     setElements(allElements);
 
-    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket) {
       console.log('Sending updated element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: allElements // Send all elements
+        elements: allElements
       });
     }
   }, [socket, tool]);
 
-  // Create Fabric object from element data
   const createFabricObject = useCallback((element, isSelectable = false) => {
     if (!element || !element.type || !element.data) return null;
 
@@ -139,7 +130,6 @@ export function WhiteboardProvider({ children }) {
           console.warn('Diagram element has no src');
           return null;
         }
-        // Create a temporary placeholder
         obj = new fabric.Rect({
           ...commonProps,
           fill: 'rgba(0,0,0,0)',
@@ -148,7 +138,6 @@ export function WhiteboardProvider({ children }) {
           height: 100
         });
 
-        // Load the actual image asynchronously
         fabric.Image.fromURL(element.data.src, (img) => {
           img.set({
             ...commonProps,
@@ -172,21 +161,18 @@ export function WhiteboardProvider({ children }) {
         return null;
     }
 
-    // Ensure object has all required properties
     if (obj) {
       obj.id = element.id;
       obj.selectable = isSelectable;
       obj.hasControls = isSelectable;
       obj.hasBorders = isSelectable;
       
-      // Set object data for future reference
       obj.set('data', element.data);
     }
 
     return obj;
   }, [color, width]);
 
-  // Handle whiteboard updates from server
   const handleWhiteboardUpdate = useCallback((elements) => {
     console.log('Processing whiteboard update:', {
       elementsCount: elements?.length || 0
@@ -195,18 +181,15 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Update local map with received elements
     elements.forEach(element => {
       if (element && element.id) {
         elementsMapRef.current.set(element.id, element);
       }
     });
 
-    // Get all current objects on canvas
     const existingObjects = canvas.getObjects();
     const updatedIds = new Set(elements.map(el => el.id));
 
-    // Remove objects that are no longer in the update
     existingObjects.forEach(obj => {
       if (obj.id && !updatedIds.has(obj.id)) {
         console.log('Removing deleted element:', obj.id);
@@ -214,14 +197,12 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
-    // Update or add elements
     elements.forEach(element => {
       if (!element || !element.id) return;
 
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
       if (existingObject) {
-        // For paths and diagrams, we need to recreate the object to ensure proper rendering
         if (element.type === 'path' || element.type === 'diagram') {
           canvas.remove(existingObject);
           const newObject = createFabricObject(element, tool === 'select');
@@ -229,7 +210,6 @@ export function WhiteboardProvider({ children }) {
             canvas.add(newObject);
           }
         } else {
-          // For other objects, update properties
           Object.keys(element.data || {}).forEach(key => {
             if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
               existingObject.set(key, element.data[key]);
@@ -238,7 +218,6 @@ export function WhiteboardProvider({ children }) {
           existingObject.setCoords();
         }
       } else {
-        // Create new object
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
@@ -246,7 +225,6 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
-    // Update selection state for all objects
     canvas.getObjects().forEach(obj => {
       obj.set({
         selectable: tool === 'select',
@@ -259,7 +237,6 @@ export function WhiteboardProvider({ children }) {
     setElements(elements);
   }, [createFabricObject, tool]);
 
-  // Initialize canvas
   const initCanvas = useCallback((canvasElement) => {
     if (!canvasElement) return;
 
@@ -272,13 +249,11 @@ export function WhiteboardProvider({ children }) {
       preserveObjectStacking: true
     });
 
-    // Initialize brush with default properties
     const brush = new fabric.PencilBrush(canvas);
     brush.color = color;
     brush.width = width;
     canvas.freeDrawingBrush = brush;
 
-    // Handle path creation
     canvas.on('path:created', (e) => {
       const path = e.path;
       const pathData = {
@@ -306,7 +281,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [tool, color, width, addElement]);
 
-  // Handle socket connection events
   useEffect(() => {
     if (!socket) return;
 
@@ -336,20 +310,17 @@ export function WhiteboardProvider({ children }) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Clear canvas
       canvas.clear();
 
-      // Reset elements map
       elementsMapRef.current.clear();
 
-      // Add all elements from the current state
       if (state.whiteboardElements && state.whiteboardElements.length > 0) {
         console.log('Adding whiteboardElements to canvas:', state.whiteboardElements.length);
         handleWhiteboardUpdate(state.whiteboardElements);
       }
 
       setActiveUsers(state.activeUsers);
-      setIsLoading(false); // Set loading to false after processing workspace state
+      setIsLoading(false);
     };
 
     socket.on('connect', handleConnect);
@@ -357,7 +328,6 @@ export function WhiteboardProvider({ children }) {
     socket.on('workspace-state', handleWorkspaceState);
     socket.on('whiteboard-update', handleWhiteboardUpdate);
 
-    // Set initial connection status
     if (socket.connected) {
       setIsConnected(true);
       setConnectionStatus('connected');
@@ -375,7 +345,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [socket, handleWhiteboardUpdate]);
 
-  // Simple brush property update
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
@@ -384,22 +353,17 @@ export function WhiteboardProvider({ children }) {
     canvas.freeDrawingBrush.width = width;
   }, [color, width]);
 
-  // Update tool state
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Disable drawing if loading or disconnected
     const canDraw = !isLoading && isConnected;
     
-    // Only update drawing mode and selection
     canvas.isDrawingMode = canDraw && tool === 'pen';
     canvas.selection = canDraw && tool === 'select';
     
-    // Don't update objects if we're not switching to/from select tool
     const needsObjectUpdate = tool === 'select' || tool === 'pen';
     if (needsObjectUpdate) {
-      // Update selection state for all objects
       canvas.getObjects().forEach(obj => {
         obj.set({
           selectable: canDraw && tool === 'select',
@@ -411,7 +375,6 @@ export function WhiteboardProvider({ children }) {
     }
   }, [tool, isLoading, isConnected]);
 
-  // Handle object modifications
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -420,7 +383,6 @@ export function WhiteboardProvider({ children }) {
       const obj = e.target;
       if (!obj || !obj.id) return;
 
-      // Create element data based on object type
       let elementData;
       if (obj.type === 'diagram') {
         elementData = {
@@ -435,7 +397,6 @@ export function WhiteboardProvider({ children }) {
         elementData = obj.toObject(['id']);
       }
 
-      // Update element in state
       updateElement(obj.id, {
         type: obj.type,
         data: elementData
@@ -455,7 +416,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [updateElement]);
 
-  // Clear canvas
   const clearCanvas = useCallback(() => {
     if (socket && isConnected) {
       const workspaceId = window.location.pathname.split('/')[2];

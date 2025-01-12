@@ -5,24 +5,20 @@ class DiagramHandler {
   }
 
   initialize(socket, io) {
-    // Handle get diagrams request
     socket.on('getDiagrams', () => {
       socket.emit('diagramsUpdate', this.getDiagramsList());
     });
 
-    // Handle create diagram
     socket.on('createDiagram', (diagramData) => {
       this.createDiagram(diagramData);
       io.emit('diagramsUpdate', this.getDiagramsList());
     });
 
-    // Handle update diagram
     socket.on('updateDiagram', (diagramData) => {
       this.updateDiagram(diagramData);
       io.emit('diagramsUpdate', this.getDiagramsList());
     });
 
-    // Handle delete diagram
     socket.on('deleteDiagram', (diagramId) => {
       this.deleteDiagram(diagramId);
       io.emit('diagramsUpdate', this.getDiagramsList());

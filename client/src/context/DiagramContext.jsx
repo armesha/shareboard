@@ -10,13 +10,10 @@ export const DiagramProvider = ({ children }) => {
 
   useEffect(() => {
     if (socket) {
-      // Request initial diagrams state
       socket.emit('getDiagrams');
 
-      // Listen for diagram updates
       socket.on('diagramsUpdate', (updatedDiagrams) => {
         setDiagrams(updatedDiagrams);
-        // Update current diagram if it exists in the updated list
         if (currentDiagram) {
           const updated = updatedDiagrams.find(d => d.id === currentDiagram.id);
           if (updated) {

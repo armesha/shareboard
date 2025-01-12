@@ -13,14 +13,13 @@ export function SocketProvider({ children }) {
   const maxReconnectAttempts = 5;
 
   const initializeSocket = useCallback(() => {
-    // Add initial delay to ensure server is up
     setTimeout(() => {
       const socketInstance = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3000', {
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
-        reconnectionDelay: 2000, // Increased from 1000
-        reconnectionDelayMax: 10000, // Increased from 5000
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
         timeout: 20000,
         transports: ['websocket', 'polling']
       });
@@ -62,7 +61,7 @@ export function SocketProvider({ children }) {
       });
 
       setSocket(socketInstance);
-    }, 2000); // Wait 2 seconds before initial connection attempt
+    }, 2000);
   }, [maxReconnectAttempts]);
 
   useEffect(() => {
@@ -74,11 +73,9 @@ export function SocketProvider({ children }) {
     };
   }, [initializeSocket]);
 
-  // Handle reconnection attempts
   useEffect(() => {
     if (connectionAttempts >= maxReconnectAttempts) {
       console.error('Max reconnection attempts reached');
-      // You might want to show a user-friendly error message here
     }
   }, [connectionAttempts]);
 

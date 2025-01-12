@@ -15,7 +15,6 @@ export function CodeEditorProvider({ children }) {
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
 
-  // Emit code changes immediately for small changes (single characters)
   const emitCodeChange = useCallback((workspaceId, language, newContent) => {
     if (socket && newContent !== lastEmittedContent) {
       socket.emit('code-update', {
@@ -27,11 +26,10 @@ export function CodeEditorProvider({ children }) {
     }
   }, [socket, lastEmittedContent]);
 
-  // Debounced emit for larger changes
   const debouncedEmit = useCallback(
     debounce((workspaceId, language, content) => {
       emitCodeChange(workspaceId, language, content);
-    }, 250), // Reduced from 1000ms to 250ms
+    }, 250),
     [emitCodeChange]
   );
 
@@ -66,11 +64,9 @@ export function CodeEditorProvider({ children }) {
     setContent(newContent);
     const workspaceId = window.location.pathname.split('/')[2];
     
-    // If it's a single character change, emit immediately
     if (Math.abs(newContent.length - content.length) <= 1) {
       emitCodeChange(workspaceId, language, newContent);
     } else {
-      // For larger changes, use debounced emit
       debouncedEmit(workspaceId, language, newContent);
     }
   }, [language, content, emitCodeChange, debouncedEmit]);
