@@ -155,6 +155,9 @@ export function WhiteboardProvider({ children }) {
           const isDiagram = true;
           const isInteractive = isDiagram;
 
+          // Добавляем отступ для области захвата
+          const padding = 20; // 20px с каждой стороны
+
           img.set({
             ...commonProps,
             id: element.id,
@@ -174,8 +177,14 @@ export function WhiteboardProvider({ children }) {
             lockMovementX: !isInteractive,
             lockMovementY: !isInteractive,
             hoverCursor: isInteractive ? 'move' : 'default',
-            perPixelTargetFind: isInteractive,
-            targetFindTolerance: isInteractive ? 5 : 0
+            perPixelTargetFind: false, // Отключаем поиск по пикселям
+            padding: padding, // Добавляем отступ
+            transparentCorners: true,
+            cornerStyle: 'circle',
+            cornerSize: 8,
+            cornerColor: '#2196F3',
+            borderColor: '#2196F3',
+            borderOpacityWhenMoving: 0.5
           });
 
           const canvas = canvasRef.current;
