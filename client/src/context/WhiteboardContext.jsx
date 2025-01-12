@@ -130,14 +130,7 @@ export function WhiteboardProvider({ children }) {
           console.warn('Diagram element has no src');
           return null;
         }
-        obj = new fabric.Rect({
-          ...commonProps,
-          fill: 'rgba(0,0,0,0)',
-          stroke: 'rgba(0,0,0,0)',
-          width: 150,
-          height: 100
-        });
-
+        
         fabric.Image.fromURL(element.data.src, (img) => {
           img.set({
             ...commonProps,
@@ -151,7 +144,6 @@ export function WhiteboardProvider({ children }) {
           const canvas = canvasRef.current;
           if (!canvas) return;
 
-          canvas.remove(obj);
           canvas.add(img);
           canvas.requestRenderAll();
         });
@@ -190,6 +182,7 @@ export function WhiteboardProvider({ children }) {
     const existingObjects = canvas.getObjects();
     const updatedIds = new Set(elements.map(el => el.id));
 
+    // Remove deleted objects
     existingObjects.forEach(obj => {
       if (obj.id && !updatedIds.has(obj.id)) {
         console.log('Removing deleted element:', obj.id);
@@ -197,27 +190,29 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
+    // Update or create objects
     elements.forEach(element => {
       if (!element || !element.id) return;
 
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
-      if (existingObject) {
-        if (element.type === 'path' || element.type === 'diagram') {
-          canvas.remove(existingObject);
-          const newObject = createFabricObject(element, tool === 'select');
-          if (newObject) {
-            canvas.add(newObject);
-          }
-        } else {
-          Object.keys(element.data || {}).forEach(key => {
-            if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
-              existingObject.set(key, element.data[key]);
-            }
-          });
-          existingObject.setCoords();
+      // For paths and diagrams, always recreate the object
+      if (existingObject && (element.type === 'path' || element.type === 'diagram')) {
+        canvas.remove(existingObject);
+        const newObject = createFabricObject(element, tool === 'select');
+        if (newObject) {
+          canvas.add(newObject);
         }
+      } else if (existingObject) {
+        // For other objects, just update properties
+        Object.keys(element.data || {}).forEach(key => {
+          if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
+            existingObject.set(key, element.data[key]);
+          }
+        });
+        existingObject.setCoords();
       } else {
+        // Create new object if it doesn't exist
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
@@ -225,6 +220,7 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
+    // Update selection properties for all objects
     canvas.getObjects().forEach(obj => {
       obj.set({
         selectable: tool === 'select',

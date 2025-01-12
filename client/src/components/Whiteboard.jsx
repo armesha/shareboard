@@ -159,85 +159,10 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !socket) return;
 
-    const handleWhiteboardUpdate = (drawings) => {
-      if (!Array.isArray(drawings)) return;
-
-      drawings.forEach(element => {
-        if (!element || !element.type || !element.data) return;
-
-        // Find existing object with this id
-        const existingObj = canvas.getObjects().find(obj => obj.id === element.id);
-        
-        if (existingObj) {
-          // Update existing object
-          existingObj.set({
-            ...element.data,
-            selectable: tool === 'select',
-            hasControls: tool === 'select',
-            hasBorders: tool === 'select'
-          });
-          existingObj.setCoords();
-        } else {
-          // Create new object if it doesn't exist
-          let obj;
-          const commonProps = {
-            ...element.data,
-            id: element.id,
-            selectable: tool === 'select',
-            hasControls: tool === 'select',
-            hasBorders: tool === 'select'
-          };
-
-          switch (element.type) {
-            case 'rect':
-              obj = new fabric.Rect(commonProps);
-              break;
-            case 'circle':
-              obj = new fabric.Circle(commonProps);
-              break;
-            case 'triangle':
-              obj = new fabric.Triangle(commonProps);
-              break;
-            case 'path':
-              obj = new fabric.Path(element.data.path || '', commonProps);
-              break;
-            case 'text':
-              obj = new fabric.IText(element.data.text || '', {
-                ...commonProps,
-                left: element.data.left,
-                top: element.data.top,
-                fontSize: element.data.fontSize || 20,
-                fill: element.data.fill || color
-              });
-              break;
-            case 'diagram':
-              obj = new fabric.Image(element.data.src, {
-                ...commonProps,
-                left: element.data.left,
-                top: element.data.top,
-                scaleX: element.data.scaleX,
-                scaleY: element.data.scaleY,
-                angle: element.data.angle
-              });
-              break;
-            default:
-              console.warn('Unknown shape type:', element.type);
-              return;
-          }
-
-          if (obj) {
-            canvas.add(obj);
-          }
-        }
-      });
-
-      canvas.renderAll();
-    };
-
-    socket.on('whiteboard-update', handleWhiteboardUpdate);
-
+    // We're removing the handleWhiteboardUpdate implementation from here since it's now handled in WhiteboardProvider
+    
     return () => {
-      socket.off('whiteboard-update', handleWhiteboardUpdate);
+      // No need to remove event listener since we're not adding it anymore
     };
   }, [socket, tool, color]);
 
