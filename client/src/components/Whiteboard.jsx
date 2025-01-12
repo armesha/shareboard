@@ -67,26 +67,47 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const handleObjectModified = (e) => {
+    const handleObjectModification = (e) => {
       const obj = e.target;
-      if (!obj) return;
+      if (!obj || !obj.id) return;
 
-      // Only update if the object has actually changed
-      if (obj.modified) {
+      // Check if this is a diagram (image with isDiagram flag)
+      if (obj.type === 'image' && obj.data?.isDiagram) {
+        updateElement(obj.id, {
+          type: 'diagram', // Keep it as diagram in our state
+          data: {
+            ...obj.data, // Preserve isDiagram and other data
+            src: obj.data.src, // Important: keep the src
+            left: obj.left,
+            top: obj.top,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY,
+            angle: obj.angle
+          }
+        });
+      } else {
+        // Handle other objects normally
         updateElement(obj.id, {
           type: obj.type,
           data: obj.toObject(['id'])
         });
-        obj.modified = false;
       }
     };
 
-    canvas.on('object:modified', handleObjectModified);
+    // Subscribe to all modification events
+    canvas.on('object:modified', handleObjectModification);
+    canvas.on('object:moving', handleObjectModification);
+    canvas.on('object:scaling', handleObjectModification);
+    canvas.on('object:rotating', handleObjectModification);
 
     return () => {
-      canvas.off('object:modified', handleObjectModified);
+      // Cleanup all subscriptions
+      canvas.off('object:modified', handleObjectModification);
+      canvas.off('object:moving', handleObjectModification);
+      canvas.off('object:scaling', handleObjectModification);
+      canvas.off('object:rotating', handleObjectModification);
     };
-  }, [updateElement]);
+  }, [updateElement, fabricCanvasRef]);
 
   // Handle keyboard events for delete
   useEffect(() => {
@@ -405,14 +426,28 @@ const Whiteboard = React.memo(() => {
 
       const workspaceId = window.location.pathname.split('/')[2];
       
+      // Prepare the update data based on object type
+      const elementData = obj.type === 'image' && obj.data?.isDiagram ? {
+        id: obj.id,
+        type: 'diagram',
+        data: {
+          ...obj.data,
+          left: obj.left,
+          top: obj.top,
+          scaleX: obj.scaleX,
+          scaleY: obj.scaleY,
+          angle: obj.angle
+        }
+      } : {
+        id: obj.id,
+        type: obj.type,
+        data: obj.toObject(['id'])
+      };
+
       // Send real-time update during movement
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: [/*{
-          id: obj.id,
-          type: obj.type,
-          data: obj.toObject(['id'])
-        }*/]
+        elements: [elementData]
       });
     };
 

@@ -131,20 +131,46 @@ export function WhiteboardProvider({ children }) {
           return null;
         }
         
+        // Create a temporary placeholder
+        obj = new fabric.Rect({
+          ...commonProps,
+          fill: 'rgba(0,0,0,0)',
+          stroke: 'rgba(0,0,0,0)',
+          width: 150,
+          height: 100
+        });
+
+        // Load the actual image
         fabric.Image.fromURL(element.data.src, (img) => {
           img.set({
             ...commonProps,
+            id: element.id,
+            data: {
+              ...element.data,
+              isDiagram: true, // Mark this image as a diagram
+              src: element.data.src // Ensure src is preserved
+            },
             left: element.data.left || 50,
             top: element.data.top || 50,
             scaleX: element.data.scaleX ?? 1,
             scaleY: element.data.scaleY ?? 1,
-            angle: element.data.angle ?? 0
+            angle: element.data.angle ?? 0,
+            selectable: isSelectable,
+            hasControls: isSelectable,
+            hasBorders: isSelectable
           });
 
           const canvas = canvasRef.current;
           if (!canvas) return;
 
+          // Remove the placeholder
+          canvas.remove(obj);
+          // Add the image and store it in the elements map
           canvas.add(img);
+          elementsMapRef.current.set(element.id, {
+            ...element,
+            fabricObject: img
+          });
           canvas.requestRenderAll();
         });
         break;
@@ -174,43 +200,48 @@ export function WhiteboardProvider({ children }) {
     if (!canvas) return;
 
     elements.forEach(element => {
-      if (element && element.id) {
-        elementsMapRef.current.set(element.id, element);
-      }
-    });
-
-    const existingObjects = canvas.getObjects();
-    const updatedIds = new Set(elements.map(el => el.id));
-
-    // Remove deleted objects
-    existingObjects.forEach(obj => {
-      if (obj.id && !updatedIds.has(obj.id)) {
-        console.log('Removing deleted element:', obj.id);
-        canvas.remove(obj);
-      }
-    });
-
-    // Update or create objects
-    elements.forEach(element => {
       if (!element || !element.id) return;
 
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
-      // For paths and diagrams, always recreate the object
-      if (existingObject && (element.type === 'path' || element.type === 'diagram')) {
-        canvas.remove(existingObject);
-        const newObject = createFabricObject(element, tool === 'select');
-        if (newObject) {
-          canvas.add(newObject);
+      if (existingObject) {
+        // For existing objects
+        if (element.type === 'diagram' && existingObject.type === 'image') {
+          // This is our diagram (fabric.Image with isDiagram flag)
+          existingObject.set({
+            left: element.data.left,
+            top: element.data.top,
+            scaleX: element.data.scaleX,
+            scaleY: element.data.scaleY,
+            angle: element.data.angle,
+            selectable: tool === 'select',
+            hasControls: tool === 'select',
+            hasBorders: tool === 'select',
+            data: {
+              ...element.data,
+              isDiagram: true,
+              src: element.data.src
+            }
+          });
+          existingObject.setCoords();
         }
-      } else if (existingObject) {
-        // For other objects, just update properties
-        Object.keys(element.data || {}).forEach(key => {
-          if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
-            existingObject.set(key, element.data[key]);
+        // For paths, always recreate
+        else if (element.type === 'path') {
+          canvas.remove(existingObject);
+          const newObject = createFabricObject(element, tool === 'select');
+          if (newObject) {
+            canvas.add(newObject);
           }
-        });
-        existingObject.setCoords();
+        }
+        // For other objects, just update properties
+        else {
+          Object.keys(element.data || {}).forEach(key => {
+            if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
+              existingObject.set(key, element.data[key]);
+            }
+          });
+          existingObject.setCoords();
+        }
       } else {
         // Create new object if it doesn't exist
         const newObject = createFabricObject(element, tool === 'select');
@@ -307,7 +338,6 @@ export function WhiteboardProvider({ children }) {
       if (!canvas) return;
 
       canvas.clear();
-
       elementsMapRef.current.clear();
 
       if (state.whiteboardElements && state.whiteboardElements.length > 0) {
@@ -371,47 +401,6 @@ export function WhiteboardProvider({ children }) {
     }
   }, [tool, isLoading, isConnected]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleObjectModified = (e) => {
-      const obj = e.target;
-      if (!obj || !obj.id) return;
-
-      let elementData;
-      if (obj.type === 'diagram') {
-        elementData = {
-          src: obj.data?.src,
-          left: obj.left,
-          top: obj.top,
-          scaleX: obj.scaleX,
-          scaleY: obj.scaleY,
-          angle: obj.angle
-        };
-      } else {
-        elementData = obj.toObject(['id']);
-      }
-
-      updateElement(obj.id, {
-        type: obj.type,
-        data: elementData
-      });
-    };
-
-    canvas.on('object:modified', handleObjectModified);
-    canvas.on('object:moving', handleObjectModified);
-    canvas.on('object:scaling', handleObjectModified);
-    canvas.on('object:rotating', handleObjectModified);
-
-    return () => {
-      canvas.off('object:modified', handleObjectModified);
-      canvas.off('object:moving', handleObjectModified);
-      canvas.off('object:scaling', handleObjectModified);
-      canvas.off('object:rotating', handleObjectModified);
-    };
-  }, [updateElement]);
-
   const clearCanvas = useCallback(() => {
     if (socket && isConnected) {
       const workspaceId = window.location.pathname.split('/')[2];
@@ -429,15 +418,15 @@ export function WhiteboardProvider({ children }) {
     isConnected,
     isLoading,
     connectionStatus,
+    canvasRef,
+    addElement,
+    updateElement,
     setTool,
     setSelectedShape,
     setColor,
     setWidth,
     initCanvas,
-    addElement,
-    updateElement,
-    clearCanvas,
-    canvasRef
+    clearCanvas
   };
 
   return (
