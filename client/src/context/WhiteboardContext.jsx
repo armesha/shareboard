@@ -78,12 +78,22 @@ export function WhiteboardProvider({ children }) {
     if (!element || !element.type || !element.data) return null;
 
     let obj;
+    const isDiagram = element.type === 'diagram' || element.data?.isDiagram === true;
+    const isTextObject = element.type === 'text' || element.type === 'i-text';
+    const isInteractive = isTextObject || isDiagram;
+
     const commonProps = {
       ...element.data,
       id: element.id,
-      selectable: isSelectable,
-      hasControls: isSelectable,
-      hasBorders: isSelectable,
+      selectable: isSelectable && isInteractive,
+      hasControls: isSelectable && isInteractive,
+      hasBorders: isSelectable && isInteractive,
+      evented: isInteractive,
+      lockMovementX: !isInteractive,
+      lockMovementY: !isInteractive,
+      hoverCursor: isInteractive ? 'move' : 'default',
+      perPixelTargetFind: isInteractive,
+      targetFindTolerance: isInteractive ? 5 : 0,
       strokeUniform: true
     };
 
@@ -142,22 +152,30 @@ export function WhiteboardProvider({ children }) {
 
         // Load the actual image
         fabric.Image.fromURL(element.data.src, (img) => {
+          const isDiagram = true;
+          const isInteractive = isDiagram;
+
           img.set({
             ...commonProps,
             id: element.id,
             data: {
               ...element.data,
-              isDiagram: true, // Mark this image as a diagram
-              src: element.data.src // Ensure src is preserved
+              isDiagram: true
             },
             left: element.data.left || 50,
             top: element.data.top || 50,
             scaleX: element.data.scaleX ?? 1,
             scaleY: element.data.scaleY ?? 1,
             angle: element.data.angle ?? 0,
-            selectable: isSelectable,
-            hasControls: isSelectable,
-            hasBorders: isSelectable
+            selectable: isSelectable && isInteractive,
+            hasControls: isSelectable && isInteractive,
+            hasBorders: isSelectable && isInteractive,
+            evented: isInteractive,
+            lockMovementX: !isInteractive,
+            lockMovementY: !isInteractive,
+            hoverCursor: isInteractive ? 'move' : 'default',
+            perPixelTargetFind: isInteractive,
+            targetFindTolerance: isInteractive ? 5 : 0
           });
 
           const canvas = canvasRef.current;
@@ -167,11 +185,17 @@ export function WhiteboardProvider({ children }) {
           canvas.remove(obj);
           // Add the image and store it in the elements map
           canvas.add(img);
+          canvas.requestRenderAll();
+
+          // Обновляем объект в элементах
           elementsMapRef.current.set(element.id, {
             ...element,
-            fabricObject: img
+            type: 'diagram',
+            data: {
+              ...element.data,
+              isDiagram: true
+            }
           });
-          canvas.requestRenderAll();
         });
         break;
       default:
@@ -267,13 +291,40 @@ export function WhiteboardProvider({ children }) {
   const initCanvas = useCallback((canvasElement) => {
     if (!canvasElement) return;
 
+    // Set global defaults for all Fabric objects
+    fabric.Object.prototype.selectable = false;
+    fabric.Object.prototype.hasControls = false;
+    fabric.Object.prototype.hasBorders = false;
+    fabric.Object.prototype.evented = false;
+    fabric.Object.prototype.lockMovementX = true;
+    fabric.Object.prototype.lockMovementY = true;
+    fabric.Object.prototype.hoverCursor = 'default';
+    fabric.Object.prototype.perPixelTargetFind = false;
+    fabric.Object.prototype.targetFindTolerance = 0;
+    fabric.Object.prototype.selection = false;
+    fabric.Object.prototype.selectionBackgroundColor = 'transparent';
+    fabric.Object.prototype.transparentCorners = true;
+    fabric.Object.prototype.padding = 0;
+    fabric.Object.prototype.borderColor = 'transparent';
+    fabric.Object.prototype.cornerColor = 'transparent';
+    fabric.Object.prototype.cornerSize = 0;
+    fabric.Object.prototype.transparentCorners = true;
+    fabric.Object.prototype.borderOpacityWhenMoving = 0;
+
     const canvas = new fabric.Canvas(canvasElement, {
       isDrawingMode: tool === 'pen',
       width: window.innerWidth,
       height: window.innerHeight,
       backgroundColor: '#ffffff',
-      selection: tool === 'select',
-      preserveObjectStacking: true
+      selection: false,
+      preserveObjectStacking: true,
+      perPixelTargetFind: true,
+      targetFindTolerance: 0,
+      selectionColor: 'transparent',
+      selectionBorderColor: 'transparent',
+      selectionLineWidth: 0,
+      skipTargetFind: true,
+      hoverCursor: 'default'
     });
 
     const brush = new fabric.PencilBrush(canvas);
@@ -383,22 +434,58 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Можно ли вообще взаимодействовать с канвасом
     const canDraw = !isLoading && isConnected;
     
-    canvas.isDrawingMode = canDraw && tool === 'pen';
-    canvas.selection = canDraw && tool === 'select';
-    
-    const needsObjectUpdate = tool === 'select' || tool === 'pen';
-    if (needsObjectUpdate) {
-      canvas.getObjects().forEach(obj => {
-        obj.set({
-          selectable: canDraw && tool === 'select',
-          hasControls: canDraw && tool === 'select',
-          hasBorders: canDraw && tool === 'select'
-        });
+    // Включаем режим рисования карандашом, если инструмент 'pen' и соединение установлено
+    canvas.isDrawingMode = canDraw && (tool === 'pen');
+
+    // Можно ли выделять объекты при клике/выделении
+    canvas.selection = canDraw && (tool === 'select');
+
+    // Обновляем настройки для каждого объекта
+    canvas.getObjects().forEach(obj => {
+      // Является ли объект текстом или диаграммой
+      const isDiagram = obj.data?.isDiagram === true; 
+      const isTextObject = (obj.type === 'text' || obj.type === 'i-text');
+      const isInteractive = isTextObject || isDiagram;  
+      // Можно ли этот объект двигать в данный момент
+      const canSelectObject = canDraw && (tool === 'select') && isInteractive;
+
+      // Сначала сбрасываем все свойства
+      obj.set({
+        selectable: false,
+        hasControls: false,
+        hasBorders: false,
+        evented: false,
+        lockMovementX: true,
+        lockMovementY: true,
+        hoverCursor: 'default',
+        perPixelTargetFind: false,
+        targetFindTolerance: 0
       });
-      canvas.requestRenderAll();
-    }
+
+      // Затем устанавливаем нужные свойства для интерактивных объектов
+      if (isInteractive) {
+        obj.set({
+          selectable: canSelectObject,
+          hasControls: canSelectObject,
+          hasBorders: canSelectObject,
+          evented: true,
+          lockMovementX: !canSelectObject,
+          lockMovementY: !canSelectObject,
+          hoverCursor: canSelectObject ? 'move' : 'default',
+          perPixelTargetFind: true,
+          targetFindTolerance: 5
+        });
+      }
+    });
+
+    // Если инструмент не select, то отключаем поиск объектов под курсором
+    canvas.skipTargetFind = (tool !== 'select');
+
+    // Перерисовываем канвас
+    canvas.requestRenderAll();
   }, [tool, isLoading, isConnected]);
 
   const clearCanvas = useCallback(() => {

@@ -43,10 +43,16 @@ const Whiteboard = React.memo(() => {
     
     // Обновляем свойства объектов
     currentObjects.forEach(obj => {
+      // Allow selection and interaction only for images and text
+      const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+      const isSelectable = tool === 'select' && isInteractive;
       obj.set({
-        selectable: tool === 'select',
-        hasControls: tool === 'select',
-        hasBorders: tool === 'select'
+        selectable: isSelectable,
+        hasControls: isSelectable,
+        hasBorders: isSelectable,
+        evented: isInteractive,
+        lockMovementX: !isInteractive,
+        lockMovementY: !isInteractive
       });
     });
 
@@ -337,16 +343,48 @@ const Whiteboard = React.memo(() => {
       
       // Set final properties
       shape.set({
-        selectable: true,
-        hasControls: true,
-        hasBorders: true
+        selectable: false,
+        hasControls: false,
+        hasBorders: false,
+        evented: false,
+        lockMovementX: true,
+        lockMovementY: true,
+        hoverCursor: 'default',
+        perPixelTargetFind: false,
+        targetFindTolerance: 0,
+        selection: false,
+        selectionBackgroundColor: 'transparent',
+        transparentCorners: true,
+        padding: 0,
+        borderColor: 'transparent',
+        cornerColor: 'transparent',
+        cornerSize: 0,
+        borderOpacityWhenMoving: 0
       });
 
       // Add to shared state
       addElement({
         id: shape.id,
         type: shape.type,
-        data: shape.toObject(['id'])
+        data: {
+          ...shape.toObject(['id']),
+          selectable: false,
+          hasControls: false,
+          hasBorders: false,
+          evented: false,
+          lockMovementX: true,
+          lockMovementY: true,
+          perPixelTargetFind: false,
+          targetFindTolerance: 0,
+          selection: false,
+          selectionBackgroundColor: 'transparent',
+          transparentCorners: true,
+          padding: 0,
+          borderColor: 'transparent',
+          cornerColor: 'transparent',
+          cornerSize: 0,
+          borderOpacityWhenMoving: 0
+        }
       });
 
       currentShape.current = null;
@@ -366,9 +404,12 @@ const Whiteboard = React.memo(() => {
       if (!path) return;
 
       path.id = uuidv4();
-      path.selectable = true;
-      path.hasControls = true;
-      path.hasBorders = true;
+      path.selectable = false;
+      path.hasControls = false;
+      path.hasBorders = false;
+      path.evented = false;
+      path.lockMovementX = true;
+      path.lockMovementY = true;
 
       addElement({
         id: path.id,
