@@ -210,6 +210,16 @@ const Whiteboard = React.memo(() => {
                 fill: element.data.fill || color
               });
               break;
+            case 'diagram':
+              obj = new fabric.Image(element.data.src, {
+                ...commonProps,
+                left: element.data.left,
+                top: element.data.top,
+                scaleX: element.data.scaleX,
+                scaleY: element.data.scaleY,
+                angle: element.data.angle
+              });
+              break;
             default:
               console.warn('Unknown shape type:', element.type);
               return;
@@ -473,11 +483,11 @@ const Whiteboard = React.memo(() => {
       // Send real-time update during movement
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: [{
+        elements: [/*{
           id: obj.id,
           type: obj.type,
           data: obj.toObject(['id'])
-        }]
+        }*/]
       });
     };
 
@@ -489,40 +499,21 @@ const Whiteboard = React.memo(() => {
   }, [socket]);
 
   const handleAddImage = useCallback((imageUrl) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    fabric.Image.fromURL(imageUrl, (img) => {
-      const id = uuidv4();
-      img.set({
+    const id = uuidv4();
+    const element = {
+      id,
+      type: 'diagram',
+      data: {
+        src: imageUrl,
         left: 50,
         top: 50,
-        id: id,
-        type: 'diagram'
-      });
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-
-      // Send the diagram to other users
-      const workspaceId = window.location.pathname.split('/')[2];
-      if (workspaceId && socket) {
-        socket.emit('whiteboard-update', {
-          workspaceId,
-          elements: [{
-            id: id,
-            type: 'diagram',
-            src: imageUrl,
-            left: 50,
-            top: 50,
-            scaleX: img.scaleX,
-            scaleY: img.scaleY,
-            angle: img.angle
-          }]
-        });
+        scaleX: 1,
+        scaleY: 1,
+        angle: 0
       }
-    });
-  }, [socket]);
+    };
+    addElement(element);
+  }, [addElement]);
 
   return (
     <div className="whiteboard-container" style={{ width: '100%', height: '100%' }}>

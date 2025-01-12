@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useNavigate } from 'react-router-dom';
 import Whiteboard from './Whiteboard';
@@ -14,6 +14,7 @@ import TextFieldsIcon from '@mui/icons-material/TextFields';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
 import HomeIcon from '@mui/icons-material/Home';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function WorkspaceContent({ 
   socket, 
@@ -33,13 +34,31 @@ export default function WorkspaceContent({
     tool, 
     setTool, 
     selectedShape, 
-    setSelectedShape, 
-    canvasRef 
+    setSelectedShape,
+    canvasRef,
+    addElement 
   } = useWhiteboard();
   
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
   const [isConnected, setIsConnected] = useState(false);
+
+  const handleAddImageToWhiteboard = useCallback((imageUrl) => {
+    console.log('Adding diagram to whiteboard:', imageUrl);
+    addElement({
+      id: uuidv4(),
+      type: 'diagram',
+      data: {
+        src: imageUrl,
+        left: 100,
+        top: 100,
+        scaleX: 0.5,
+        scaleY: 0.5,
+        angle: 0
+      }
+    });
+    setTool('select'); // Switch to select mode to manipulate the new diagram
+  }, [addElement, setTool]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -134,25 +153,6 @@ export default function WorkspaceContent({
     };
   }, [socket, workspaceId, canvasRef, setStatus]);
 
-  const handleAddImageToWhiteboard = (imageUrl) => {
-    console.log('Adding image to whiteboard:', imageUrl);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const fabricImage = new fabric.Image(img);
-      fabricImage.set({
-        left: 100,
-        top: 100,
-        scaleX: 0.5,
-        scaleY: 0.5
-      });
-      canvasRef.current?.add(fabricImage);
-      canvasRef.current?.renderAll();
-      URL.revokeObjectURL(imageUrl);
-    };
-    img.src = imageUrl;
-  };
-
   const ConnectionStatus = () => {
     if (!socket) return null;
     
@@ -174,6 +174,7 @@ export default function WorkspaceContent({
         <div className="flex items-center space-x-4">
           <button
             onClick={() => navigate('/')}
+
             className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
             title="Return to Home"
           >

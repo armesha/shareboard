@@ -134,6 +134,39 @@ export function WhiteboardProvider({ children }) {
           backgroundColor: null
         });
         break;
+      case 'diagram':
+        if (!element.data.src) {
+          console.warn('Diagram element has no src');
+          return null;
+        }
+        // Create a temporary placeholder
+        obj = new fabric.Rect({
+          ...commonProps,
+          fill: 'rgba(0,0,0,0)',
+          stroke: 'rgba(0,0,0,0)',
+          width: 150,
+          height: 100
+        });
+
+        // Load the actual image asynchronously
+        fabric.Image.fromURL(element.data.src, (img) => {
+          img.set({
+            ...commonProps,
+            left: element.data.left || 50,
+            top: element.data.top || 50,
+            scaleX: element.data.scaleX ?? 1,
+            scaleY: element.data.scaleY ?? 1,
+            angle: element.data.angle ?? 0
+          });
+
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+
+          canvas.remove(obj);
+          canvas.add(img);
+          canvas.requestRenderAll();
+        });
+        break;
       default:
         console.warn('Unknown shape type:', element.type);
         return null;
@@ -188,8 +221,8 @@ export function WhiteboardProvider({ children }) {
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
       if (existingObject) {
-        // For paths, we need to recreate the object to ensure proper rendering
-        if (element.type === 'path') {
+        // For paths and diagrams, we need to recreate the object to ensure proper rendering
+        if (element.type === 'path' || element.type === 'diagram') {
           canvas.remove(existingObject);
           const newObject = createFabricObject(element, tool === 'select');
           if (newObject) {
@@ -377,6 +410,50 @@ export function WhiteboardProvider({ children }) {
       canvas.requestRenderAll();
     }
   }, [tool, isLoading, isConnected]);
+
+  // Handle object modifications
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      // Create element data based on object type
+      let elementData;
+      if (obj.type === 'diagram') {
+        elementData = {
+          src: obj.data?.src,
+          left: obj.left,
+          top: obj.top,
+          scaleX: obj.scaleX,
+          scaleY: obj.scaleY,
+          angle: obj.angle
+        };
+      } else {
+        elementData = obj.toObject(['id']);
+      }
+
+      // Update element in state
+      updateElement(obj.id, {
+        type: obj.type,
+        data: elementData
+      });
+    };
+
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectModified);
+    canvas.on('object:scaling', handleObjectModified);
+    canvas.on('object:rotating', handleObjectModified);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectModified);
+      canvas.off('object:scaling', handleObjectModified);
+      canvas.off('object:rotating', handleObjectModified);
+    };
+  }, [updateElement]);
 
   // Clear canvas
   const clearCanvas = useCallback(() => {
