@@ -141,7 +141,6 @@ export function WhiteboardProvider({ children }) {
           return null;
         }
         
-        // Create a temporary placeholder
         obj = new fabric.Rect({
           ...commonProps,
           fill: 'rgba(0,0,0,0)',
@@ -150,13 +149,11 @@ export function WhiteboardProvider({ children }) {
           height: 100
         });
 
-        // Load the actual image
         fabric.Image.fromURL(element.data.src, (img) => {
           const isDiagram = true;
           const isInteractive = isDiagram;
 
-          // Добавляем отступ для области захвата
-          const padding = 20; // 20px с каждой стороны
+          const padding = 20;
 
           img.set({
             ...commonProps,
@@ -177,8 +174,8 @@ export function WhiteboardProvider({ children }) {
             lockMovementX: !isInteractive,
             lockMovementY: !isInteractive,
             hoverCursor: isInteractive ? 'move' : 'default',
-            perPixelTargetFind: false, // Отключаем поиск по пикселям
-            padding: padding, // Добавляем отступ
+            perPixelTargetFind: false,
+            padding: padding,
             transparentCorners: true,
             cornerStyle: 'circle',
             cornerSize: 8,
@@ -190,13 +187,10 @@ export function WhiteboardProvider({ children }) {
           const canvas = canvasRef.current;
           if (!canvas) return;
 
-          // Remove the placeholder
           canvas.remove(obj);
-          // Add the image and store it in the elements map
           canvas.add(img);
           canvas.requestRenderAll();
 
-          // Обновляем объект в элементах
           elementsMapRef.current.set(element.id, {
             ...element,
             type: 'diagram',
@@ -238,9 +232,7 @@ export function WhiteboardProvider({ children }) {
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
       if (existingObject) {
-        // For existing objects
         if (element.type === 'diagram' && existingObject.type === 'image') {
-          // This is our diagram (fabric.Image with isDiagram flag)
           existingObject.set({
             left: element.data.left,
             top: element.data.top,
@@ -258,7 +250,6 @@ export function WhiteboardProvider({ children }) {
           });
           existingObject.setCoords();
         }
-        // For paths, always recreate
         else if (element.type === 'path') {
           canvas.remove(existingObject);
           const newObject = createFabricObject(element, tool === 'select');
@@ -266,7 +257,6 @@ export function WhiteboardProvider({ children }) {
             canvas.add(newObject);
           }
         }
-        // For other objects, just update properties
         else {
           Object.keys(element.data || {}).forEach(key => {
             if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
@@ -276,7 +266,6 @@ export function WhiteboardProvider({ children }) {
           existingObject.setCoords();
         }
       } else {
-        // Create new object if it doesn't exist
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
@@ -284,7 +273,6 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
-    // Update selection properties for all objects
     canvas.getObjects().forEach(obj => {
       obj.set({
         selectable: tool === 'select',
@@ -300,7 +288,6 @@ export function WhiteboardProvider({ children }) {
   const initCanvas = useCallback((canvasElement) => {
     if (!canvasElement) return;
 
-    // Set global defaults for all Fabric objects
     fabric.Object.prototype.selectable = false;
     fabric.Object.prototype.hasControls = false;
     fabric.Object.prototype.hasBorders = false;
@@ -443,25 +430,18 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Можно ли вообще взаимодействовать с канвасом
     const canDraw = !isLoading && isConnected;
     
-    // Включаем режим рисования карандашом, если инструмент 'pen' и соединение установлено
     canvas.isDrawingMode = canDraw && (tool === 'pen');
 
-    // Можно ли выделять объекты при клике/выделении
     canvas.selection = canDraw && (tool === 'select');
 
-    // Обновляем настройки для каждого объекта
     canvas.getObjects().forEach(obj => {
-      // Является ли объект текстом или диаграммой
       const isDiagram = obj.data?.isDiagram === true; 
       const isTextObject = (obj.type === 'text' || obj.type === 'i-text');
       const isInteractive = isTextObject || isDiagram;  
-      // Можно ли этот объект двигать в данный момент
       const canSelectObject = canDraw && (tool === 'select') && isInteractive;
 
-      // Сначала сбрасываем все свойства
       obj.set({
         selectable: false,
         hasControls: false,
@@ -474,7 +454,6 @@ export function WhiteboardProvider({ children }) {
         targetFindTolerance: 0
       });
 
-      // Затем устанавливаем нужные свойства для интерактивных объектов
       if (isInteractive) {
         obj.set({
           selectable: canSelectObject,
@@ -490,10 +469,8 @@ export function WhiteboardProvider({ children }) {
       }
     });
 
-    // Если инструмент не select, то отключаем поиск объектов под курсором
     canvas.skipTargetFind = (tool !== 'select');
 
-    // Перерисовываем канвас
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected]);
 

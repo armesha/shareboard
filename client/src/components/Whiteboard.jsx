@@ -20,17 +20,15 @@ const Whiteboard = React.memo(() => {
     updateElement,
     setTool, 
     setColor, 
-    setWidth // Add setColor and setWidth to the destructured props
+    setWidth 
   } = useWhiteboard();
 
-  // Initialize canvas
   useEffect(() => {
     if (!canvasRef.current) return;
     const cleanup = initCanvas(canvasRef.current);
     return cleanup;
   }, [initCanvas]);
 
-  // Update canvas properties when tool changes
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -38,12 +36,9 @@ const Whiteboard = React.memo(() => {
     canvas.isDrawingMode = tool === 'pen';
     canvas.selection = tool === 'select';
 
-    // Сохраняем текущие объекты
     const currentObjects = canvas.getObjects();
     
-    // Обновляем свойства объектов
     currentObjects.forEach(obj => {
-      // Allow selection and interaction only for images and text
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
       const isSelectable = tool === 'select' && isInteractive;
       obj.set({
@@ -59,7 +54,6 @@ const Whiteboard = React.memo(() => {
     canvas.renderAll();
   }, [tool]);
 
-  // Update brush properties when color or width changes
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
@@ -68,7 +62,6 @@ const Whiteboard = React.memo(() => {
     canvas.freeDrawingBrush.width = width;
   }, [color, width]);
 
-  // Handle object modifications
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -77,13 +70,12 @@ const Whiteboard = React.memo(() => {
       const obj = e.target;
       if (!obj || !obj.id) return;
 
-      // Check if this is a diagram (image with isDiagram flag)
       if (obj.type === 'image' && obj.data?.isDiagram) {
         updateElement(obj.id, {
-          type: 'diagram', // Keep it as diagram in our state
+          type: 'diagram',
           data: {
-            ...obj.data, // Preserve isDiagram and other data
-            src: obj.data.src, // Important: keep the src
+            ...obj.data,
+            src: obj.data.src,
             left: obj.left,
             top: obj.top,
             scaleX: obj.scaleX,
@@ -92,7 +84,6 @@ const Whiteboard = React.memo(() => {
           }
         });
       } else {
-        // Handle other objects normally
         updateElement(obj.id, {
           type: obj.type,
           data: obj.toObject(['id'])
@@ -100,14 +91,12 @@ const Whiteboard = React.memo(() => {
       }
     };
 
-    // Subscribe to all modification events
     canvas.on('object:modified', handleObjectModification);
     canvas.on('object:moving', handleObjectModification);
     canvas.on('object:scaling', handleObjectModification);
     canvas.on('object:rotating', handleObjectModification);
 
     return () => {
-      // Cleanup all subscriptions
       canvas.off('object:modified', handleObjectModification);
       canvas.off('object:moving', handleObjectModification);
       canvas.off('object:scaling', handleObjectModification);
@@ -115,7 +104,6 @@ const Whiteboard = React.memo(() => {
     };
   }, [updateElement, fabricCanvasRef]);
 
-  // Handle keyboard events for delete
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -128,10 +116,7 @@ const Whiteboard = React.memo(() => {
           
           activeObjects.forEach(obj => {
             if (obj.id) {
-              // Remove object from canvas
               canvas.remove(obj);
-              
-              // Emit delete event to server
               socket.emit('delete-element', { 
                 workspaceId,
                 elementId: obj.id 
@@ -139,7 +124,6 @@ const Whiteboard = React.memo(() => {
             }
           });
 
-          // Clear selection and render
           canvas.discardActiveObject();
           canvas.renderAll();
         }
@@ -186,10 +170,7 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !socket) return;
 
-    // We're removing the handleWhiteboardUpdate implementation from here since it's now handled in WhiteboardProvider
-    
     return () => {
-      // No need to remove event listener since we're not adding it anymore
     };
   }, [socket, tool, color]);
 
@@ -197,7 +178,6 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || tool === 'select') return;
 
-    // Only handle left mouse button
     if (e.e.button !== 0) return;
 
     isDrawing.current = true;
@@ -224,7 +204,6 @@ const Whiteboard = React.memo(() => {
         data: text.toObject(['id'])
       });
 
-      // Автоматически переключаемся на инструмент select после создания текста
       setTool('select');
       
       return;
@@ -292,7 +271,6 @@ const Whiteboard = React.memo(() => {
       switch (selectedShape) {
         case 'rectangle':
           if (isCtrlPressed) {
-            // Draw square when Ctrl is pressed
             const size = Math.abs(width) > Math.abs(height) ? Math.abs(width) : Math.abs(height);
             shape.set({
               width: size,
@@ -301,7 +279,6 @@ const Whiteboard = React.memo(() => {
               top: height > 0 ? startY : startY - size
             });
           } else {
-            // Draw regular rectangle
             shape.set({
               width: Math.abs(width),
               height: Math.abs(height),
@@ -341,7 +318,6 @@ const Whiteboard = React.memo(() => {
     if (currentShape.current) {
       const shape = currentShape.current;
       
-      // Set final properties
       shape.set({
         selectable: false,
         hasControls: false,
@@ -362,7 +338,6 @@ const Whiteboard = React.memo(() => {
         borderOpacityWhenMoving: 0
       });
 
-      // Add to shared state
       addElement({
         id: shape.id,
         type: shape.type,
@@ -394,7 +369,6 @@ const Whiteboard = React.memo(() => {
     canvas.renderAll();
   }, [addElement, fabricCanvasRef]);
 
-  // Handle path creation when using pen tool
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -440,7 +414,6 @@ const Whiteboard = React.memo(() => {
     };
   }, [handleMouseDown, handleMouseMove, handleMouseUp]);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       const canvas = fabricCanvasRef.current;
@@ -467,7 +440,6 @@ const Whiteboard = React.memo(() => {
 
       const workspaceId = window.location.pathname.split('/')[2];
       
-      // Prepare the update data based on object type
       const elementData = obj.type === 'image' && obj.data?.isDiagram ? {
         id: obj.id,
         type: 'diagram',
@@ -485,7 +457,6 @@ const Whiteboard = React.memo(() => {
         data: obj.toObject(['id'])
       };
 
-      // Send real-time update during movement
       socket.emit('whiteboard-update', {
         workspaceId,
         elements: [elementData]
