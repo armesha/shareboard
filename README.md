@@ -1,5 +1,9 @@
 # ShareBoard
 
+> Sdílená tabule a editor kódu v reálném čase
+
+![ShareBoard Demo](./ShareBoard%20Demo.gif)
+
 ## Spuštění projektu
 ```bash
 npm install
