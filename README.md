@@ -2,7 +2,9 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
-![ShareBoard Demo](./ShareBoard%20Demo.gif)
+<video width="100%" controls>
+  <source src="./demo.mp4" type="video/mp4">
+</video>
 
 ## Spuštění projektu
 ```bash
