@@ -2,9 +2,7 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
-<video width="100%" controls>
-  <source src="./demo.mp4" type="video/mp4">
-</video>
+https://user-images.githubusercontent.com/armesha/shareBoard/main/demo.mp4
 
 ## Spuštění projektu
 ```bash
