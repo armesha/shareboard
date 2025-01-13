@@ -2,7 +2,7 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
-https://user-images.githubusercontent.com/armesha/shareBoard/main/demo.mp4
+![ShareBoard Demo](./other/demo.gif)
 
 ## Spuštění projektu
 ```bash
