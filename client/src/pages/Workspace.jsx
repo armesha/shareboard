@@ -30,11 +30,10 @@ function WorkspaceLayout() {
       if (!isDragging || !containerRef.current) return;
       
       const container = containerRef.current.getBoundingClientRect();
-      const deltaX = e.clientX - initialMouseX;
-      const deltaPercent = (deltaX / container.width) * 100;
-      const newPosition = initialWidth + deltaPercent;
+      const mousePositionRelative = e.clientX - container.left;
+      const newPositionPercent = (mousePositionRelative / container.width) * 100;
       
-      setSplitPosition(Math.min(Math.max(newPosition, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT));
+      setSplitPosition(Math.min(Math.max(100 - newPositionPercent, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT));
     };
 
     const handleMouseUp = () => {
