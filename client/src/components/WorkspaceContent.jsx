@@ -68,7 +68,7 @@ export default function WorkspaceContent({
         if (!isClickInsideShapesMenu && !isClickOnShapesButton) {
           setShowShapesMenu(false);
           if (!selectedShape) {
-            setTool('pen');
+            setSelectedShape(null);
           }
         }
       }
@@ -78,7 +78,7 @@ export default function WorkspaceContent({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showShapesMenu, selectedShape, setTool]);
+  }, [showShapesMenu, selectedShape]);
 
   useEffect(() => {
     if (!socket) return;
@@ -223,10 +223,8 @@ export default function WorkspaceContent({
                     if (showShapesMenu) {
                       setShowShapesMenu(false);
                       setSelectedShape(null);
-                      setTool('pen');
                     } else {
                       setShowShapesMenu(true);
-                      setTool('select');
                     }
                   }}
                   title="Shapes"

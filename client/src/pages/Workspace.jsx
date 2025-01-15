@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
+import { DiagramEditorProvider } from '../context/DiagramEditorContext'; // Add this line
 import WorkspaceContent from '../components/WorkspaceContent';
 
 function WorkspaceLayout() {
@@ -110,7 +111,9 @@ export default function Workspace() {
   return (
     <WhiteboardProvider>
       <CodeEditorProvider>
-        <WorkspaceLayout />
+        <DiagramEditorProvider>
+          <WorkspaceLayout />
+        </DiagramEditorProvider>
       </CodeEditorProvider>
     </WhiteboardProvider>
   );

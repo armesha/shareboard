@@ -89,6 +89,8 @@ app.get('/api/workspace/:workspaceId', (req, res) => {
   res.json({ exists: true });
 });
 
+const SAMPLE_DIAGRAM = '';
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   let currentWorkspace = null;
@@ -105,7 +107,8 @@ io.on('connection', (socket) => {
         lastActivity: Date.now(),
         diagrams: new Map(),
         drawings: [],
-        allDrawings: []
+        allDrawings: [],
+        diagramContent: ''
       };
       workspaces.set(workspaceId, workspace);
     }
@@ -134,18 +137,13 @@ io.on('connection', (socket) => {
     currentWorkspace = workspace;
     workspace.lastActivity = Date.now();
 
-    console.log(`Workspace ${workspaceId} state:`, {
-      elements: workspace.drawings?.length || 0,
-      activeUsers: activeConnections.get(workspaceId).size,
-      currentDrawings: workspace.drawings?.length || 0,
-      allDrawingsHistory: workspace.allDrawings?.length || 0
-    });
-
     const initialState = {
       whiteboardElements: workspace.drawings || [],
       diagrams: Array.from(workspace.diagrams.values()) || [],
       activeUsers: activeConnections.get(workspaceId).size,
-      allDrawings: workspace.allDrawings || []
+      allDrawings: workspace.allDrawings || [],
+      codeSnippets: workspace.codeSnippets || { language: 'javascript', content: '' },
+      diagramContent: workspace.diagramContent || SAMPLE_DIAGRAM
     };
 
     console.log(`Sending initial state to user ${socket.id}:`, {
@@ -280,6 +278,15 @@ io.on('connection', (socket) => {
         userId: socket.id,
         position
       });
+    }
+  });
+
+  socket.on('diagram-update', ({ workspaceId, content }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (workspace) {
+      workspace.lastActivity = Date.now();
+      workspace.diagramContent = content;
+      socket.to(workspaceId).emit('diagram-update', { content });
     }
   });
 });

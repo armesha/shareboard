@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import mermaid from 'mermaid';
 import { fabric } from 'fabric';
 import { useWhiteboard } from '../context/WhiteboardContext';
+import { useDiagramEditor } from '../context/DiagramEditorContext';
 
 const SAMPLE_DIAGRAM = `graph TD
   A[Start] --> B{Is it?}
@@ -11,10 +12,16 @@ const SAMPLE_DIAGRAM = `graph TD
 `;
 
 export default function DiagramRenderer({ onAddImageToWhiteboard }) {
-  const [code, setCode] = useState(SAMPLE_DIAGRAM);
+  const { content, setContent, isEditing, setIsEditing } = useDiagramEditor();
   const [svg, setSvg] = useState('');
   const [error, setError] = useState(null);
   const { setTool, setSelectedShape } = useWhiteboard();
+
+  useEffect(() => {
+    if (!content) {
+      setContent(SAMPLE_DIAGRAM);
+    }
+  }, []);
 
   useEffect(() => {
     mermaid.initialize({
@@ -34,10 +41,10 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
 
   useEffect(() => {
     const renderDiagram = async () => {
-      if (!code) return;
+      if (!content) return;
 
       try {
-        const { svg } = await mermaid.render('diagram-' + Date.now(), code);
+        const { svg } = await mermaid.render('diagram-' + Date.now(), content);
         setSvg(svg);
         setError(null);
       } catch (error) {
@@ -47,7 +54,7 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
     };
 
     renderDiagram();
-  }, [code]);
+  }, [content]);
 
   const handleAddToWhiteboard = async () => {
     try {
@@ -98,8 +105,10 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
           <Editor
             height="100%"
             defaultLanguage="markdown"
-            value={code}
-            onChange={setCode}
+            value={content}
+            onChange={setContent}
+            onMount={() => setIsEditing(true)}
+            onBlur={() => setIsEditing(false)}
             theme="vs-light"
             options={{
               minimap: { enabled: false },
