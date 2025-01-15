@@ -355,6 +355,20 @@ export function WhiteboardProvider({ children }) {
     };
   }, [tool, color, width, addElement]);
 
+  const clearCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.clear();
+    elementsMapRef.current.clear();
+    setElements([]);
+
+    const workspaceId = window.location.pathname.split('/')[2];
+    if (workspaceId && socket) {
+      socket.emit('whiteboard-clear', { workspaceId });
+    }
+  }, [socket]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -373,7 +387,7 @@ export function WhiteboardProvider({ children }) {
       setIsLoading(true);
     };
 
-    const handleWorkspaceState = (state) => {
+    const handleWhiteboardState = (state) => {
       console.log('Received workspace state:', {
         whiteboardElements: state.whiteboardElements?.length || 0,
         diagrams: state.diagrams?.length || 0,
@@ -396,10 +410,20 @@ export function WhiteboardProvider({ children }) {
       setIsLoading(false);
     };
 
+    const handleWhiteboardClear = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.clear();
+        elementsMapRef.current.clear();
+        setElements([]);
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
-    socket.on('workspace-state', handleWorkspaceState);
+    socket.on('workspace-state', handleWhiteboardState);
     socket.on('whiteboard-update', handleWhiteboardUpdate);
+    socket.on('whiteboard-clear', handleWhiteboardClear);
 
     if (socket.connected) {
       setIsConnected(true);
@@ -413,8 +437,9 @@ export function WhiteboardProvider({ children }) {
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
-      socket.off('workspace-state', handleWorkspaceState);
+      socket.off('workspace-state', handleWhiteboardState);
       socket.off('whiteboard-update', handleWhiteboardUpdate);
+      socket.off('whiteboard-clear', handleWhiteboardClear);
     };
   }, [socket, handleWhiteboardUpdate]);
 
@@ -473,13 +498,6 @@ export function WhiteboardProvider({ children }) {
 
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected]);
-
-  const clearCanvas = useCallback(() => {
-    if (socket && isConnected) {
-      const workspaceId = window.location.pathname.split('/')[2];
-      socket.emit('whiteboard-clear', { workspaceId });
-    }
-  }, [socket, isConnected]);
 
   const value = {
     elements,

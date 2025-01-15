@@ -232,7 +232,6 @@ io.on('connection', (socket) => {
     if (workspace) {
       workspace.lastActivity = Date.now();
       workspace.drawings = [];
-      workspace.drawingHistory = [];
       workspace.allDrawings = [];
       io.to(workspaceId).emit('whiteboard-clear');
     }

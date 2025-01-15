@@ -289,8 +289,13 @@ export default function WorkspaceContent({
               <div className="h-6 w-px bg-gray-200 mx-1" />
               <div className="flex items-center space-x-2">
                 <button
-                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                  onClick={() => clearCanvas()}
+                  className="p-2 rounded-full transition-all duration-200 hover:bg-gray-100"
+                  onClick={() => {
+                    const confirmClear = window.confirm("Are you sure you want to clear the whiteboard?");
+                    if (confirmClear) {
+                      clearCanvas();
+                    }
+                  }}
                   title="Clear Canvas"
                 >
                   <DeleteOutlineIcon className="text-gray-700" />
