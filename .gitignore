@@ -45,5 +45,3 @@ out/
 
 # Backend-specific
 logs/
-*.sqlite
-*.sqlite3
