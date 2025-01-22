@@ -419,9 +419,13 @@ const Whiteboard = React.memo(() => {
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
+      const container = canvas.wrapperEl.parentElement;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
       canvas.setDimensions({
-        width: window.innerWidth * 0.8,
-        height: window.innerHeight * 0.8
+        width: rect.width,
+        height: rect.height
       });
       canvas.renderAll();
     };
