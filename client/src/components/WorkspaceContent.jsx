@@ -14,7 +14,26 @@ import TextFieldsIcon from '@mui/icons-material/TextFields';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
 import HomeIcon from '@mui/icons-material/Home';
+import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import { v4 as uuidv4 } from 'uuid';
+
+const EraserIcon = ({ className }) => (
+  <svg
+    className={className}
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Основная часть ластика (розовая) */}
+    <rect x="4" y="8" width="16" height="8" rx="1" fill="#FF69B4" />
+    {/* Белая стирающая часть */}
+    <rect x="12" y="8" width="8" height="8" rx="1" fill="white" />
+    {/* Контур */}
+    <rect x="4" y="8" width="16" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
 
 export default function WorkspaceContent({ 
   socket, 
@@ -213,6 +232,21 @@ export default function WorkspaceContent({
                 <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
               </button>
 
+              {/* Eraser tool */}
+              <button
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  tool === 'eraser' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  setTool('eraser');
+                  setSelectedShape(null);
+                  setShowShapesMenu(false);
+                }}
+                title="Eraser"
+              >
+                <EraserIcon className={tool === 'eraser' ? 'text-white' : 'text-gray-700'} />
+              </button>
+
               {/* Shapes dropdown */}
               <div className="relative shapes-menu-container">
                 <button
@@ -329,7 +363,7 @@ export default function WorkspaceContent({
           onClick={() => setActiveTab('diagram')}
         >
           <svg className="w-5 h-5 inline-block mr-2" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h4v4H7V7zm0 6h4v4H7v-4zm6-6h4v4h-4V7zm0 6h4v4h-4v-4z" />
+            <path d="M3 3H8C7.2 3 6.5 3.3 6 3.9L3.9 6C3.3 6.5 3 7.2 3 8V14C3 14.8 3.3 15.5 3.9 16L6 18.1C6.5 18.7 7.2 19 8 19H14C14.8 19 15.5 18.7 16 18.1L18.1 16C18.7 15.5 19 14.8 19 14V8C19 7.2 18.7 6.5 18.1 6L16 3.9C15.5 3.3 14.8 3 14 3Z" />
           </svg>
           Diagram Editor
         </button>
