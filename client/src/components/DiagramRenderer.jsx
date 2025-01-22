@@ -119,7 +119,7 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
           />
         </div>
         <div className="w-1/2 h-full">
-          <div className="h-full overflow-auto p-4" id="diagram-preview" style={{ background: 'transparent' }}>
+          <div className="h-full overflow-auto p-4 flex items-start justify-center" id="diagram-preview" style={{ background: 'transparent' }}>
             {error ? (
               <div className="text-red-500 p-4 bg-red-50 rounded">
                 <div className="font-medium">Error rendering diagram:</div>
