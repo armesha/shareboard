@@ -55,7 +55,11 @@ export default function WorkspaceContent({
     selectedShape, 
     setSelectedShape,
     canvasRef,
-    addElement 
+    addElement,
+    width,
+    setWidth,
+    color,
+    setColor 
   } = useWhiteboard();
   
   const [showShapesMenu, setShowShapesMenu] = useState(false);
@@ -203,7 +207,24 @@ export default function WorkspaceContent({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center w-full">
-            <div className="flex items-center space-x-3 bg-white rounded-full shadow px-4 py-1">
+            <div className="flex items-center space-x-3 bg-white rounded-full shadow-lg border border-gray-200 py-2 z-50">
+              {/* Width control */}
+              <div className="flex items-center space-x-2 border-r pr-3">
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={width}
+                  onChange={(e) => {
+                    const newWidth = parseInt(e.target.value);
+                    setWidth(newWidth);
+                  }}
+                  className="w-24"
+                  title={`Width: ${width}px`}
+                />
+                <span className="text-sm text-gray-600 w-8">{width}px</span>
+              </div>
+
               {/* Select/Cursor tool */}
               <button
                 className={`p-2 rounded-full transition-all duration-200 ${

@@ -1,3 +1,5 @@
+// [context] WhiteboardContext.jsx
+
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { fabric } from 'fabric';
@@ -90,8 +92,8 @@ export function WhiteboardProvider({ children }) {
       hasControls: isSelectable && isInteractive,
       hasBorders: isSelectable && isInteractive,
       evented: isInteractive,
-      lockMovementX: !isInteractive,
-      lockMovementY: !isInteractive,
+      lockMovementX: !isSelectable,
+      lockMovementY: !isSelectable,
       hoverCursor: isInteractive ? 'move' : 'default',
       perPixelTargetFind: isInteractive,
       targetFindTolerance: isInteractive ? 5 : 0,
@@ -317,10 +319,10 @@ export function WhiteboardProvider({ children }) {
     fabric.Object.prototype.borderOpacityWhenMoving = 0;
 
     const canvas = new fabric.Canvas(canvasElement, {
-      isDrawingMode: tool === 'pen',
+      isDrawingMode: tool === 'pen' || tool === 'eraser',
       width: window.innerWidth,
       height: window.innerHeight,
-      backgroundColor: WHITEBOARD_BG_COLOR, // Tailwind's bg-gray-50
+      backgroundColor: WHITEBOARD_BG_COLOR,
       selection: false,
       preserveObjectStacking: true,
       perPixelTargetFind: true,
@@ -333,12 +335,12 @@ export function WhiteboardProvider({ children }) {
     });
 
     const brush = new fabric.PencilBrush(canvas);
-    brush.color = color;
+    brush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
     brush.width = width;
-    brush.strokeLineCap = 'round';    // Make line endings round
-    brush.strokeLineJoin = 'round';   // Make line joins round
-    brush.strokeMiterLimit = 10;      // Limit the miter length
-    brush.strokeUniform = true;       // Keep stroke width consistent regardless of zoom
+    brush.strokeLineCap = 'round';
+    brush.strokeLineJoin = 'round';
+    brush.strokeMiterLimit = 10;
+    brush.strokeUniform = true;
     canvas.freeDrawingBrush = brush;
 
     canvas.on('path:created', (e) => {
@@ -367,6 +369,19 @@ export function WhiteboardProvider({ children }) {
       canvasRef.current = null;
     };
   }, [tool, color, width, addElement]);
+
+  // Consolidated useEffect for brush color and width
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas?.freeDrawingBrush) return;
+
+    if (tool === 'eraser') {
+      canvas.freeDrawingBrush.color = WHITEBOARD_BG_COLOR;
+    } else {
+      canvas.freeDrawingBrush.color = color;
+    }
+    canvas.freeDrawingBrush.width = width;
+  }, [tool, color, width]);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -460,9 +475,9 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
 
-    canvas.freeDrawingBrush.color = color;
+    canvas.freeDrawingBrush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
     canvas.freeDrawingBrush.width = width;
-  }, [color, width]);
+  }, [color, width, tool]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
