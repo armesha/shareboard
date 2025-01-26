@@ -4,6 +4,7 @@ import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 
 const WhiteboardContext = createContext(null);
+const WHITEBOARD_BG_COLOR = 'rgb(249, 250, 251)'; // Tailwind's bg-gray-50
 
 export function useWhiteboard() {
   return useContext(WhiteboardContext);
@@ -311,7 +312,7 @@ export function WhiteboardProvider({ children }) {
       isDrawingMode: tool === 'pen',
       width: window.innerWidth,
       height: window.innerHeight,
-      backgroundColor: '#ffffff',
+      backgroundColor: WHITEBOARD_BG_COLOR, // Tailwind's bg-gray-50
       selection: false,
       preserveObjectStacking: true,
       perPixelTargetFind: true,
@@ -457,59 +458,38 @@ export function WhiteboardProvider({ children }) {
 
     const canDraw = !isLoading && isConnected;
     
-    canvas.isDrawingMode = canDraw && (tool === 'pen');
-
+    // Only handle selection and object interactions
     canvas.selection = canDraw && (tool === 'select');
 
     canvas.getObjects().forEach(obj => {
-      const isDiagram = obj.data?.isDiagram === true; 
-      const isTextObject = (obj.type === 'text' || obj.type === 'i-text');
-      const isInteractive = isTextObject || isDiagram;  
-      const canSelectObject = canDraw && (tool === 'select') && isInteractive;
-
+      const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+      const isSelectable = canDraw && tool === 'select' && isInteractive;
       obj.set({
-        selectable: false,
-        hasControls: false,
-        hasBorders: false,
-        evented: false,
-        lockMovementX: true,
-        lockMovementY: true,
-        hoverCursor: 'default',
-        perPixelTargetFind: false,
-        targetFindTolerance: 0
+        selectable: isSelectable,
+        hasControls: isSelectable,
+        hasBorders: isSelectable,
+        evented: isInteractive,
+        lockMovementX: !isSelectable,
+        lockMovementY: !isSelectable
       });
-
-      if (isInteractive) {
-        obj.set({
-          selectable: canSelectObject,
-          hasControls: canSelectObject,
-          hasBorders: canSelectObject,
-          evented: true,
-          lockMovementX: !canSelectObject,
-          lockMovementY: !canSelectObject,
-          hoverCursor: canSelectObject ? 'move' : 'default',
-          perPixelTargetFind: true,
-          targetFindTolerance: 5
-        });
-      }
     });
 
     canvas.skipTargetFind = (tool !== 'select');
-
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected]);
 
   const value = {
-    elements,
-    activeUsers,
     tool,
-    selectedShape,
     color,
     width,
+    elements,
+    selectedShape,
+    activeUsers,
     isConnected,
     isLoading,
     connectionStatus,
     canvasRef,
+    WHITEBOARD_BG_COLOR,
     addElement,
     updateElement,
     setTool,

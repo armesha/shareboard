@@ -12,7 +12,8 @@ const Whiteboard = React.memo(() => {
   const { 
     tool, 
     color, 
-    width, 
+    width,
+    WHITEBOARD_BG_COLOR,
     selectedShape,
     initCanvas,
     canvasRef: fabricCanvasRef,
@@ -33,12 +34,21 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
-    canvas.isDrawingMode = tool === 'pen';
+    // Unified drawing mode handling
+    const isDrawingTool = ['pen', 'eraser'].includes(tool);
+    canvas.isDrawingMode = isDrawingTool;
     canvas.selection = tool === 'select';
 
-    const currentObjects = canvas.getObjects();
-    
-    currentObjects.forEach(obj => {
+    // Brush configuration
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = tool === 'eraser' 
+        ? WHITEBOARD_BG_COLOR 
+        : color;
+      canvas.freeDrawingBrush.width = width;
+    }
+
+    // Object interaction setup
+    canvas.getObjects().forEach(obj => {
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
       const isSelectable = tool === 'select' && isInteractive;
       obj.set({
@@ -46,21 +56,13 @@ const Whiteboard = React.memo(() => {
         hasControls: isSelectable,
         hasBorders: isSelectable,
         evented: isInteractive,
-        lockMovementX: !isInteractive,
-        lockMovementY: !isInteractive
+        lockMovementX: !isSelectable,
+        lockMovementY: !isSelectable
       });
     });
 
     canvas.renderAll();
-  }, [tool]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas?.freeDrawingBrush) return;
-
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
-  }, [color, width]);
+  }, [tool, color, width, WHITEBOARD_BG_COLOR]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
