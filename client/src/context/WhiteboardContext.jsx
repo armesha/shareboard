@@ -114,14 +114,22 @@ export function WhiteboardProvider({ children }) {
             ...commonProps,
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
-            stroke: element.data.stroke || color
+            stroke: element.data.stroke || color,
+            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+            strokeMiterLimit: 10
           });
         } else if (Array.isArray(element.data.path)) {
           obj = new fabric.Path(element.data.path.join(' '), {
             ...commonProps,
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
-            stroke: element.data.stroke || color
+            stroke: element.data.stroke || color,
+            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+            strokeMiterLimit: 10
           });
         }
         break;
@@ -327,6 +335,10 @@ export function WhiteboardProvider({ children }) {
     const brush = new fabric.PencilBrush(canvas);
     brush.color = color;
     brush.width = width;
+    brush.strokeLineCap = 'round';    // Make line endings round
+    brush.strokeLineJoin = 'round';   // Make line joins round
+    brush.strokeMiterLimit = 10;      // Limit the miter length
+    brush.strokeUniform = true;       // Keep stroke width consistent regardless of zoom
     canvas.freeDrawingBrush = brush;
 
     canvas.on('path:created', (e) => {

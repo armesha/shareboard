@@ -44,7 +44,7 @@ const Whiteboard = React.memo(() => {
       canvas.freeDrawingBrush.color = tool === 'eraser' 
         ? WHITEBOARD_BG_COLOR 
         : color;
-      canvas.freeDrawingBrush.width = width;
+      canvas.freeDrawingBrush.width = tool === 'eraser' ? 6 : width;
     }
 
     // Object interaction setup
