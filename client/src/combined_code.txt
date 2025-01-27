@@ -644,6 +644,19 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
+    // Handle text editing exit when switching tools
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && (activeObject.type === 'text' || activeObject.type === 'i-text')) {
+      if (activeObject.isEditing) {
+        activeObject.exitEditing();
+      }
+      // Ensure the final text state is saved
+      updateElement(activeObject.id, {
+        type: activeObject.type,
+        data: activeObject.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+      });
+    }
+
     // Unified drawing mode handling
     const isDrawingTool = ['pen', 'eraser'].includes(tool);
     canvas.isDrawingMode = isDrawingTool;
@@ -700,9 +713,13 @@ const Whiteboard = React.memo(() => {
           }
         });
       } else {
+        const properties = ['id'];
+        if (obj.type === 'text' || obj.type === 'i-text') {
+          properties.push('text', 'fontSize', 'fill', 'left', 'top');
+        }
         updateElement(obj.id, {
           type: obj.type,
-          data: obj.toObject(['id'])
+          data: obj.toObject(properties)
         });
       }
     };
@@ -810,14 +827,65 @@ const Whiteboard = React.memo(() => {
       });
       
       canvas.add(text);
-      text.enterEditing();
-      text.selectAll();
-      canvas.setActiveObject(text);
       
+      // Initial element creation
       addElement({
         id: text.id,
         type: 'text',
-        data: text.toObject(['id'])
+        data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+      });
+
+      // Set up text editing
+      text.enterEditing();
+      text.selectAll();
+      canvas.setActiveObject(text);
+
+      // Handle real-time changes during typing
+      text.on('changed', () => {
+        if (text.isEditing) {
+          updateElement(text.id, {
+            type: 'text',
+            data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+          });
+        }
+      });
+
+      // Custom Enter key handling
+      text.on('editing:entered', () => {
+        text.keysMap[13] = 'exitEditing'; // Map Enter to exit editing
+      });
+
+      text.on('keydown', (e) => {
+        if (e.keyCode === 13) { // Enter key
+          if (e.ctrlKey) {
+            // Insert new line at cursor position
+            const cursorPosition = text.selectionStart;
+            const textBeforeCursor = text.text.slice(0, cursorPosition);
+            const textAfterCursor = text.text.slice(cursorPosition);
+            text.text = textBeforeCursor + '\n' + textAfterCursor;
+            text.selectionStart = cursorPosition + 1;
+            text.selectionEnd = cursorPosition + 1;
+            text.canvas.renderAll();
+            e.preventDefault();
+          } else {
+            // Exit editing and save
+            text.exitEditing();
+            updateElement(text.id, {
+              type: 'text',
+              data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+            });
+            e.preventDefault();
+          }
+        }
+      });
+
+      // Handle editing exit (Enter key, clicking outside, switching tools)
+      text.on('editing:exited', () => {
+        // Ensure the final text state is saved
+        updateElement(text.id, {
+          type: 'text',
+          data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+        });
       });
 
       setTool('select');
@@ -2020,6 +2088,18 @@ export function WhiteboardProvider({ children }) {
         elements: allElements
       });
     }
+
+    // Bring the new element to front
+    setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
+        if (fabricObj) {
+          fabricObj.bringToFront();
+          canvas.requestRenderAll();
+        }
+      }
+    }, 0);
   }, [socket, tool]);
 
   const updateElement = useCallback((id, element) => {
@@ -2067,7 +2147,8 @@ export function WhiteboardProvider({ children }) {
       hoverCursor: isInteractive ? 'move' : 'default',
       perPixelTargetFind: isInteractive,
       targetFindTolerance: isInteractive ? 5 : 0,
-      strokeUniform: true
+      strokeUniform: true,
+      globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
     };
 
     switch (element.type) {
@@ -2087,10 +2168,11 @@ export function WhiteboardProvider({ children }) {
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
             stroke: element.data.stroke || color,
-            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeUniform: true,
             strokeLineCap: 'round',
             strokeLineJoin: 'round',
-            strokeMiterLimit: 10
+            strokeMiterLimit: 10,
+            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
           });
         } else if (Array.isArray(element.data.path)) {
           obj = new fabric.Path(element.data.path.join(' '), {
@@ -2098,22 +2180,35 @@ export function WhiteboardProvider({ children }) {
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
             stroke: element.data.stroke || color,
-            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeUniform: true,
             strokeLineCap: 'round',
             strokeLineJoin: 'round',
-            strokeMiterLimit: 10
+            strokeMiterLimit: 10,
+            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
           });
         }
         break;
       case 'i-text':
       case 'text':
-        obj = new fabric.IText(element.data.text || '', {
+        obj = new fabric.IText(element.data.text || 'Text', {
           ...commonProps,
           left: element.data.left,
           top: element.data.top,
           fontSize: element.data.fontSize || 20,
-          fill: element.data.stroke || color,
-          backgroundColor: null
+          fill: element.data.fill || color,
+          backgroundColor: null,
+          selectable: isSelectable && isInteractive,
+          hasControls: isSelectable && isInteractive,
+          hasBorders: isSelectable && isInteractive,
+          evented: isInteractive
+        });
+        
+        // Add text change listener
+        obj.on('changed', () => {
+          updateElement(obj.id, {
+            type: 'text',
+            data: obj.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
+          });
         });
         break;
       case 'diagram':
@@ -2131,11 +2226,6 @@ export function WhiteboardProvider({ children }) {
         });
 
         fabric.Image.fromURL(element.data.src, (img) => {
-          const isDiagram = true;
-          const isInteractive = isDiagram;
-
-          const padding = 20;
-
           img.set({
             ...commonProps,
             id: element.id,
@@ -2156,7 +2246,7 @@ export function WhiteboardProvider({ children }) {
             lockMovementY: !isInteractive,
             hoverCursor: isInteractive ? 'move' : 'default',
             perPixelTargetFind: false,
-            padding: padding,
+            padding: 20,
             transparentCorners: true,
             cornerStyle: 'circle',
             cornerSize: 8,
@@ -2170,6 +2260,7 @@ export function WhiteboardProvider({ children }) {
 
           canvas.remove(obj);
           canvas.add(img);
+          img.bringToFront();
           canvas.requestRenderAll();
 
           elementsMapRef.current.set(element.id, {
@@ -2229,6 +2320,7 @@ export function WhiteboardProvider({ children }) {
               src: element.data.src
             }
           });
+          existingObject.bringToFront();
           existingObject.setCoords();
         }
         else if (element.type === 'path') {
@@ -2236,6 +2328,9 @@ export function WhiteboardProvider({ children }) {
           const newObject = createFabricObject(element, tool === 'select');
           if (newObject) {
             canvas.add(newObject);
+            if (element.data.globalCompositeOperation !== 'destination-out') {
+              newObject.bringToFront();
+            }
           }
         }
         else {
@@ -2244,12 +2339,18 @@ export function WhiteboardProvider({ children }) {
               existingObject.set(key, element.data[key]);
             }
           });
+          if (element.data.globalCompositeOperation !== 'destination-out') {
+            existingObject.bringToFront();
+          }
           existingObject.setCoords();
         }
       } else {
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
+          if (element.data.globalCompositeOperation !== 'destination-out') {
+            newObject.bringToFront();
+          }
         }
       }
     });
@@ -2294,7 +2395,7 @@ export function WhiteboardProvider({ children }) {
       height: window.innerHeight,
       backgroundColor: WHITEBOARD_BG_COLOR,
       selection: false,
-      preserveObjectStacking: false, // Change to false to allow manual control of stacking order
+      preserveObjectStacking: true,
       perPixelTargetFind: true,
       targetFindTolerance: 0,
       selectionColor: 'transparent',
@@ -2305,13 +2406,12 @@ export function WhiteboardProvider({ children }) {
     });
 
     const brush = new fabric.PencilBrush(canvas);
-    brush.color = tool === 'eraser' ? '#000000' : color; // Use black for eraser
+    brush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
     brush.width = width;
     brush.strokeLineCap = 'round';
     brush.strokeLineJoin = 'round';
     brush.strokeMiterLimit = 10;
     brush.strokeUniform = true;
-    brush.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
     canvas.freeDrawingBrush = brush;
 
     canvas.on('path:created', (e) => {
@@ -2331,9 +2431,6 @@ export function WhiteboardProvider({ children }) {
         }
       };
 
-      // Bring the path to front immediately
-      path.bringToFront();
-      canvas.requestRenderAll();
       addElement(pathData);
     });
     
@@ -2450,7 +2547,7 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
 
-    canvas.freeDrawingBrush.color = tool === 'eraser' ? '#000000' : color;
+    canvas.freeDrawingBrush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
     canvas.freeDrawingBrush.width = width;
   }, [color, width, tool]);
 
