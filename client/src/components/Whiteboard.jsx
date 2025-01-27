@@ -117,6 +117,115 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectMoving);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectMoving);
+    };
+  }, [addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const updateTextElement = (obj) => {
+      if (!obj || !obj.id) return;
+      
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    const handleObjectModified = (e) => updateTextElement(e.target);
+    const handleObjectMoving = (e) => updateTextElement(e.target);
+    const handleObjectRotating = (e) => updateTextElement(e.target);
+    const handleObjectScaling = (e) => updateTextElement(e.target);
+
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectMoving);
+    canvas.on('object:rotating', handleObjectRotating);
+    canvas.on('object:scaling', handleObjectScaling);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectMoving);
+      canvas.off('object:rotating', handleObjectRotating);
+      canvas.off('object:scaling', handleObjectScaling);
+    };
+  }, [addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' && tool === 'select') {
         const activeObjects = canvas.getActiveObjects();

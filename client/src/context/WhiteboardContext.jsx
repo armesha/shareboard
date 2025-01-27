@@ -265,7 +265,24 @@ export function WhiteboardProvider({ children }) {
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
       if (existingObject) {
-        if (element.type === 'diagram' && existingObject.type === 'image') {
+        if (element.type === 'text') {
+          existingObject.set({
+            text: element.data.text,
+            left: element.data.left,
+            top: element.data.top,
+            fontSize: element.data.fontSize || 20,
+            fill: element.data.fill || color,
+            angle: element.data.angle || 0,
+            scaleX: element.data.scaleX || 1,
+            scaleY: element.data.scaleY || 1,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            evented: true
+          });
+          existingObject.setCoords();
+        }
+        else if (element.type === 'diagram' && existingObject.type === 'image') {
           existingObject.set({
             left: element.data.left,
             top: element.data.top,
@@ -294,20 +311,6 @@ export function WhiteboardProvider({ children }) {
             }
           }
         }
-        else if (element.type === 'text' || element.type === 'i-text') {
-          existingObject.set({
-            text: element.data.text,
-            left: element.data.left,
-            top: element.data.top,
-            fontSize: element.data.fontSize || 20,
-            fill: element.data.fill || color,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            evented: true
-          });
-          existingObject.setCoords();
-        }
         else {
           Object.keys(element.data || {}).forEach(key => {
             if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
@@ -323,7 +326,7 @@ export function WhiteboardProvider({ children }) {
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
-          if (element.type === 'text' || element.type === 'i-text') {
+          if (element.type === 'text') {
             newObject.bringToFront();
           } else if (element.data.globalCompositeOperation !== 'destination-out') {
             newObject.bringToFront();
@@ -333,7 +336,7 @@ export function WhiteboardProvider({ children }) {
     });
 
     canvas.getObjects().forEach(obj => {
-      if (obj.type === 'text' || obj.type === 'i-text') {
+      if (obj.type === 'text') {
         obj.set({
           selectable: true,
           hasControls: true,
