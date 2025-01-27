@@ -15,6 +15,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
 import HomeIcon from '@mui/icons-material/Home';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { v4 as uuidv4 } from 'uuid';
 
 const EraserIcon = ({ className }) => (
@@ -383,9 +384,7 @@ export default function WorkspaceContent({
           className={`px-4 py-2 ${activeTab === 'diagram' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
           onClick={() => setActiveTab('diagram')}
         >
-          <svg className="w-5 h-5 inline-block mr-2" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 3H8C7.2 3 6.5 3.3 6 3.9L3.9 6C3.3 6.5 3 7.2 3 8V14C3 14.8 3.3 15.5 3.9 16L6 18.1C6.5 18.7 7.2 19 8 19H14C14.8 19 15.5 18.7 16 18.1L18.1 16C18.7 15.5 19 14.8 19 14V8C19 7.2 18.7 6.5 18.1 6L16 3.9C15.5 3.3 14.8 3 14 3Z" />
-          </svg>
+          <AccountTreeIcon className="mr-2" />
           Diagram Editor
         </button>
       </div>
