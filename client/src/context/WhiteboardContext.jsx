@@ -94,21 +94,21 @@ export function WhiteboardProvider({ children }) {
 
     let obj;
     const isDiagram = element.type === 'diagram' || element.data?.isDiagram === true;
-    const isTextObject = element.type === 'text' || element.type === 'i-text';
+    const isTextObject = element.type === 'text';
     const isInteractive = isTextObject || isDiagram;
 
     const commonProps = {
       ...element.data,
       id: element.id,
-      selectable: isSelectable && isInteractive,
-      hasControls: isSelectable && isInteractive,
-      hasBorders: isSelectable && isInteractive,
-      evented: isInteractive,
-      lockMovementX: !isSelectable,
-      lockMovementY: !isSelectable,
+      selectable: isSelectable || isTextObject,
+      hasControls: isSelectable || isTextObject,
+      hasBorders: isSelectable || isTextObject,
+      evented: true,
+      lockMovementX: !(isSelectable || isTextObject),
+      lockMovementY: !(isSelectable || isTextObject),
       hoverCursor: isInteractive ? 'move' : 'default',
-      perPixelTargetFind: isInteractive,
-      targetFindTolerance: isInteractive ? 5 : 0,
+      perPixelTargetFind: true,
+      targetFindTolerance: 5,
       strokeUniform: true,
       globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
     };
@@ -162,7 +162,8 @@ export function WhiteboardProvider({ children }) {
           selectable: true,
           hasControls: true,
           hasBorders: true,
-          evented: true
+          evented: true,
+          perPixelTargetFind: true
         });
         break;
       case 'diagram':
@@ -235,21 +236,20 @@ export function WhiteboardProvider({ children }) {
     if (obj) {
       obj.id = element.id;
       if (isTextObject) {
-        obj.selectable = true;
-        obj.hasControls = true;
-        obj.hasBorders = true;
-        obj.evented = true;
-      } else {
-        obj.selectable = isSelectable;
-        obj.hasControls = isSelectable;
-        obj.hasBorders = isSelectable;
+        obj.set({
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true,
+          perPixelTargetFind: true
+        });
       }
       
       obj.set('data', element.data);
     }
 
     return obj;
-  }, [color, width]);
+  }, [color]);
 
   const handleWhiteboardUpdate = useCallback((elements) => {
     console.log('Processing whiteboard update:', {

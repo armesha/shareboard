@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const TextInputModal = ({ isOpen, onClose, onSubmit, initialText = '' }) => {
   const [text, setText] = useState(initialText);
+
+  // Update text when initialText changes
+  useEffect(() => {
+    setText(initialText);
+  }, [initialText]);
 
   if (!isOpen) return null;
 

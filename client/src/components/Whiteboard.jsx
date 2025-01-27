@@ -26,6 +26,7 @@ const Whiteboard = React.memo(() => {
     setWidth 
   } = useWhiteboard();
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+  const [editingText, setEditingText] = useState(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -296,33 +297,43 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const handleDblClick = (e) => {
-      const obj = e.target;
-      if (obj && (obj.type === 'text' || obj.type === 'i-text')) {
-        obj.enterEditing();
-        obj.selectAll();
-        canvas.renderAll();
-      }
-    };
+    const handleDblClick = (opt) => {
+      console.log('Double click event:', opt);
+      if (tool !== 'select') return;
 
-    const handleTextChanged = (e) => {
-      const obj = e.target;
-      if (obj && obj.id) {
-        updateElement(obj.id, {
-          type: obj.type,
-          data: obj.toObject(['id'])
-        });
+      const pointer = canvas.getPointer(opt.e);
+      const objects = canvas.getObjects();
+      
+      // Find clicked text object
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        if (obj.type === 'text' && obj.containsPoint(pointer)) {
+          console.log('Found text object:', obj);
+          const currentText = obj.text || '';
+          console.log('Current text:', currentText);
+          setEditingText({
+            id: obj.id,
+            text: currentText,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          });
+          setIsTextModalOpen(true);
+          break;
+        }
       }
     };
 
     canvas.on('mouse:dblclick', handleDblClick);
-    canvas.on('text:changed', handleTextChanged);
 
     return () => {
       canvas.off('mouse:dblclick', handleDblClick);
-      canvas.off('text:changed', handleTextChanged);
     };
-  }, [updateElement]);
+  }, [tool]);
 
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
@@ -638,43 +649,62 @@ const Whiteboard = React.memo(() => {
 
   const handleTextSubmit = (text) => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !clickPosition.current) return;
+    if (!canvas) return;
 
-    const textId = uuidv4();
-    const textObj = new fabric.Text(text, {
-      left: clickPosition.current.x,
-      top: clickPosition.current.y,
-      fontSize: 20,
-      fill: color,
-      id: textId,
-      selectable: true,
-      hasControls: true,
-      hasBorders: true
-    });
-    
-    canvas.add(textObj);
-    canvas.setActiveObject(textObj);
-    canvas.renderAll();
-
-    // Add to elements map using addElement
-    addElement({
-      id: textId,
-      type: 'text',
-      data: {
-        text: text,
+    if (editingText) {
+      // Update existing text
+      const obj = canvas.getObjects().find(o => o.id === editingText.id);
+      if (obj) {
+        obj.set('text', text);
+        canvas.renderAll();
+        
+        addElement({
+          id: editingText.id,
+          type: 'text',
+          data: {
+            ...editingText,
+            text: text
+          }
+        });
+      }
+      setEditingText(null);
+    } else {
+      // Create new text
+      const textId = uuidv4();
+      const textObj = new fabric.Text(text, {
         left: clickPosition.current.x,
         top: clickPosition.current.y,
         fontSize: 20,
         fill: color,
+        id: textId,
         selectable: true,
         hasControls: true,
         hasBorders: true
-      }
-    });
+      });
+      
+      canvas.add(textObj);
+      canvas.setActiveObject(textObj);
+      canvas.renderAll();
+
+      addElement({
+        id: textId,
+        type: 'text',
+        data: {
+          text: text,
+          left: clickPosition.current.x,
+          top: clickPosition.current.y,
+          fontSize: 20,
+          fill: color,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true
+        }
+      });
+    }
 
     setIsTextModalOpen(false);
     clickPosition.current = null;
-    setTool('select'); // Switch to select mode after adding text
+    setTool('select');
   };
 
   return (
@@ -685,8 +715,10 @@ const Whiteboard = React.memo(() => {
         onClose={() => {
           setIsTextModalOpen(false);
           clickPosition.current = null;
+          setEditingText(null);
         }}
         onSubmit={handleTextSubmit}
+        initialText={editingText ? editingText.text : ''}
       />
     </>
   );
