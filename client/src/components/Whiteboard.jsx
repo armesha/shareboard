@@ -302,12 +302,25 @@ const Whiteboard = React.memo(() => {
           });
           break;
         case 'triangle':
-          shape.set({
-            width: Math.abs(width),
-            height: Math.abs(height),
-            left: width > 0 ? startX : pointer.x,
-            top: height > 0 ? startY : pointer.y
-          });
+          const isUpsideDown = height < 0;
+          if (isCtrlPressed) {
+            const size = Math.abs(width) > Math.abs(height) ? Math.abs(width) : Math.abs(height);
+            shape.set({
+              width: size,
+              height: isUpsideDown ? -size : size,
+              left: startX - (size / 2),
+              top: startY,
+              originY: 'top'
+            });
+          } else {
+            shape.set({
+              width: Math.abs(width),
+              height: isUpsideDown ? -Math.abs(height) : Math.abs(height),
+              left: startX - (Math.abs(width) / 2),
+              top: startY,
+              originY: 'top'
+            });
+          }
           break;
       }
 
