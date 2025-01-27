@@ -50,6 +50,18 @@ export function WhiteboardProvider({ children }) {
         elements: allElements
       });
     }
+
+    // Bring the new element to front
+    setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
+        if (fabricObj) {
+          fabricObj.bringToFront();
+          canvas.requestRenderAll();
+        }
+      }
+    }, 0);
   }, [socket, tool]);
 
   const updateElement = useCallback((id, element) => {
@@ -97,7 +109,8 @@ export function WhiteboardProvider({ children }) {
       hoverCursor: isInteractive ? 'move' : 'default',
       perPixelTargetFind: isInteractive,
       targetFindTolerance: isInteractive ? 5 : 0,
-      strokeUniform: true
+      strokeUniform: true,
+      globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
     };
 
     switch (element.type) {
@@ -117,10 +130,11 @@ export function WhiteboardProvider({ children }) {
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
             stroke: element.data.stroke || color,
-            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeUniform: true,
             strokeLineCap: 'round',
             strokeLineJoin: 'round',
-            strokeMiterLimit: 10
+            strokeMiterLimit: 10,
+            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
           });
         } else if (Array.isArray(element.data.path)) {
           obj = new fabric.Path(element.data.path.join(' '), {
@@ -128,10 +142,11 @@ export function WhiteboardProvider({ children }) {
             fill: null,
             strokeWidth: element.data.strokeWidth || width,
             stroke: element.data.stroke || color,
-            strokeUniform: true,  // Ensure stroke width remains consistent
+            strokeUniform: true,
             strokeLineCap: 'round',
             strokeLineJoin: 'round',
-            strokeMiterLimit: 10
+            strokeMiterLimit: 10,
+            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
           });
         }
         break;
@@ -161,11 +176,6 @@ export function WhiteboardProvider({ children }) {
         });
 
         fabric.Image.fromURL(element.data.src, (img) => {
-          const isDiagram = true;
-          const isInteractive = isDiagram;
-
-          const padding = 20;
-
           img.set({
             ...commonProps,
             id: element.id,
@@ -186,7 +196,7 @@ export function WhiteboardProvider({ children }) {
             lockMovementY: !isInteractive,
             hoverCursor: isInteractive ? 'move' : 'default',
             perPixelTargetFind: false,
-            padding: padding,
+            padding: 20,
             transparentCorners: true,
             cornerStyle: 'circle',
             cornerSize: 8,
@@ -200,6 +210,7 @@ export function WhiteboardProvider({ children }) {
 
           canvas.remove(obj);
           canvas.add(img);
+          img.bringToFront();
           canvas.requestRenderAll();
 
           elementsMapRef.current.set(element.id, {
@@ -259,6 +270,7 @@ export function WhiteboardProvider({ children }) {
               src: element.data.src
             }
           });
+          existingObject.bringToFront();
           existingObject.setCoords();
         }
         else if (element.type === 'path') {
@@ -266,6 +278,9 @@ export function WhiteboardProvider({ children }) {
           const newObject = createFabricObject(element, tool === 'select');
           if (newObject) {
             canvas.add(newObject);
+            if (element.data.globalCompositeOperation !== 'destination-out') {
+              newObject.bringToFront();
+            }
           }
         }
         else {
@@ -274,12 +289,18 @@ export function WhiteboardProvider({ children }) {
               existingObject.set(key, element.data[key]);
             }
           });
+          if (element.data.globalCompositeOperation !== 'destination-out') {
+            existingObject.bringToFront();
+          }
           existingObject.setCoords();
         }
       } else {
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
+          if (element.data.globalCompositeOperation !== 'destination-out') {
+            newObject.bringToFront();
+          }
         }
       }
     });
@@ -355,7 +376,8 @@ export function WhiteboardProvider({ children }) {
           left: path.left,
           top: path.top,
           scaleX: path.scaleX,
-          scaleY: path.scaleY
+          scaleY: path.scaleY,
+          globalCompositeOperation: tool === 'eraser' ? 'destination-out' : 'source-over'
         }
       };
 
