@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { v4 as uuidv4 } from 'uuid';
+import TextInputModal from './TextInputModal';
 
 const Whiteboard = React.memo(() => {
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
   const currentShape = useRef(null);
   const startPoint = useRef(null);
+  const clickPosition = useRef(null);
   const socket = useSocket();
   const { 
     tool, 
@@ -23,6 +25,7 @@ const Whiteboard = React.memo(() => {
     setColor, 
     setWidth 
   } = useWhiteboard();
+  const [isTextModalOpen, setIsTextModalOpen] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -37,7 +40,7 @@ const Whiteboard = React.memo(() => {
     // Unified drawing mode handling
     const isDrawingTool = ['pen', 'eraser'].includes(tool);
     canvas.isDrawingMode = isDrawingTool;
-    canvas.selection = tool === 'select';
+    canvas.selection = tool === 'select' || tool === 'text';
 
     // Brush configuration
     if (canvas.freeDrawingBrush) {
@@ -54,7 +57,7 @@ const Whiteboard = React.memo(() => {
     // Object interaction setup
     canvas.getObjects().forEach(obj => {
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
-      const isSelectable = tool === 'select' && isInteractive;
+      const isSelectable = (tool === 'select' || tool === 'text') && isInteractive;
       obj.set({
         selectable: isSelectable,
         hasControls: isSelectable,
@@ -180,40 +183,54 @@ const Whiteboard = React.memo(() => {
     };
   }, [socket, tool, color]);
 
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleDblClick = (e) => {
+      const obj = e.target;
+      if (obj && (obj.type === 'text' || obj.type === 'i-text')) {
+        obj.enterEditing();
+        obj.selectAll();
+        canvas.renderAll();
+      }
+    };
+
+    const handleTextChanged = (e) => {
+      const obj = e.target;
+      if (obj && obj.id) {
+        updateElement(obj.id, {
+          type: obj.type,
+          data: obj.toObject(['id'])
+        });
+      }
+    };
+
+    canvas.on('mouse:dblclick', handleDblClick);
+    canvas.on('text:changed', handleTextChanged);
+
+    return () => {
+      canvas.off('mouse:dblclick', handleDblClick);
+      canvas.off('text:changed', handleTextChanged);
+    };
+  }, [updateElement]);
+
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || tool === 'select') return;
+    if (!canvas) return;
 
     if (e.e.button !== 0) return;
+
+    if (tool === 'text') {
+      const pointer = canvas.getPointer(e.e);
+      clickPosition.current = pointer;
+      setIsTextModalOpen(true);
+      return;
+    }
 
     isDrawing.current = true;
     const pointer = canvas.getPointer(e.e);
     startPoint.current = pointer;
-
-    if (tool === 'text') {
-      const text = new fabric.IText('Text', {
-        left: pointer.x,
-        top: pointer.y,
-        fontSize: 20,
-        fill: color,
-        id: uuidv4()
-      });
-      
-      canvas.add(text);
-      text.enterEditing();
-      text.selectAll();
-      canvas.setActiveObject(text);
-      
-      addElement({
-        id: text.id,
-        type: 'text',
-        data: text.toObject(['id'])
-      });
-
-      setTool('select');
-      
-      return;
-    }
 
     if (selectedShape) {
       let shapeObj;
@@ -258,7 +275,7 @@ const Whiteboard = React.memo(() => {
         currentShape.current = shapeObj;
       }
     }
-  }, [tool, selectedShape, color, width, fabricCanvasRef, setTool]);
+  }, [tool, selectedShape, color, width, fabricCanvasRef]);
 
   const handleMouseMove = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
@@ -510,10 +527,59 @@ const Whiteboard = React.memo(() => {
     addElement(element);
   }, [addElement]);
 
+  const handleTextSubmit = (text) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !clickPosition.current) return;
+
+    const textId = uuidv4();
+    const textObj = new fabric.Text(text, {
+      left: clickPosition.current.x,
+      top: clickPosition.current.y,
+      fontSize: 20,
+      fill: color,
+      id: textId,
+      selectable: true,
+      hasControls: true,
+      hasBorders: true
+    });
+    
+    canvas.add(textObj);
+    canvas.setActiveObject(textObj);
+    canvas.renderAll();
+
+    // Add to elements map using addElement
+    addElement({
+      id: textId,
+      type: 'text',
+      data: {
+        text: text,
+        left: clickPosition.current.x,
+        top: clickPosition.current.y,
+        fontSize: 20,
+        fill: color,
+        selectable: true,
+        hasControls: true,
+        hasBorders: true
+      }
+    });
+
+    setIsTextModalOpen(false);
+    clickPosition.current = null;
+    setTool('select'); // Switch to select mode after adding text
+  };
+
   return (
-    <div className="whiteboard-container" style={{ width: '100%', height: '100%' }}>
+    <>
       <canvas ref={canvasRef} />
-    </div>
+      <TextInputModal
+        isOpen={isTextModalOpen}
+        onClose={() => {
+          setIsTextModalOpen(false);
+          clickPosition.current = null;
+        }}
+        onSubmit={handleTextSubmit}
+      />
+    </>
   );
 });
 

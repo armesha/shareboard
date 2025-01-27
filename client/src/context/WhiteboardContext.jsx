@@ -152,13 +152,17 @@ export function WhiteboardProvider({ children }) {
         break;
       case 'i-text':
       case 'text':
-        obj = new fabric.IText(element.data.text || '', {
+        obj = new fabric.Text(element.data.text || '', {
           ...commonProps,
           left: element.data.left,
           top: element.data.top,
           fontSize: element.data.fontSize || 20,
-          fill: element.data.stroke || color,
-          backgroundColor: null
+          fill: element.data.fill || color,
+          backgroundColor: null,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true
         });
         break;
       case 'diagram':
@@ -230,9 +234,16 @@ export function WhiteboardProvider({ children }) {
 
     if (obj) {
       obj.id = element.id;
-      obj.selectable = isSelectable;
-      obj.hasControls = isSelectable;
-      obj.hasBorders = isSelectable;
+      if (isTextObject) {
+        obj.selectable = true;
+        obj.hasControls = true;
+        obj.hasBorders = true;
+        obj.evented = true;
+      } else {
+        obj.selectable = isSelectable;
+        obj.hasControls = isSelectable;
+        obj.hasBorders = isSelectable;
+      }
       
       obj.set('data', element.data);
     }
@@ -283,6 +294,20 @@ export function WhiteboardProvider({ children }) {
             }
           }
         }
+        else if (element.type === 'text' || element.type === 'i-text') {
+          existingObject.set({
+            text: element.data.text,
+            left: element.data.left,
+            top: element.data.top,
+            fontSize: element.data.fontSize || 20,
+            fill: element.data.fill || color,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            evented: true
+          });
+          existingObject.setCoords();
+        }
         else {
           Object.keys(element.data || {}).forEach(key => {
             if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
@@ -298,7 +323,9 @@ export function WhiteboardProvider({ children }) {
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
-          if (element.data.globalCompositeOperation !== 'destination-out') {
+          if (element.type === 'text' || element.type === 'i-text') {
+            newObject.bringToFront();
+          } else if (element.data.globalCompositeOperation !== 'destination-out') {
             newObject.bringToFront();
           }
         }
@@ -306,16 +333,25 @@ export function WhiteboardProvider({ children }) {
     });
 
     canvas.getObjects().forEach(obj => {
-      obj.set({
-        selectable: tool === 'select',
-        hasControls: tool === 'select',
-        hasBorders: tool === 'select'
-      });
+      if (obj.type === 'text' || obj.type === 'i-text') {
+        obj.set({
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true
+        });
+      } else {
+        obj.set({
+          selectable: tool === 'select',
+          hasControls: tool === 'select',
+          hasBorders: tool === 'select'
+        });
+      }
     });
 
     canvas.requestRenderAll();
     setElements(elements);
-  }, [createFabricObject, tool]);
+  }, [createFabricObject, tool, color]);
 
   const initCanvas = useCallback((canvasElement) => {
     if (!canvasElement) return;
