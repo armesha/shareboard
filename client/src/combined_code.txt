@@ -8,6 +8,7 @@ FILES TO BE PROCESSED:
 [components] DiagramList.jsx
 [components] DiagramPanel.jsx
 [components] DiagramRenderer.jsx
+[components] TextInputModal.jsx
 [components] Whiteboard.jsx
 [components] WorkspaceContent.jsx
 [context] CodeEditorContext.jsx
@@ -604,20 +605,87 @@ export default function DiagramRenderer({ onAddImageToWhiteboard }) {
 
 ================================================================================
 
+[components] TextInputModal.jsx
+================================================================================
+
+
+import React, { useState, useEffect } from 'react';
+
+const TextInputModal = ({ isOpen, onClose, onSubmit, initialText = '' }) => {
+  const [text, setText] = useState(initialText);
+
+  // Update text when initialText changes
+  useEffect(() => {
+    setText(initialText);
+  }, [initialText]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(text);
+    setText('');
+  };
+
+  const handleCancel = () => {
+    setText('');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-96">
+        <h3 className="text-lg font-medium mb-4">Enter Text</h3>
+        <form onSubmit={handleSubmit}>
+          <textarea
+            className="w-full p-2 border border-gray-300 rounded-md mb-4 h-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+            placeholder="Enter your text here..."
+          />
+          <div className="flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              OK
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default TextInputModal;
+
+
+================================================================================
+
 [components] Whiteboard.jsx
 ================================================================================
 
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { v4 as uuidv4 } from 'uuid';
+import TextInputModal from './TextInputModal';
 
 const Whiteboard = React.memo(() => {
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
   const currentShape = useRef(null);
   const startPoint = useRef(null);
+  const clickPosition = useRef(null);
   const socket = useSocket();
   const { 
     tool, 
@@ -633,6 +701,8 @@ const Whiteboard = React.memo(() => {
     setColor, 
     setWidth 
   } = useWhiteboard();
+  const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+  const [editingText, setEditingText] = useState(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -644,23 +714,10 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
-    // Handle text editing exit when switching tools
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && (activeObject.type === 'text' || activeObject.type === 'i-text')) {
-      if (activeObject.isEditing) {
-        activeObject.exitEditing();
-      }
-      // Ensure the final text state is saved
-      updateElement(activeObject.id, {
-        type: activeObject.type,
-        data: activeObject.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-      });
-    }
-
     // Unified drawing mode handling
     const isDrawingTool = ['pen', 'eraser'].includes(tool);
     canvas.isDrawingMode = isDrawingTool;
-    canvas.selection = tool === 'select';
+    canvas.selection = tool === 'select' || tool === 'text';
 
     // Brush configuration
     if (canvas.freeDrawingBrush) {
@@ -677,7 +734,7 @@ const Whiteboard = React.memo(() => {
     // Object interaction setup
     canvas.getObjects().forEach(obj => {
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
-      const isSelectable = tool === 'select' && isInteractive;
+      const isSelectable = (tool === 'select' || tool === 'text') && isInteractive;
       obj.set({
         selectable: isSelectable,
         hasControls: isSelectable,
@@ -713,13 +770,9 @@ const Whiteboard = React.memo(() => {
           }
         });
       } else {
-        const properties = ['id'];
-        if (obj.type === 'text' || obj.type === 'i-text') {
-          properties.push('text', 'fontSize', 'fill', 'left', 'top');
-        }
         updateElement(obj.id, {
           type: obj.type,
-          data: obj.toObject(properties)
+          data: obj.toObject(['id'])
         });
       }
     };
@@ -736,6 +789,115 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:rotating', handleObjectModification);
     };
   }, [updateElement, fabricCanvasRef]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectMoving);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectMoving);
+    };
+  }, [addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const updateTextElement = (obj) => {
+      if (!obj || !obj.id) return;
+      
+      if (obj.type === 'text') {
+        addElement({
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          }
+        });
+      }
+    };
+
+    const handleObjectModified = (e) => updateTextElement(e.target);
+    const handleObjectMoving = (e) => updateTextElement(e.target);
+    const handleObjectRotating = (e) => updateTextElement(e.target);
+    const handleObjectScaling = (e) => updateTextElement(e.target);
+
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectMoving);
+    canvas.on('object:rotating', handleObjectRotating);
+    canvas.on('object:scaling', handleObjectScaling);
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectMoving);
+      canvas.off('object:rotating', handleObjectRotating);
+      canvas.off('object:scaling', handleObjectScaling);
+    };
+  }, [addElement]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -807,91 +969,64 @@ const Whiteboard = React.memo(() => {
     };
   }, [socket, tool, color]);
 
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleDblClick = (opt) => {
+      console.log('Double click event:', opt);
+      if (tool !== 'select') return;
+
+      const pointer = canvas.getPointer(opt.e);
+      const objects = canvas.getObjects();
+      
+      // Find clicked text object
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        if (obj.type === 'text' && obj.containsPoint(pointer)) {
+          console.log('Found text object:', obj);
+          const currentText = obj.text || '';
+          console.log('Current text:', currentText);
+          setEditingText({
+            id: obj.id,
+            text: currentText,
+            left: obj.left,
+            top: obj.top,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            angle: obj.angle,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+          });
+          setIsTextModalOpen(true);
+          break;
+        }
+      }
+    };
+
+    canvas.on('mouse:dblclick', handleDblClick);
+
+    return () => {
+      canvas.off('mouse:dblclick', handleDblClick);
+    };
+  }, [tool]);
+
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || tool === 'select') return;
+    if (!canvas) return;
 
     if (e.e.button !== 0) return;
+
+    if (tool === 'text') {
+      const pointer = canvas.getPointer(e.e);
+      clickPosition.current = pointer;
+      setIsTextModalOpen(true);
+      return;
+    }
 
     isDrawing.current = true;
     const pointer = canvas.getPointer(e.e);
     startPoint.current = pointer;
-
-    if (tool === 'text') {
-      const text = new fabric.IText('Text', {
-        left: pointer.x,
-        top: pointer.y,
-        fontSize: 20,
-        fill: color,
-        id: uuidv4()
-      });
-      
-      canvas.add(text);
-      
-      // Initial element creation
-      addElement({
-        id: text.id,
-        type: 'text',
-        data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-      });
-
-      // Set up text editing
-      text.enterEditing();
-      text.selectAll();
-      canvas.setActiveObject(text);
-
-      // Handle real-time changes during typing
-      text.on('changed', () => {
-        if (text.isEditing) {
-          updateElement(text.id, {
-            type: 'text',
-            data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-          });
-        }
-      });
-
-      // Custom Enter key handling
-      text.on('editing:entered', () => {
-        text.keysMap[13] = 'exitEditing'; // Map Enter to exit editing
-      });
-
-      text.on('keydown', (e) => {
-        if (e.keyCode === 13) { // Enter key
-          if (e.ctrlKey) {
-            // Insert new line at cursor position
-            const cursorPosition = text.selectionStart;
-            const textBeforeCursor = text.text.slice(0, cursorPosition);
-            const textAfterCursor = text.text.slice(cursorPosition);
-            text.text = textBeforeCursor + '\n' + textAfterCursor;
-            text.selectionStart = cursorPosition + 1;
-            text.selectionEnd = cursorPosition + 1;
-            text.canvas.renderAll();
-            e.preventDefault();
-          } else {
-            // Exit editing and save
-            text.exitEditing();
-            updateElement(text.id, {
-              type: 'text',
-              data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-            });
-            e.preventDefault();
-          }
-        }
-      });
-
-      // Handle editing exit (Enter key, clicking outside, switching tools)
-      text.on('editing:exited', () => {
-        // Ensure the final text state is saved
-        updateElement(text.id, {
-          type: 'text',
-          data: text.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-        });
-      });
-
-      setTool('select');
-      
-      return;
-    }
 
     if (selectedShape) {
       let shapeObj;
@@ -936,7 +1071,7 @@ const Whiteboard = React.memo(() => {
         currentShape.current = shapeObj;
       }
     }
-  }, [tool, selectedShape, color, width, fabricCanvasRef, setTool]);
+  }, [tool, selectedShape, color, width, fabricCanvasRef]);
 
   const handleMouseMove = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
@@ -980,12 +1115,25 @@ const Whiteboard = React.memo(() => {
           });
           break;
         case 'triangle':
-          shape.set({
-            width: Math.abs(width),
-            height: Math.abs(height),
-            left: width > 0 ? startX : pointer.x,
-            top: height > 0 ? startY : pointer.y
-          });
+          const isUpsideDown = height < 0;
+          if (isCtrlPressed) {
+            const size = Math.abs(width) > Math.abs(height) ? Math.abs(width) : Math.abs(height);
+            shape.set({
+              width: size,
+              height: isUpsideDown ? -size : size,
+              left: startX - (size / 2),
+              top: startY,
+              originY: 'top'
+            });
+          } else {
+            shape.set({
+              width: Math.abs(width),
+              height: isUpsideDown ? -Math.abs(height) : Math.abs(height),
+              left: startX - (Math.abs(width) / 2),
+              top: startY,
+              originY: 'top'
+            });
+          }
           break;
       }
 
@@ -1175,10 +1323,80 @@ const Whiteboard = React.memo(() => {
     addElement(element);
   }, [addElement]);
 
+  const handleTextSubmit = (text) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    if (editingText) {
+      // Update existing text
+      const obj = canvas.getObjects().find(o => o.id === editingText.id);
+      if (obj) {
+        obj.set('text', text);
+        canvas.renderAll();
+        
+        addElement({
+          id: editingText.id,
+          type: 'text',
+          data: {
+            ...editingText,
+            text: text
+          }
+        });
+      }
+      setEditingText(null);
+    } else {
+      // Create new text
+      const textId = uuidv4();
+      const textObj = new fabric.Text(text, {
+        left: clickPosition.current.x,
+        top: clickPosition.current.y,
+        fontSize: 20,
+        fill: color,
+        id: textId,
+        selectable: true,
+        hasControls: true,
+        hasBorders: true
+      });
+      
+      canvas.add(textObj);
+      canvas.setActiveObject(textObj);
+      canvas.renderAll();
+
+      addElement({
+        id: textId,
+        type: 'text',
+        data: {
+          text: text,
+          left: clickPosition.current.x,
+          top: clickPosition.current.y,
+          fontSize: 20,
+          fill: color,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true
+        }
+      });
+    }
+
+    setIsTextModalOpen(false);
+    clickPosition.current = null;
+    setTool('select');
+  };
+
   return (
-    <div className="whiteboard-container" style={{ width: '100%', height: '100%' }}>
+    <>
       <canvas ref={canvasRef} />
-    </div>
+      <TextInputModal
+        isOpen={isTextModalOpen}
+        onClose={() => {
+          setIsTextModalOpen(false);
+          clickPosition.current = null;
+          setEditingText(null);
+        }}
+        onSubmit={handleTextSubmit}
+        initialText={editingText ? editingText.text : ''}
+      />
+    </>
   );
 });
 
@@ -1208,6 +1426,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ComputerIcon from '@mui/icons-material/Computer';
 import HomeIcon from '@mui/icons-material/Home';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { v4 as uuidv4 } from 'uuid';
 
 const EraserIcon = ({ className }) => (
@@ -1576,9 +1795,7 @@ export default function WorkspaceContent({
           className={`px-4 py-2 ${activeTab === 'diagram' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
           onClick={() => setActiveTab('diagram')}
         >
-          <svg className="w-5 h-5 inline-block mr-2" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 3H8C7.2 3 6.5 3.3 6 3.9L3.9 6C3.3 6.5 3 7.2 3 8V14C3 14.8 3.3 15.5 3.9 16L6 18.1C6.5 18.7 7.2 19 8 19H14C14.8 19 15.5 18.7 16 18.1L18.1 16C18.7 15.5 19 14.8 19 14V8C19 7.2 18.7 6.5 18.1 6L16 3.9C15.5 3.3 14.8 3 14 3Z" />
-          </svg>
+          <AccountTreeIcon className="mr-2" />
           Diagram Editor
         </button>
       </div>
@@ -2132,21 +2349,21 @@ export function WhiteboardProvider({ children }) {
 
     let obj;
     const isDiagram = element.type === 'diagram' || element.data?.isDiagram === true;
-    const isTextObject = element.type === 'text' || element.type === 'i-text';
+    const isTextObject = element.type === 'text';
     const isInteractive = isTextObject || isDiagram;
 
     const commonProps = {
       ...element.data,
       id: element.id,
-      selectable: isSelectable && isInteractive,
-      hasControls: isSelectable && isInteractive,
-      hasBorders: isSelectable && isInteractive,
-      evented: isInteractive,
-      lockMovementX: !isSelectable,
-      lockMovementY: !isSelectable,
+      selectable: isSelectable || isTextObject,
+      hasControls: isSelectable || isTextObject,
+      hasBorders: isSelectable || isTextObject,
+      evented: true,
+      lockMovementX: !(isSelectable || isTextObject),
+      lockMovementY: !(isSelectable || isTextObject),
       hoverCursor: isInteractive ? 'move' : 'default',
-      perPixelTargetFind: isInteractive,
-      targetFindTolerance: isInteractive ? 5 : 0,
+      perPixelTargetFind: true,
+      targetFindTolerance: 5,
       strokeUniform: true,
       globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
     };
@@ -2190,25 +2407,18 @@ export function WhiteboardProvider({ children }) {
         break;
       case 'i-text':
       case 'text':
-        obj = new fabric.IText(element.data.text || 'Text', {
+        obj = new fabric.Text(element.data.text || '', {
           ...commonProps,
           left: element.data.left,
           top: element.data.top,
           fontSize: element.data.fontSize || 20,
           fill: element.data.fill || color,
           backgroundColor: null,
-          selectable: isSelectable && isInteractive,
-          hasControls: isSelectable && isInteractive,
-          hasBorders: isSelectable && isInteractive,
-          evented: isInteractive
-        });
-        
-        // Add text change listener
-        obj.on('changed', () => {
-          updateElement(obj.id, {
-            type: 'text',
-            data: obj.toObject(['id', 'text', 'fontSize', 'fill', 'left', 'top'])
-          });
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true,
+          perPixelTargetFind: true
         });
         break;
       case 'diagram':
@@ -2280,15 +2490,21 @@ export function WhiteboardProvider({ children }) {
 
     if (obj) {
       obj.id = element.id;
-      obj.selectable = isSelectable;
-      obj.hasControls = isSelectable;
-      obj.hasBorders = isSelectable;
+      if (isTextObject) {
+        obj.set({
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true,
+          perPixelTargetFind: true
+        });
+      }
       
       obj.set('data', element.data);
     }
 
     return obj;
-  }, [color, width]);
+  }, [color]);
 
   const handleWhiteboardUpdate = useCallback((elements) => {
     console.log('Processing whiteboard update:', {
@@ -2304,7 +2520,24 @@ export function WhiteboardProvider({ children }) {
       const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
       
       if (existingObject) {
-        if (element.type === 'diagram' && existingObject.type === 'image') {
+        if (element.type === 'text') {
+          existingObject.set({
+            text: element.data.text,
+            left: element.data.left,
+            top: element.data.top,
+            fontSize: element.data.fontSize || 20,
+            fill: element.data.fill || color,
+            angle: element.data.angle || 0,
+            scaleX: element.data.scaleX || 1,
+            scaleY: element.data.scaleY || 1,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            evented: true
+          });
+          existingObject.setCoords();
+        }
+        else if (element.type === 'diagram' && existingObject.type === 'image') {
           existingObject.set({
             left: element.data.left,
             top: element.data.top,
@@ -2348,7 +2581,9 @@ export function WhiteboardProvider({ children }) {
         const newObject = createFabricObject(element, tool === 'select');
         if (newObject) {
           canvas.add(newObject);
-          if (element.data.globalCompositeOperation !== 'destination-out') {
+          if (element.type === 'text') {
+            newObject.bringToFront();
+          } else if (element.data.globalCompositeOperation !== 'destination-out') {
             newObject.bringToFront();
           }
         }
@@ -2356,16 +2591,25 @@ export function WhiteboardProvider({ children }) {
     });
 
     canvas.getObjects().forEach(obj => {
-      obj.set({
-        selectable: tool === 'select',
-        hasControls: tool === 'select',
-        hasBorders: tool === 'select'
-      });
+      if (obj.type === 'text') {
+        obj.set({
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          evented: true
+        });
+      } else {
+        obj.set({
+          selectable: tool === 'select',
+          hasControls: tool === 'select',
+          hasBorders: tool === 'select'
+        });
+      }
     });
 
     canvas.requestRenderAll();
     setElements(elements);
-  }, [createFabricObject, tool]);
+  }, [createFabricObject, tool, color]);
 
   const initCanvas = useCallback((canvasElement) => {
     if (!canvasElement) return;

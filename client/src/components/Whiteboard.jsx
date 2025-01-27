@@ -39,15 +39,13 @@ const Whiteboard = React.memo(() => {
     if (!canvas) return;
     
     // Unified drawing mode handling
-    const isDrawingTool = ['pen', 'eraser'].includes(tool);
+    const isDrawingTool = tool === 'pen';
     canvas.isDrawingMode = isDrawingTool;
     canvas.selection = tool === 'select' || tool === 'text';
 
     // Brush configuration
     if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = tool === 'eraser' 
-        ? WHITEBOARD_BG_COLOR 
-        : color;
+      canvas.freeDrawingBrush.color = color;
       canvas.freeDrawingBrush.width = width;
       
       // Force brush update

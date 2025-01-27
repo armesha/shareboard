@@ -18,24 +18,6 @@ import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { v4 as uuidv4 } from 'uuid';
 
-const EraserIcon = ({ className }) => (
-  <svg
-    className={className}
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    {/* Основная часть ластика (розовая) */}
-    <rect x="4" y="8" width="16" height="8" rx="1" fill="#FF69B4" />
-    {/* Белая стирающая часть */}
-    <rect x="12" y="8" width="8" height="8" rx="1" fill="white" />
-    {/* Контур */}
-    <rect x="4" y="8" width="16" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
-  </svg>
-);
-
 export default function WorkspaceContent({ 
   socket, 
   workspaceId, 
@@ -252,21 +234,6 @@ export default function WorkspaceContent({
                 title="Pen"
               >
                 <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
-              </button>
-
-              {/* Eraser tool */}
-              <button
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  tool === 'eraser' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                }`}
-                onClick={() => {
-                  setTool('eraser');
-                  setSelectedShape(null);
-                  setShowShapesMenu(false);
-                }}
-                title="Eraser"
-              >
-                <EraserIcon className={tool === 'eraser' ? 'text-white' : 'text-gray-700'} />
               </button>
 
               {/* Shapes dropdown */}

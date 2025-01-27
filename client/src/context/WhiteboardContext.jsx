@@ -306,9 +306,7 @@ export function WhiteboardProvider({ children }) {
           const newObject = createFabricObject(element, tool === 'select');
           if (newObject) {
             canvas.add(newObject);
-            if (element.data.globalCompositeOperation !== 'destination-out') {
-              newObject.bringToFront();
-            }
+            newObject.bringToFront();
           }
         }
         else {
@@ -317,9 +315,7 @@ export function WhiteboardProvider({ children }) {
               existingObject.set(key, element.data[key]);
             }
           });
-          if (element.data.globalCompositeOperation !== 'destination-out') {
-            existingObject.bringToFront();
-          }
+          existingObject.bringToFront();
           existingObject.setCoords();
         }
       } else {
@@ -328,7 +324,7 @@ export function WhiteboardProvider({ children }) {
           canvas.add(newObject);
           if (element.type === 'text') {
             newObject.bringToFront();
-          } else if (element.data.globalCompositeOperation !== 'destination-out') {
+          } else {
             newObject.bringToFront();
           }
         }
@@ -379,7 +375,7 @@ export function WhiteboardProvider({ children }) {
     fabric.Object.prototype.borderOpacityWhenMoving = 0;
 
     const canvas = new fabric.Canvas(canvasElement, {
-      isDrawingMode: tool === 'pen' || tool === 'eraser',
+      isDrawingMode: tool === 'pen',
       width: window.innerWidth,
       height: window.innerHeight,
       backgroundColor: WHITEBOARD_BG_COLOR,
@@ -395,7 +391,7 @@ export function WhiteboardProvider({ children }) {
     });
 
     const brush = new fabric.PencilBrush(canvas);
-    brush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
+    brush.color = color;
     brush.width = width;
     brush.strokeLineCap = 'round';
     brush.strokeLineJoin = 'round';
@@ -416,7 +412,7 @@ export function WhiteboardProvider({ children }) {
           top: path.top,
           scaleX: path.scaleX,
           scaleY: path.scaleY,
-          globalCompositeOperation: tool === 'eraser' ? 'destination-out' : 'source-over'
+          globalCompositeOperation: 'source-over'
         }
       };
 
@@ -436,13 +432,9 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
 
-    if (tool === 'eraser') {
-      canvas.freeDrawingBrush.color = WHITEBOARD_BG_COLOR;
-    } else {
-      canvas.freeDrawingBrush.color = color;
-    }
+    canvas.freeDrawingBrush.color = color;
     canvas.freeDrawingBrush.width = width;
-  }, [tool, color, width]);
+  }, [color, width]);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -536,9 +528,9 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
 
-    canvas.freeDrawingBrush.color = tool === 'eraser' ? WHITEBOARD_BG_COLOR : color;
+    canvas.freeDrawingBrush.color = color;
     canvas.freeDrawingBrush.width = width;
-  }, [color, width, tool]);
+  }, [color, width]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
