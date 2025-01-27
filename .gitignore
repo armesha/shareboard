@@ -17,9 +17,6 @@ Thumbs.db
 *.pyc
 __pycache__/
 
-# Text files
-*.txt
-
 # Build 
 dist/
 build/
