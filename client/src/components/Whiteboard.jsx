@@ -527,36 +527,6 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const handlePathCreated = (e) => {
-      const path = e.path;
-      if (!path) return;
-
-      path.id = uuidv4();
-      path.selectable = false;
-      path.hasControls = false;
-      path.hasBorders = false;
-      path.evented = false;
-      path.lockMovementX = true;
-      path.lockMovementY = true;
-
-      addElement({
-        id: path.id,
-        type: 'path',
-        data: path.toObject(['id'])
-      });
-    };
-
-    canvas.on('path:created', handlePathCreated);
-
-    return () => {
-      canvas.off('path:created', handlePathCreated);
-    };
-  }, [addElement]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
     canvas.on('mouse:down', handleMouseDown);
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
