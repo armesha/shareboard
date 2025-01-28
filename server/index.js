@@ -171,22 +171,17 @@ io.on('connection', (socket) => {
     
     elements.forEach(element => {
       if (element && element.id) {
-        existingDrawings.set(element.id, {
+        const newElement = {
           ...element,
           timestamp: Date.now()
-        });
+        };
         
+        existingDrawings.set(element.id, newElement);
+        
+        // Добавляем в allDrawings только если это новый элемент
         const existingIndex = workspace.allDrawings.findIndex(e => e.id === element.id);
         if (existingIndex === -1) {
-          workspace.allDrawings.push({
-            ...element,
-            timestamp: Date.now()
-          });
-        } else {
-          workspace.allDrawings[existingIndex] = {
-            ...element,
-            timestamp: Date.now()
-          };
+          workspace.allDrawings.push(newElement);
         }
       }
     });
@@ -198,7 +193,8 @@ io.on('connection', (socket) => {
       allDrawingsCount: workspace.allDrawings.length
     });
 
-    io.to(workspaceId).emit('whiteboard-update', workspace.drawings);
+    // Отправляем обновление только тем, кто не отправил его
+    socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
   socket.on('request-canvas-state', (workspaceId) => {

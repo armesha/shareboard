@@ -25,6 +25,7 @@ export function WhiteboardProvider({ children }) {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const canvasRef = useRef(null);
   const elementsMapRef = useRef(new Map());
+  const isUpdatingRef = useRef(false);
 
   const addElement = useCallback((element) => {
     if (!element.id) {
@@ -43,7 +44,7 @@ export function WhiteboardProvider({ children }) {
     setElements(allElements);
     
     const workspaceId = window.location.pathname.split('/')[2];
-    if (workspaceId && socket) {
+    if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
@@ -80,7 +81,7 @@ export function WhiteboardProvider({ children }) {
     setElements(allElements);
 
     const workspaceId = window.location.pathname.split('/')[2];
-    if (workspaceId && socket) {
+    if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending updated element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
@@ -256,100 +257,104 @@ export function WhiteboardProvider({ children }) {
       elementsCount: elements?.length || 0
     });
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    isUpdatingRef.current = true;
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    elements.forEach(element => {
-      if (!element || !element.id) return;
+      elements.forEach(element => {
+        if (!element || !element.id) return;
 
-      const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
-      
-      if (existingObject) {
-        if (element.type === 'text') {
-          existingObject.set({
-            text: element.data.text,
-            left: element.data.left,
-            top: element.data.top,
-            fontSize: element.data.fontSize || 20,
-            fill: element.data.fill || color,
-            angle: element.data.angle || 0,
-            scaleX: element.data.scaleX || 1,
-            scaleY: element.data.scaleY || 1,
+        const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
+        
+        if (existingObject) {
+          if (element.type === 'text') {
+            existingObject.set({
+              text: element.data.text,
+              left: element.data.left,
+              top: element.data.top,
+              fontSize: element.data.fontSize || 20,
+              fill: element.data.fill || color,
+              angle: element.data.angle || 0,
+              scaleX: element.data.scaleX || 1,
+              scaleY: element.data.scaleY || 1,
+              selectable: true,
+              hasControls: true,
+              hasBorders: true,
+              evented: true
+            });
+            existingObject.setCoords();
+          }
+          else if (element.type === 'diagram' && existingObject.type === 'image') {
+            existingObject.set({
+              left: element.data.left,
+              top: element.data.top,
+              scaleX: element.data.scaleX,
+              scaleY: element.data.scaleY,
+              angle: element.data.angle,
+              selectable: tool === 'select',
+              hasControls: tool === 'select',
+              hasBorders: tool === 'select',
+              data: {
+                ...element.data,
+                isDiagram: true,
+                src: element.data.src
+              }
+            });
+            existingObject.bringToFront();
+            existingObject.setCoords();
+          }
+          else if (element.type === 'path') {
+            Object.keys(element.data || {}).forEach(key => {
+              existingObject.set(key, element.data[key]);
+            });
+            existingObject.setCoords();
+            existingObject.bringToFront();
+          }
+          else {
+            Object.keys(element.data || {}).forEach(key => {
+              if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
+                existingObject.set(key, element.data[key]);
+              }
+            });
+            existingObject.bringToFront();
+            existingObject.setCoords();
+          }
+        } else {
+          const newObject = createFabricObject(element, tool === 'select');
+          if (newObject) {
+            canvas.add(newObject);
+            if (element.type === 'text') {
+              newObject.bringToFront();
+            } else {
+              newObject.bringToFront();
+            }
+          }
+        }
+      });
+
+      canvas.getObjects().forEach(obj => {
+        if (obj.type === 'text') {
+          obj.set({
             selectable: true,
             hasControls: true,
             hasBorders: true,
             evented: true
           });
-          existingObject.setCoords();
-        }
-        else if (element.type === 'diagram' && existingObject.type === 'image') {
-          existingObject.set({
-            left: element.data.left,
-            top: element.data.top,
-            scaleX: element.data.scaleX,
-            scaleY: element.data.scaleY,
-            angle: element.data.angle,
+        } else {
+          obj.set({
             selectable: tool === 'select',
             hasControls: tool === 'select',
-            hasBorders: tool === 'select',
-            data: {
-              ...element.data,
-              isDiagram: true,
-              src: element.data.src
-            }
+            hasBorders: tool === 'select'
           });
-          existingObject.bringToFront();
-          existingObject.setCoords();
         }
-        else if (element.type === 'path') {
-          canvas.remove(existingObject);
-          const newObject = createFabricObject(element, tool === 'select');
-          if (newObject) {
-            canvas.add(newObject);
-            newObject.bringToFront();
-          }
-        }
-        else {
-          Object.keys(element.data || {}).forEach(key => {
-            if (!['selectable', 'hasControls', 'hasBorders'].includes(key)) {
-              existingObject.set(key, element.data[key]);
-            }
-          });
-          existingObject.bringToFront();
-          existingObject.setCoords();
-        }
-      } else {
-        const newObject = createFabricObject(element, tool === 'select');
-        if (newObject) {
-          canvas.add(newObject);
-          if (element.type === 'text') {
-            newObject.bringToFront();
-          } else {
-            newObject.bringToFront();
-          }
-        }
-      }
-    });
+      });
 
-    canvas.getObjects().forEach(obj => {
-      if (obj.type === 'text') {
-        obj.set({
-          selectable: true,
-          hasControls: true,
-          hasBorders: true,
-          evented: true
-        });
-      } else {
-        obj.set({
-          selectable: tool === 'select',
-          hasControls: tool === 'select',
-          hasBorders: tool === 'select'
-        });
-      }
-    });
-
-    canvas.requestRenderAll();
-    setElements(elements);
+      canvas.requestRenderAll();
+      setElements(elements);
+    } finally {
+      isUpdatingRef.current = false;
+    }
   }, [createFabricObject, tool, color]);
 
   const initCanvas = useCallback((canvasElement) => {
@@ -484,7 +489,40 @@ export function WhiteboardProvider({ children }) {
 
       if (state.whiteboardElements && state.whiteboardElements.length > 0) {
         console.log('Adding whiteboardElements to canvas:', state.whiteboardElements.length);
-        handleWhiteboardUpdate(state.whiteboardElements);
+        isUpdatingRef.current = true;
+        try {
+          state.whiteboardElements.forEach(element => {
+            if (element && element.id) {
+              const obj = createFabricObject(element, tool === 'select');
+              if (obj) {
+                canvas.add(obj);
+                elementsMapRef.current.set(element.id, element);
+              }
+            }
+          });
+
+          canvas.getObjects().forEach(obj => {
+            if (obj.type === 'text') {
+              obj.set({
+                selectable: true,
+                hasControls: true,
+                hasBorders: true,
+                evented: true
+              });
+            } else {
+              obj.set({
+                selectable: tool === 'select',
+                hasControls: tool === 'select',
+                hasBorders: tool === 'select'
+              });
+            }
+          });
+
+          canvas.requestRenderAll();
+          setElements(state.whiteboardElements);
+        } finally {
+          isUpdatingRef.current = false;
+        }
       }
 
       setActiveUsers(state.activeUsers);
