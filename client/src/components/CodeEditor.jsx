@@ -31,7 +31,6 @@ export default function CodeEditor() {
     editorRef.current = editor;
     editor.focus();
     
-    // Force layout update
     setTimeout(() => {
       editor.layout();
     }, 100);
@@ -45,7 +44,6 @@ export default function CodeEditor() {
     setLanguage(e.target.value);
   };
 
-  // Force editor layout update when container size changes
   useEffect(() => {
     const updateLayout = () => {
       if (editorRef.current) {

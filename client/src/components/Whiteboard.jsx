@@ -38,22 +38,18 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
-    // Unified drawing mode handling
     const isDrawingTool = tool === 'pen';
     canvas.isDrawingMode = isDrawingTool;
     canvas.selection = tool === 'select' || tool === 'text';
 
-    // Brush configuration
     if (canvas.freeDrawingBrush) {
       canvas.freeDrawingBrush.color = color;
       canvas.freeDrawingBrush.width = width;
       
-      // Force brush update
       const currentBrush = canvas.freeDrawingBrush;
       canvas.freeDrawingBrush = currentBrush;
     }
 
-    // Object interaction setup
     canvas.getObjects().forEach(obj => {
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
       const isSelectable = (tool === 'select' || tool === 'text') && isInteractive;
@@ -302,7 +298,6 @@ const Whiteboard = React.memo(() => {
       const pointer = canvas.getPointer(opt.e);
       const objects = canvas.getObjects();
       
-      // Find clicked text object
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
         if (obj.type === 'text' && obj.containsPoint(pointer)) {
@@ -620,7 +615,6 @@ const Whiteboard = React.memo(() => {
     if (!canvas) return;
 
     if (editingText) {
-      // Update existing text
       const obj = canvas.getObjects().find(o => o.id === editingText.id);
       if (obj) {
         obj.set('text', text);
@@ -637,7 +631,6 @@ const Whiteboard = React.memo(() => {
       }
       setEditingText(null);
     } else {
-      // Create new text
       const textId = uuidv4();
       const textObj = new fabric.Text(text, {
         left: clickPosition.current.x,

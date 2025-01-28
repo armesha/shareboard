@@ -61,7 +61,7 @@ const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams, onAddImageToW
 
         const canvas = await html2canvas(svgElement, {
           backgroundColor: null,
-          scale: 2, // Better quality
+          scale: 2, 
         });
 
         canvas.toBlob((blob) => {

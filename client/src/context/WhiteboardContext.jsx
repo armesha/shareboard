@@ -1,5 +1,3 @@
-// [context] WhiteboardContext.jsx
-
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { fabric } from 'fabric';
@@ -52,7 +50,6 @@ export function WhiteboardProvider({ children }) {
       });
     }
 
-    // Bring the new element to front
     setTimeout(() => {
       const canvas = canvasRef.current;
       if (canvas) {
@@ -432,7 +429,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [tool, color, width, addElement]);
 
-  // Consolidated useEffect for brush color and width
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
@@ -576,7 +572,6 @@ export function WhiteboardProvider({ children }) {
 
     const canDraw = !isLoading && isConnected;
     
-    // Only handle selection and object interactions
     canvas.selection = canDraw && (tool === 'select');
 
     canvas.getObjects().forEach(obj => {

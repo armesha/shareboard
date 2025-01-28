@@ -178,7 +178,6 @@ io.on('connection', (socket) => {
         
         existingDrawings.set(element.id, newElement);
         
-        // Добавляем в allDrawings только если это новый элемент
         const existingIndex = workspace.allDrawings.findIndex(e => e.id === element.id);
         if (existingIndex === -1) {
           workspace.allDrawings.push(newElement);
@@ -193,7 +192,6 @@ io.on('connection', (socket) => {
       allDrawingsCount: workspace.allDrawings.length
     });
 
-    // Отправляем обновление только тем, кто не отправил его
     socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 

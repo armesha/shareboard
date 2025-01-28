@@ -63,7 +63,7 @@ export default function WorkspaceContent({
         angle: 0
       }
     });
-    setTool('select'); // Switch to select mode to manipulate the new diagram
+    setTool('select'); 
   }, [addElement, setTool]);
 
   useEffect(() => {
@@ -98,14 +98,11 @@ export default function WorkspaceContent({
       setIsConnected(false);
     };
 
-    // Set initial connection state
     setIsConnected(socket.connected);
 
-    // Listen for connection events
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
 
-    // Join workspace if already connected
     if (socket.connected) {
       socket.emit('join-workspace', workspaceId);
     }
@@ -123,7 +120,6 @@ export default function WorkspaceContent({
       setStatus('connected');
       console.log('Joining workspace:', workspaceId);
       socket.emit('join-workspace', workspaceId);
-      // Запрашиваем текущее состояние холста
       socket.emit('request-canvas-state', workspaceId);
     });
 
@@ -137,7 +133,6 @@ export default function WorkspaceContent({
       setStatus('error');
     });
 
-    // Обработчик получения состояния холста
     socket.on('canvas-state', (canvasState) => {
       if (canvasState && canvasRef.current) {
         canvasRef.current.loadFromJSON(canvasState, () => {
