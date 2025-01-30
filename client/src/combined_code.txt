@@ -173,7 +173,6 @@ export default function CodeEditor() {
     editorRef.current = editor;
     editor.focus();
     
-    // Force layout update
     setTimeout(() => {
       editor.layout();
     }, 100);
@@ -187,7 +186,6 @@ export default function CodeEditor() {
     setLanguage(e.target.value);
   };
 
-  // Force editor layout update when container size changes
   useEffect(() => {
     const updateLayout = () => {
       if (editorRef.current) {
@@ -355,7 +353,7 @@ const DiagramPanel = ({ onDiagramSubmit, currentDiagram, diagrams, onAddImageToW
 
         const canvas = await html2canvas(svgElement, {
           backgroundColor: null,
-          scale: 2, // Better quality
+          scale: 2, 
         });
 
         canvas.toBlob((blob) => {
@@ -614,7 +612,6 @@ import React, { useState, useEffect } from 'react';
 const TextInputModal = ({ isOpen, onClose, onSubmit, initialText = '' }) => {
   const [text, setText] = useState(initialText);
 
-  // Update text when initialText changes
   useEffect(() => {
     setText(initialText);
   }, [initialText]);
@@ -714,22 +711,18 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     
-    // Unified drawing mode handling
     const isDrawingTool = tool === 'pen';
     canvas.isDrawingMode = isDrawingTool;
     canvas.selection = tool === 'select' || tool === 'text';
 
-    // Brush configuration
     if (canvas.freeDrawingBrush) {
       canvas.freeDrawingBrush.color = color;
       canvas.freeDrawingBrush.width = width;
       
-      // Force brush update
       const currentBrush = canvas.freeDrawingBrush;
       canvas.freeDrawingBrush = currentBrush;
     }
 
-    // Object interaction setup
     canvas.getObjects().forEach(obj => {
       const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
       const isSelectable = (tool === 'select' || tool === 'text') && isInteractive;
@@ -978,7 +971,6 @@ const Whiteboard = React.memo(() => {
       const pointer = canvas.getPointer(opt.e);
       const objects = canvas.getObjects();
       
-      // Find clicked text object
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
         if (obj.type === 'text' && obj.containsPoint(pointer)) {
@@ -1203,36 +1195,6 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const handlePathCreated = (e) => {
-      const path = e.path;
-      if (!path) return;
-
-      path.id = uuidv4();
-      path.selectable = false;
-      path.hasControls = false;
-      path.hasBorders = false;
-      path.evented = false;
-      path.lockMovementX = true;
-      path.lockMovementY = true;
-
-      addElement({
-        id: path.id,
-        type: 'path',
-        data: path.toObject(['id'])
-      });
-    };
-
-    canvas.on('path:created', handlePathCreated);
-
-    return () => {
-      canvas.off('path:created', handlePathCreated);
-    };
-  }, [addElement]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
     canvas.on('mouse:down', handleMouseDown);
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
@@ -1326,7 +1288,6 @@ const Whiteboard = React.memo(() => {
     if (!canvas) return;
 
     if (editingText) {
-      // Update existing text
       const obj = canvas.getObjects().find(o => o.id === editingText.id);
       if (obj) {
         obj.set('text', text);
@@ -1343,7 +1304,6 @@ const Whiteboard = React.memo(() => {
       }
       setEditingText(null);
     } else {
-      // Create new text
       const textId = uuidv4();
       const textObj = new fabric.Text(text, {
         left: clickPosition.current.x,
@@ -1472,7 +1432,7 @@ export default function WorkspaceContent({
         angle: 0
       }
     });
-    setTool('select'); // Switch to select mode to manipulate the new diagram
+    setTool('select'); 
   }, [addElement, setTool]);
 
   useEffect(() => {
@@ -1507,14 +1467,11 @@ export default function WorkspaceContent({
       setIsConnected(false);
     };
 
-    // Set initial connection state
     setIsConnected(socket.connected);
 
-    // Listen for connection events
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
 
-    // Join workspace if already connected
     if (socket.connected) {
       socket.emit('join-workspace', workspaceId);
     }
@@ -1532,7 +1489,6 @@ export default function WorkspaceContent({
       setStatus('connected');
       console.log('Joining workspace:', workspaceId);
       socket.emit('join-workspace', workspaceId);
-      // Запрашиваем текущее состояние холста
       socket.emit('request-canvas-state', workspaceId);
     });
 
@@ -1546,7 +1502,6 @@ export default function WorkspaceContent({
       setStatus('error');
     });
 
-    // Обработчик получения состояния холста
     socket.on('canvas-state', (canvasState) => {
       if (canvasState && canvasRef.current) {
         canvasRef.current.loadFromJSON(canvasState, () => {
@@ -2218,8 +2173,6 @@ export function SocketProvider({ children }) {
 ================================================================================
 
 
-// [context] WhiteboardContext.jsx
-
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { fabric } from 'fabric';
@@ -2272,7 +2225,6 @@ export function WhiteboardProvider({ children }) {
       });
     }
 
-    // Bring the new element to front
     setTimeout(() => {
       const canvas = canvasRef.current;
       if (canvas) {
@@ -2652,7 +2604,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [tool, color, width, addElement]);
 
-  // Consolidated useEffect for brush color and width
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
@@ -2796,7 +2747,6 @@ export function WhiteboardProvider({ children }) {
 
     const canDraw = !isLoading && isConnected;
     
-    // Only handle selection and object interactions
     canvas.selection = canDraw && (tool === 'select');
 
     canvas.getObjects().forEach(obj => {
