@@ -211,121 +211,116 @@ export function WhiteboardProvider({ children }) {
   }, [color, width]);
 
   const handleWhiteboardUpdate = useCallback((elements) => {
-    console.log('Processing whiteboard update:', {
-      elementsCount: elements?.length || 0
-    });
+    console.log('Processing whiteboard update:', elements);
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     isUpdatingRef.current = true;
+    canvas.suspendDrawing = true;
+
     try {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      // Suspend drawing while processing updates
-      canvas.suspendDrawing = true;
-
-      // Create a map of existing objects for faster lookup
-      const existingObjectsMap = new Map(
-        canvas.getObjects().map(obj => [obj.id, obj])
-      );
-
       elements.forEach(element => {
         if (!element || !element.id) return;
 
-        const existingObject = existingObjectsMap.get(element.id);
+        // Check if object exists
+        const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
-          // Only update if properties have changed
-          const updateProps = {
-            left: element.data.left,
-            top: element.data.top,
-            scaleX: element.data.scaleX || 1,
-            scaleY: element.data.scaleY || 1,
-            angle: element.data.angle || 0
-          };
-
-          let needsUpdate = false;
-          for (const [key, value] of Object.entries(updateProps)) {
-            if (existingObject[key] !== value) {
-              needsUpdate = true;
-              break;
+          // Update existing object with new properties
+          const data = element.data;
+          Object.keys(data).forEach(key => {
+            if (existingObject[key] !== data[key]) {
+              existingObject.set(key, data[key]);
             }
-          }
-
-          if (needsUpdate) {
-            if (element.type === 'text') {
-              updateProps.text = element.data.text;
-              updateProps.fontSize = element.data.fontSize || 20;
-              updateProps.fill = element.data.fill || color;
-              updateProps.selectable = true;
-              updateProps.hasControls = true;
-              updateProps.hasBorders = true;
-              updateProps.evented = true;
-            } else {
-              updateProps.selectable = tool === 'select';
-              updateProps.hasControls = tool === 'select';
-              updateProps.hasBorders = tool === 'select';
-              updateProps.evented = tool === 'select';
-            }
-
-            existingObject.set(updateProps);
-            existingObject.setCoords();
-          }
+          });
+          existingObject.setCoords();
         } else {
+          // Create new object
           const newObject = createFabricObject(element);
           if (newObject) {
             canvas.add(newObject);
             newObject.setCoords();
           }
         }
-      });
 
-      // Resume drawing and render once
+        // Update elements map
+        elementsMapRef.current.set(element.id, element);
+      });
+    } finally {
       canvas.suspendDrawing = false;
       canvas.requestRenderAll();
-      
-      setElements(elements);
-    } finally {
       isUpdatingRef.current = false;
     }
-  }, [createFabricObject, tool, color]);
+  }, [createFabricObject]);
 
   const initCanvas = useCallback((canvasElement) => {
     const canvas = new fabric.Canvas(canvasElement, {
       backgroundColor: WHITEBOARD_BG_COLOR,
       width: window.innerWidth,
       height: window.innerHeight,
-      renderOnAddRemove: false
+      renderOnAddRemove: false,
+      isDrawingMode: tool === 'pen'
     });
+
+    // Initialize brush
+    const brush = new fabric.PencilBrush(canvas);
+    brush.color = color;
+    brush.width = width;
+    brush.strokeLineCap = 'round';
+    brush.strokeLineJoin = 'round';
+    canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
 
-    // Set up event listeners
+    // Handle path creation
     const handlePathCreated = (e) => {
       const path = e.path;
       if (!path.id) {
         path.id = uuidv4();
+        // Save ALL path properties
         const data = path.toObject(FABRIC_OBJECT_PROPS);
         
-        addElement({
+        // Make sure stroke and width are set
+        data.stroke = data.stroke || color;
+        data.strokeWidth = data.strokeWidth || width;
+        data.strokeLineCap = 'round';
+        data.strokeLineJoin = 'round';
+        
+        const element = {
           id: path.id,
           type: 'path',
           data: data
-        });
+        };
+
+        // Add to local state and broadcast
+        addElement(element);
+        
+        // Update local map immediately
+        elementsMapRef.current.set(path.id, element);
       }
     };
 
+    // Handle object modifications
     const handleObjectModified = (e) => {
       const obj = e.target;
       if (!obj || !obj.id || isUpdatingRef.current) return;
 
       const data = obj.toObject(FABRIC_OBJECT_PROPS);
-      
-      updateElement(obj.id, {
+      const element = {
+        id: obj.id,
         type: obj.type,
         data: data
-      });
+      };
+
+      // Update element and broadcast
+      updateElement(obj.id, element);
+      
+      // Update local map immediately
+      elementsMapRef.current.set(obj.id, element);
     };
 
+    // Set up event listeners
     canvas.on('path:created', handlePathCreated);
     canvas.on('object:modified', handleObjectModified);
     canvas.on('object:moving', handleObjectModified);
@@ -351,7 +346,18 @@ export function WhiteboardProvider({ children }) {
       canvas.off('text:changed', handleObjectModified);
       canvas.dispose();
     };
-  }, [addElement, updateElement]);
+  }, [tool, color, width, addElement, updateElement]);
+
+  // Update brush when color or width changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas?.freeDrawingBrush) return;
+
+    canvas.freeDrawingBrush.color = color;
+    canvas.freeDrawingBrush.width = width;
+    canvas.freeDrawingBrush.strokeLineCap = 'round';
+    canvas.freeDrawingBrush.strokeLineJoin = 'round';
+  }, [color, width]);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
