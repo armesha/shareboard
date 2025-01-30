@@ -221,6 +221,45 @@ const Whiteboard = React.memo(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      // Ensure we're not sending updates too frequently during movement
+      if (obj.movementTimeout) {
+        clearTimeout(obj.movementTimeout);
+      }
+
+      obj.movementTimeout = setTimeout(() => {
+        const data = {
+          ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
+          text: obj.text || '',
+          fontSize: obj.fontSize,
+          fill: obj.fill,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true
+        };
+
+        addElement({
+          id: obj.id,
+          type: obj.type || 'text',
+          data: data
+        });
+      }, 50); // 50ms debounce
+    };
+
+    canvas.on('object:moving', handleObjectMoving);
+
+    return () => {
+      canvas.off('object:moving', handleObjectMoving);
+    };
+  }, [addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' && tool === 'select') {
         const activeObjects = canvas.getActiveObjects();
