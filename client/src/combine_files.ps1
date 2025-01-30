@@ -1,9 +1,7 @@
 $outputFile = "combined_code.txt"
 
-# Create or clear the output file
 "" | Set-Content $outputFile
 
-# Function to get all .jsx files from a directory
 function Get-JsxFiles {
     param (
         [string]$dirPath,
@@ -12,7 +10,6 @@ function Get-JsxFiles {
     return Get-ChildItem -Path $dirPath -Filter "*.jsx" -File
 }
 
-# Function to get specific files from root directory
 function Get-RootFiles {
     $files = @(
         "App.jsx",
@@ -26,16 +23,13 @@ function Get-RootFiles {
     } | Where-Object { $_ -ne $null }
 }
 
-# First, list all files that will be processed
 "FILES TO BE PROCESSED:" | Add-Content $outputFile
 "===================" | Add-Content $outputFile
 
-# List root files
 Get-RootFiles | ForEach-Object {
     "[root] $($_.Name)" | Add-Content $outputFile
 }
 
-# List directory files
 @("components", "context", "pages") | ForEach-Object {
     $dirName = $_
     Get-JsxFiles -dirPath $dirName -dirName $dirName | ForEach-Object {
@@ -46,7 +40,6 @@ Get-RootFiles | ForEach-Object {
 "`n`nFILE CONTENTS:" | Add-Content $outputFile
 "=============" | Add-Content $outputFile
 
-# Function to process files in a directory
 function Process-Directory {
     param (
         [string]$dirPath,
@@ -61,7 +54,6 @@ function Process-Directory {
     }
 }
 
-# Process root files first
 Get-RootFiles | ForEach-Object {
     $separator = "`n`n" + "="*80 + "`n"
     $header = "[root] $($_.Name)"
@@ -69,7 +61,6 @@ Get-RootFiles | ForEach-Object {
     Get-Content $_.FullName | Add-Content $outputFile
 }
 
-# Process each directory
 @("components", "context", "pages") | ForEach-Object {
     Process-Directory -dirPath $_ -dirName $_
 }

@@ -6,6 +6,14 @@ import { v4 as uuidv4 } from 'uuid';
 const WhiteboardContext = createContext(null);
 const WHITEBOARD_BG_COLOR = 'rgb(249, 250, 251)'; // Tailwind's bg-gray-50
 
+const FABRIC_OBJECT_PROPS = [
+  'id', 'left', 'top', 'width', 'height', 'scaleX', 'scaleY', 'angle',
+  'stroke', 'strokeWidth', 'fill', 'opacity', 'path',
+  'strokeLineCap', 'strokeLineJoin', 'strokeMiterLimit',
+  'text', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
+  'textAlign', 'charSpacing', 'lineHeight'
+];
+
 export function useWhiteboard() {
   return useContext(WhiteboardContext);
 }
@@ -87,82 +95,46 @@ export function WhiteboardProvider({ children }) {
     }
   }, [socket, tool]);
 
-  const createFabricObject = useCallback((element, isSelectable = false) => {
-    if (!element || !element.type || !element.data) return null;
-
+  const createFabricObject = useCallback((element) => {
     let obj;
-    const isDiagram = element.type === 'diagram' || element.data?.isDiagram === true;
-    const isTextObject = element.type === 'text';
-    const isInteractive = isTextObject || isDiagram;
-
-    const commonProps = {
-      ...element.data,
-      id: element.id,
-      selectable: isSelectable || isTextObject,
-      hasControls: isSelectable || isTextObject,
-      hasBorders: isSelectable || isTextObject,
-      evented: true,
-      lockMovementX: !(isSelectable || isTextObject),
-      lockMovementY: !(isSelectable || isTextObject),
-      hoverCursor: isInteractive ? 'move' : 'default',
-      perPixelTargetFind: true,
-      targetFindTolerance: 5,
-      strokeUniform: true,
-      globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
-    };
 
     switch (element.type) {
-      case 'rect':
-        obj = new fabric.Rect(commonProps);
-        break;
-      case 'circle':
-        obj = new fabric.Circle(commonProps);
-        break;
-      case 'triangle':
-        obj = new fabric.Triangle(commonProps);
-        break;
       case 'path':
-        if (typeof element.data.path === 'string') {
-          obj = new fabric.Path(element.data.path, {
-            ...commonProps,
-            fill: null,
-            strokeWidth: element.data.strokeWidth || width,
-            stroke: element.data.stroke || color,
-            strokeUniform: true,
-            strokeLineCap: 'round',
-            strokeLineJoin: 'round',
-            strokeMiterLimit: 10,
-            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
-          });
-        } else if (Array.isArray(element.data.path)) {
-          obj = new fabric.Path(element.data.path.join(' '), {
-            ...commonProps,
-            fill: null,
-            strokeWidth: element.data.strokeWidth || width,
-            stroke: element.data.stroke || color,
-            strokeUniform: true,
-            strokeLineCap: 'round',
-            strokeLineJoin: 'round',
-            strokeMiterLimit: 10,
-            globalCompositeOperation: element.data.globalCompositeOperation || 'source-over'
-          });
-        }
+        obj = new fabric.Path(element.data.path, {
+          ...element.data,
+          stroke: element.data.stroke || color,
+          strokeWidth: element.data.strokeWidth || width,
+          fill: null,
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          strokeMiterLimit: 10,
+          perPixelTargetFind: true
+        });
         break;
-      case 'i-text':
+
       case 'text':
-        obj = new fabric.Text(element.data.text || '', {
-          ...commonProps,
+        obj = new fabric.IText(element.data.text || '', {
+          ...element.data,
           left: element.data.left,
           top: element.data.top,
           fontSize: element.data.fontSize || 20,
           fill: element.data.fill || color,
-          backgroundColor: null,
+          fontFamily: element.data.fontFamily || 'Arial',
           selectable: true,
           hasControls: true,
           hasBorders: true,
-          evented: true,
-          perPixelTargetFind: true
+          editable: true
         });
+        break;
+
+      case 'rect':
+        obj = new fabric.Rect(element.data);
+        break;
+      case 'circle':
+        obj = new fabric.Circle(element.data);
+        break;
+      case 'triangle':
+        obj = new fabric.Triangle(element.data);
         break;
       case 'diagram':
         if (!element.data.src) {
@@ -171,7 +143,7 @@ export function WhiteboardProvider({ children }) {
         }
         
         obj = new fabric.Rect({
-          ...commonProps,
+          ...element.data,
           fill: 'rgba(0,0,0,0)',
           stroke: 'rgba(0,0,0,0)',
           width: 150,
@@ -180,7 +152,7 @@ export function WhiteboardProvider({ children }) {
 
         fabric.Image.fromURL(element.data.src, (img) => {
           img.set({
-            ...commonProps,
+            ...element.data,
             id: element.id,
             data: {
               ...element.data,
@@ -191,13 +163,13 @@ export function WhiteboardProvider({ children }) {
             scaleX: element.data.scaleX ?? 1,
             scaleY: element.data.scaleY ?? 1,
             angle: element.data.angle ?? 0,
-            selectable: isSelectable && isInteractive,
-            hasControls: isSelectable && isInteractive,
-            hasBorders: isSelectable && isInteractive,
-            evented: isInteractive,
-            lockMovementX: !isInteractive,
-            lockMovementY: !isInteractive,
-            hoverCursor: isInteractive ? 'move' : 'default',
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            evented: true,
+            lockMovementX: false,
+            lockMovementY: false,
+            hoverCursor: 'move',
             perPixelTargetFind: false,
             padding: 20,
             transparentCorners: true,
@@ -233,21 +205,10 @@ export function WhiteboardProvider({ children }) {
 
     if (obj) {
       obj.id = element.id;
-      if (isTextObject) {
-        obj.set({
-          selectable: true,
-          hasControls: true,
-          hasBorders: true,
-          evented: true,
-          perPixelTargetFind: true
-        });
-      }
-      
-      obj.set('data', element.data);
     }
 
     return obj;
-  }, [color]);
+  }, [color, width]);
 
   const handleWhiteboardUpdate = useCallback((elements) => {
     console.log('Processing whiteboard update:', {
@@ -259,21 +220,21 @@ export function WhiteboardProvider({ children }) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      // Suspend drawing while processing updates
+      canvas.suspendDrawing = true;
+
       // Create a map of existing objects for faster lookup
       const existingObjectsMap = new Map(
         canvas.getObjects().map(obj => [obj.id, obj])
       );
 
       elements.forEach(element => {
-        if (!element || !element.id) {
-          console.warn('Invalid element received:', element);
-          return;
-        }
+        if (!element || !element.id) return;
 
         const existingObject = existingObjectsMap.get(element.id);
         
         if (existingObject) {
-          // Update existing object
+          // Only update if properties have changed
           const updateProps = {
             left: element.data.left,
             top: element.data.top,
@@ -282,26 +243,35 @@ export function WhiteboardProvider({ children }) {
             angle: element.data.angle || 0
           };
 
-          if (element.type === 'text') {
-            updateProps.text = element.data.text;
-            updateProps.fontSize = element.data.fontSize || 20;
-            updateProps.fill = element.data.fill || color;
-            updateProps.selectable = true;
-            updateProps.hasControls = true;
-            updateProps.hasBorders = true;
-            updateProps.evented = true;
-          } else {
-            updateProps.selectable = tool === 'select';
-            updateProps.hasControls = tool === 'select';
-            updateProps.hasBorders = tool === 'select';
-            updateProps.evented = tool === 'select';
+          let needsUpdate = false;
+          for (const [key, value] of Object.entries(updateProps)) {
+            if (existingObject[key] !== value) {
+              needsUpdate = true;
+              break;
+            }
           }
 
-          existingObject.set(updateProps);
-          existingObject.setCoords();
+          if (needsUpdate) {
+            if (element.type === 'text') {
+              updateProps.text = element.data.text;
+              updateProps.fontSize = element.data.fontSize || 20;
+              updateProps.fill = element.data.fill || color;
+              updateProps.selectable = true;
+              updateProps.hasControls = true;
+              updateProps.hasBorders = true;
+              updateProps.evented = true;
+            } else {
+              updateProps.selectable = tool === 'select';
+              updateProps.hasControls = tool === 'select';
+              updateProps.hasBorders = tool === 'select';
+              updateProps.evented = tool === 'select';
+            }
+
+            existingObject.set(updateProps);
+            existingObject.setCoords();
+          }
         } else {
-          // Create new object only if it doesn't exist
-          const newObject = createFabricObject(element, tool === 'select');
+          const newObject = createFabricObject(element);
           if (newObject) {
             canvas.add(newObject);
             newObject.setCoords();
@@ -309,15 +279,10 @@ export function WhiteboardProvider({ children }) {
         }
       });
 
-      // Clean up any objects that no longer exist in the update
-      const validIds = new Set(elements.map(el => el.id));
-      canvas.getObjects().forEach(obj => {
-        if (!validIds.has(obj.id)) {
-          canvas.remove(obj);
-        }
-      });
-
+      // Resume drawing and render once
+      canvas.suspendDrawing = false;
       canvas.requestRenderAll();
+      
       setElements(elements);
     } finally {
       isUpdatingRef.current = false;
@@ -325,87 +290,68 @@ export function WhiteboardProvider({ children }) {
   }, [createFabricObject, tool, color]);
 
   const initCanvas = useCallback((canvasElement) => {
-    if (!canvasElement) return;
-
-    fabric.Object.prototype.selectable = false;
-    fabric.Object.prototype.hasControls = false;
-    fabric.Object.prototype.hasBorders = false;
-    fabric.Object.prototype.evented = false;
-    fabric.Object.prototype.lockMovementX = true;
-    fabric.Object.prototype.lockMovementY = true;
-    fabric.Object.prototype.hoverCursor = 'default';
-    fabric.Object.prototype.perPixelTargetFind = false;
-    fabric.Object.prototype.targetFindTolerance = 0;
-    fabric.Object.prototype.selection = false;
-    fabric.Object.prototype.selectionBackgroundColor = 'transparent';
-    fabric.Object.prototype.transparentCorners = true;
-    fabric.Object.prototype.padding = 0;
-    fabric.Object.prototype.borderColor = 'transparent';
-    fabric.Object.prototype.cornerColor = 'transparent';
-    fabric.Object.prototype.cornerSize = 0;
-    fabric.Object.prototype.transparentCorners = true;
-    fabric.Object.prototype.borderOpacityWhenMoving = 0;
-
     const canvas = new fabric.Canvas(canvasElement, {
-      isDrawingMode: tool === 'pen',
+      backgroundColor: WHITEBOARD_BG_COLOR,
       width: window.innerWidth,
       height: window.innerHeight,
-      backgroundColor: WHITEBOARD_BG_COLOR,
-      selection: false,
-      preserveObjectStacking: true,
-      perPixelTargetFind: true,
-      targetFindTolerance: 0,
-      selectionColor: 'transparent',
-      selectionBorderColor: 'transparent',
-      selectionLineWidth: 0,
-      skipTargetFind: true,
-      hoverCursor: 'default'
+      renderOnAddRemove: false
     });
 
-    const brush = new fabric.PencilBrush(canvas);
-    brush.color = color;
-    brush.width = width;
-    brush.strokeLineCap = 'round';
-    brush.strokeLineJoin = 'round';
-    brush.strokeMiterLimit = 10;
-    brush.strokeUniform = true;
-    canvas.freeDrawingBrush = brush;
-
-    canvas.on('path:created', (e) => {
-      const path = e.path;
-      const pathData = {
-        id: uuidv4(),
-        type: 'path',
-        data: {
-          path: path.path,
-          stroke: path.stroke,
-          strokeWidth: path.strokeWidth,
-          left: path.left,
-          top: path.top,
-          scaleX: path.scaleX,
-          scaleY: path.scaleY,
-          globalCompositeOperation: 'source-over'
-        }
-      };
-
-      addElement(pathData);
-    });
-    
     canvasRef.current = canvas;
-    
-    return () => {
-      canvas.dispose();
-      canvasRef.current = null;
+
+    // Set up event listeners
+    const handlePathCreated = (e) => {
+      const path = e.path;
+      if (!path.id) {
+        path.id = uuidv4();
+        const data = path.toObject(FABRIC_OBJECT_PROPS);
+        
+        addElement({
+          id: path.id,
+          type: 'path',
+          data: data
+        });
+      }
     };
-  }, [tool, color, width, addElement]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas?.freeDrawingBrush) return;
+    const handleObjectModified = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id || isUpdatingRef.current) return;
 
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
-  }, [color, width]);
+      const data = obj.toObject(FABRIC_OBJECT_PROPS);
+      
+      updateElement(obj.id, {
+        type: obj.type,
+        data: data
+      });
+    };
+
+    canvas.on('path:created', handlePathCreated);
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('object:moving', handleObjectModified);
+    canvas.on('text:changed', handleObjectModified);
+
+    // Handle window resize
+    const handleResize = () => {
+      canvas.setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+      canvas.requestRenderAll();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      canvas.off('path:created', handlePathCreated);
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('object:moving', handleObjectModified);
+      canvas.off('text:changed', handleObjectModified);
+      canvas.dispose();
+    };
+  }, [addElement, updateElement]);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -459,7 +405,7 @@ export function WhiteboardProvider({ children }) {
         try {
           state.whiteboardElements.forEach(element => {
             if (element && element.id) {
-              const obj = createFabricObject(element, tool === 'select');
+              const obj = createFabricObject(element);
               if (obj) {
                 canvas.add(obj);
                 elementsMapRef.current.set(element.id, element);

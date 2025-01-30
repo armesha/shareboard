@@ -27,44 +27,103 @@ const Whiteboard = React.memo(() => {
   } = useWhiteboard();
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [editingText, setEditingText] = useState(null);
+  const isUpdatingRef = useRef(false);
 
+  // Add ref to track previous tool
+  const previousToolRef = useRef(tool);
+  const previousColorRef = useRef(color);
+  const previousWidthRef = useRef(width);
+
+  // Single canvas initialization
   useEffect(() => {
     if (!canvasRef.current) return;
+
+    // Create canvas only once during mount
     const cleanup = initCanvas(canvasRef.current);
     return cleanup;
-  }, [initCanvas]);
+  }, []); // Empty dependency array - only run once on mount
 
+  // Tool switching effect
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-    
-    const isDrawingTool = tool === 'pen';
-    canvas.isDrawingMode = isDrawingTool;
-    canvas.selection = tool === 'select' || tool === 'text';
 
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = color;
-      canvas.freeDrawingBrush.width = width;
-      
-      const currentBrush = canvas.freeDrawingBrush;
-      canvas.freeDrawingBrush = currentBrush;
-    }
+    let needRerender = false;
+    canvas.suspendDrawing = true;
 
-    canvas.getObjects().forEach(obj => {
-      const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
-      const isSelectable = (tool === 'select' || tool === 'text') && isInteractive;
-      obj.set({
-        selectable: isSelectable,
-        hasControls: isSelectable,
-        hasBorders: isSelectable,
-        evented: isInteractive,
-        lockMovementX: !isSelectable,
-        lockMovementY: !isSelectable
+    try {
+      const shouldBeDrawing = tool === 'pen';
+      const shouldBeSelection = tool === 'select' || tool === 'text';
+
+      // Update drawing mode
+      if (canvas.isDrawingMode !== shouldBeDrawing) {
+        canvas.isDrawingMode = shouldBeDrawing;
+        needRerender = true;
+      }
+
+      // Update selection mode
+      if (canvas.selection !== shouldBeSelection) {
+        canvas.selection = shouldBeSelection;
+        needRerender = true;
+      }
+
+      // Update brush properties if in drawing mode
+      if (shouldBeDrawing && canvas.freeDrawingBrush) {
+        if (canvas.freeDrawingBrush.color !== color) {
+          canvas.freeDrawingBrush.color = color;
+          needRerender = true;
+        }
+        if (canvas.freeDrawingBrush.width !== width) {
+          canvas.freeDrawingBrush.width = width;
+          needRerender = true;
+        }
+        canvas.freeDrawingBrush.strokeLineCap = 'round';
+        canvas.freeDrawingBrush.strokeLineJoin = 'round';
+      }
+
+      // Update object properties
+      canvas.getObjects().forEach(obj => {
+        const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+        const shouldBeSelectable = shouldBeSelection && isInteractive;
+        const shouldBeEvented = isInteractive;
+
+        const currentProps = {
+          selectable: obj.selectable,
+          evented: obj.evented,
+          hasControls: obj.hasControls,
+          hasBorders: obj.hasBorders,
+          lockMovementX: obj.lockMovementX,
+          lockMovementY: obj.lockMovementY,
+          lockRotation: obj.lockRotation,
+          lockScalingX: obj.lockScalingX,
+          lockScalingY: obj.lockScalingY
+        };
+
+        const newProps = {
+          selectable: shouldBeSelectable,
+          evented: shouldBeEvented,
+          hasControls: shouldBeSelectable,
+          hasBorders: shouldBeSelectable,
+          lockMovementX: !shouldBeSelectable,
+          lockMovementY: !shouldBeSelectable,
+          lockRotation: !shouldBeSelectable,
+          lockScalingX: !shouldBeSelectable,
+          lockScalingY: !shouldBeSelectable
+        };
+
+        // Only update if properties actually changed
+        if (JSON.stringify(currentProps) !== JSON.stringify(newProps)) {
+          obj.set(newProps);
+          needRerender = true;
+        }
       });
-    });
-
-    canvas.renderAll();
-  }, [tool, color, width, WHITEBOARD_BG_COLOR]);
+    } finally {
+      canvas.suspendDrawing = false;
+      if (needRerender) {
+        canvas.requestRenderAll();
+      }
+    }
+  }, [tool, color, width]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -72,29 +131,71 @@ const Whiteboard = React.memo(() => {
 
     const handleObjectModification = (e) => {
       const obj = e.target;
-      if (!obj || !obj.id) return;
+      if (!obj || !obj.id || isUpdatingRef.current) return;
 
-      if (obj.type === 'image' && obj.data?.isDiagram) {
-        updateElement(obj.id, {
-          type: 'diagram',
-          data: {
-            ...obj.data,
-            src: obj.data.src,
-            left: obj.left,
-            top: obj.top,
-            scaleX: obj.scaleX,
-            scaleY: obj.scaleY,
-            angle: obj.angle
-          }
-        });
-      } else {
-        updateElement(obj.id, {
-          type: obj.type,
-          data: obj.toObject(['id'])
-        });
+      // Use a single timeout for all modification events
+      if (obj.modificationTimeout) {
+        clearTimeout(obj.modificationTimeout);
       }
+
+      obj.modificationTimeout = setTimeout(() => {
+        canvas.suspendDrawing = true;
+        
+        try {
+          if (obj.type === 'image' && obj.data?.isDiagram) {
+            updateElement(obj.id, {
+              type: 'diagram',
+              data: {
+                ...obj.data,
+                src: obj.data.src,
+                left: obj.left,
+                top: obj.top,
+                scaleX: obj.scaleX,
+                scaleY: obj.scaleY,
+                angle: obj.angle
+              }
+            });
+          } else if (obj.type === 'text' || obj.type === 'i-text') {
+            const data = {
+              text: obj.text,
+              left: obj.left,
+              top: obj.top,
+              fontSize: obj.fontSize,
+              fill: obj.fill,
+              angle: obj.angle,
+              scaleX: obj.scaleX,
+              scaleY: obj.scaleY,
+              selectable: true,
+              hasControls: true,
+              hasBorders: true
+            };
+
+            // For text objects, we want to both update and potentially add new elements
+            updateElement(obj.id, { type: 'text', data });
+            if (e.transform?.action === 'drag' || e.transform?.action === 'scale') {
+              addElement({ id: obj.id, type: 'text', data });
+            }
+          } else {
+            const data = {
+              ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
+              stroke: obj.stroke,
+              strokeWidth: obj.strokeWidth,
+              fill: obj.fill
+            };
+
+            updateElement(obj.id, {
+              type: obj.type,
+              data: data
+            });
+          }
+        } finally {
+          canvas.suspendDrawing = false;
+          canvas.requestRenderAll();
+        }
+      }, 50); // 50ms debounce for all modifications
     };
 
+    // Single handler for all modification events
     canvas.on('object:modified', handleObjectModification);
     canvas.on('object:moving', handleObjectModification);
     canvas.on('object:scaling', handleObjectModification);
@@ -106,155 +207,7 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:scaling', handleObjectModification);
       canvas.off('object:rotating', handleObjectModification);
     };
-  }, [updateElement, fabricCanvasRef]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    const handleObjectModified = (e) => {
-      const obj = e.target;
-      if (!obj || !obj.id) return;
-
-      if (obj.type === 'text') {
-        addElement({
-          id: obj.id,
-          type: 'text',
-          data: {
-            text: obj.text,
-            left: obj.left,
-            top: obj.top,
-            fontSize: obj.fontSize,
-            fill: obj.fill,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            angle: obj.angle,
-            scaleX: obj.scaleX,
-            scaleY: obj.scaleY
-          }
-        });
-      }
-    };
-
-    const handleObjectMoving = (e) => {
-      const obj = e.target;
-      if (!obj || !obj.id) return;
-
-      if (obj.type === 'text') {
-        addElement({
-          id: obj.id,
-          type: 'text',
-          data: {
-            text: obj.text,
-            left: obj.left,
-            top: obj.top,
-            fontSize: obj.fontSize,
-            fill: obj.fill,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            angle: obj.angle,
-            scaleX: obj.scaleX,
-            scaleY: obj.scaleY
-          }
-        });
-      }
-    };
-
-    canvas.on('object:modified', handleObjectModified);
-    canvas.on('object:moving', handleObjectMoving);
-
-    return () => {
-      canvas.off('object:modified', handleObjectModified);
-      canvas.off('object:moving', handleObjectMoving);
-    };
-  }, [addElement]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    const updateTextElement = (obj) => {
-      if (!obj || !obj.id) return;
-      
-      if (obj.type === 'text') {
-        addElement({
-          id: obj.id,
-          type: 'text',
-          data: {
-            text: obj.text,
-            left: obj.left,
-            top: obj.top,
-            fontSize: obj.fontSize,
-            fill: obj.fill,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            angle: obj.angle,
-            scaleX: obj.scaleX,
-            scaleY: obj.scaleY
-          }
-        });
-      }
-    };
-
-    const handleObjectModified = (e) => updateTextElement(e.target);
-    const handleObjectMoving = (e) => updateTextElement(e.target);
-    const handleObjectRotating = (e) => updateTextElement(e.target);
-    const handleObjectScaling = (e) => updateTextElement(e.target);
-
-    canvas.on('object:modified', handleObjectModified);
-    canvas.on('object:moving', handleObjectMoving);
-    canvas.on('object:rotating', handleObjectRotating);
-    canvas.on('object:scaling', handleObjectScaling);
-
-    return () => {
-      canvas.off('object:modified', handleObjectModified);
-      canvas.off('object:moving', handleObjectMoving);
-      canvas.off('object:rotating', handleObjectRotating);
-      canvas.off('object:scaling', handleObjectScaling);
-    };
-  }, [addElement]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    const handleObjectMoving = (e) => {
-      const obj = e.target;
-      if (!obj || !obj.id) return;
-
-      // Ensure we're not sending updates too frequently during movement
-      if (obj.movementTimeout) {
-        clearTimeout(obj.movementTimeout);
-      }
-
-      obj.movementTimeout = setTimeout(() => {
-        const data = {
-          ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
-          text: obj.text || '',
-          fontSize: obj.fontSize,
-          fill: obj.fill,
-          selectable: true,
-          hasControls: true,
-          hasBorders: true
-        };
-
-        addElement({
-          id: obj.id,
-          type: obj.type || 'text',
-          data: data
-        });
-      }, 50); // 50ms debounce
-    };
-
-    canvas.on('object:moving', handleObjectMoving);
-
-    return () => {
-      canvas.off('object:moving', handleObjectMoving);
-    };
-  }, [addElement]);
+  }, [updateElement, addElement]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -320,14 +273,6 @@ const Whiteboard = React.memo(() => {
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !socket) return;
-
-    return () => {
-    };
-  }, [socket, tool, color]);
-
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
     const handleDblClick = (opt) => {
@@ -366,6 +311,44 @@ const Whiteboard = React.memo(() => {
       canvas.off('mouse:dblclick', handleDblClick);
     };
   }, [tool]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+
+      if (obj.movementTimeout) {
+        clearTimeout(obj.movementTimeout);
+      }
+
+      obj.movementTimeout = setTimeout(() => {
+        const data = {
+          ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
+          text: obj.text || '',
+          fontSize: obj.fontSize,
+          fill: obj.fill,
+          selectable: true,
+          hasControls: true,
+          hasBorders: true
+        };
+
+        addElement({
+          id: obj.id,
+          type: obj.type || 'text',
+          data: data
+        });
+      }, 50); // 50ms debounce
+    };
+
+    canvas.on('object:moving', handleObjectMoving);
+
+    return () => {
+      canvas.off('object:moving', handleObjectMoving);
+    };
+  }, [addElement]);
 
   const handleMouseDown = useCallback((e) => {
     const canvas = fabricCanvasRef.current;
