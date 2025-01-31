@@ -478,6 +478,7 @@ const Whiteboard = React.memo(() => {
           break;
       }
 
+      shape.setCoords(); // Add setCoords() after updating shape properties
       canvas.renderAll();
     }
   }, [selectedShape, fabricCanvasRef]);
@@ -490,6 +491,7 @@ const Whiteboard = React.memo(() => {
     
     if (currentShape.current) {
       const shape = currentShape.current;
+      shape.setCoords(); // Add setCoords() before adding the element
       
       addElement({
         id: shape.id,
