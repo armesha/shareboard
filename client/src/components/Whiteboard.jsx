@@ -62,8 +62,8 @@ const Whiteboard = React.memo(() => {
       }
 
       // Update selection mode
-      if (canvas.selection !== shouldBeSelection) {
-        canvas.selection = shouldBeSelection;
+      if (canvas.selection !== false) {
+        canvas.selection = false;
         needRerender = true;
       }
 

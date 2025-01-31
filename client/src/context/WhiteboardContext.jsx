@@ -494,7 +494,7 @@ export function WhiteboardProvider({ children }) {
 
     const canDraw = !isLoading && isConnected;
     
-    canvas.selection = canDraw && (tool === 'select');
+    canvas.selection = false;  // Always disable multiple selection
 
     const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {

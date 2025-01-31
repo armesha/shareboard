@@ -735,8 +735,8 @@ const Whiteboard = React.memo(() => {
       }
 
       // Update selection mode
-      if (canvas.selection !== shouldBeSelection) {
-        canvas.selection = shouldBeSelection;
+      if (canvas.selection !== false) {
+        canvas.selection = false;
         needRerender = true;
       }
 
@@ -1162,47 +1162,11 @@ const Whiteboard = React.memo(() => {
     if (currentShape.current) {
       const shape = currentShape.current;
       
-      shape.set({
-        selectable: false,
-        hasControls: false,
-        hasBorders: false,
-        evented: false,
-        lockMovementX: true,
-        lockMovementY: true,
-        hoverCursor: 'default',
-        perPixelTargetFind: false,
-        targetFindTolerance: 0,
-        selection: false,
-        selectionBackgroundColor: 'transparent',
-        transparentCorners: true,
-        padding: 0,
-        borderColor: 'transparent',
-        cornerColor: 'transparent',
-        cornerSize: 0,
-        borderOpacityWhenMoving: 0
-      });
-
       addElement({
         id: shape.id,
         type: shape.type,
         data: {
-          ...shape.toObject(['id']),
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          evented: false,
-          lockMovementX: true,
-          lockMovementY: true,
-          perPixelTargetFind: false,
-          targetFindTolerance: 0,
-          selection: false,
-          selectionBackgroundColor: 'transparent',
-          transparentCorners: true,
-          padding: 0,
-          borderColor: 'transparent',
-          cornerColor: 'transparent',
-          cornerSize: 0,
-          borderOpacityWhenMoving: 0
+          ...shape.toObject(['id'])
         }
       });
 
@@ -2691,11 +2655,13 @@ export function WhiteboardProvider({ children }) {
 
     const canDraw = !isLoading && isConnected;
     
-    canvas.selection = canDraw && (tool === 'select');
+    canvas.selection = false;  // Always disable multiple selection
 
+    const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
-      const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+      const isInteractive = interactiveTypes.includes(obj.type);
       const isSelectable = canDraw && tool === 'select' && isInteractive;
+
       obj.set({
         selectable: isSelectable,
         hasControls: isSelectable,
