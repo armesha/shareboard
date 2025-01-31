@@ -23,7 +23,8 @@ const Whiteboard = React.memo(() => {
     updateElement,
     setTool, 
     setColor, 
-    setWidth 
+    setWidth,
+    elements // Added elements to the destructured context
   } = useWhiteboard();
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [editingText, setEditingText] = useState(null);
@@ -53,7 +54,7 @@ const Whiteboard = React.memo(() => {
 
     try {
       const shouldBeDrawing = tool === 'pen';
-      const shouldBeSelection = tool === 'select' || tool === 'text';
+      const shouldBeSelection = tool === 'select' || tool === 'text' || tool === 'shapes';
 
       // Update drawing mode
       if (canvas.isDrawingMode !== shouldBeDrawing) {
@@ -83,7 +84,8 @@ const Whiteboard = React.memo(() => {
 
       // Update object properties
       canvas.getObjects().forEach(obj => {
-        const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+        const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path'];
+        const isInteractive = isInteractiveTypes.includes(obj.type);
         const shouldBeSelectable = shouldBeSelection && isInteractive;
         const shouldBeEvented = isInteractive;
 
@@ -123,7 +125,7 @@ const Whiteboard = React.memo(() => {
         canvas.requestRenderAll();
       }
     }
-  }, [tool, color, width]);
+  }, [tool, color, width, elements]); // Added elements to dependencies
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;

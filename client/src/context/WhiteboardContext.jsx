@@ -499,7 +499,7 @@ export function WhiteboardProvider({ children }) {
     const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
       const isInteractive = interactiveTypes.includes(obj.type);
-      const isSelectable = canDraw && tool === 'select' && isInteractive;
+      const isSelectable = canDraw && (tool === 'select' || tool === 'text' || tool === 'shapes') && isInteractive;
 
       obj.set({
         selectable: isSelectable,
@@ -511,9 +511,9 @@ export function WhiteboardProvider({ children }) {
       });
     });
 
-    canvas.skipTargetFind = (tool !== 'select');
+    canvas.skipTargetFind = (tool !== 'select' && tool !== 'shapes');
     canvas.requestRenderAll();
-  }, [tool, isLoading, isConnected]);
+  }, [tool, isLoading, isConnected, elements]);
 
   const value = {
     tool,
