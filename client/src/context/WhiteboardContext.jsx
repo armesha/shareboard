@@ -496,9 +496,11 @@ export function WhiteboardProvider({ children }) {
     
     canvas.selection = canDraw && (tool === 'select');
 
+    const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
-      const isInteractive = obj.type === 'image' || obj.type === 'text' || obj.type === 'i-text';
+      const isInteractive = interactiveTypes.includes(obj.type);
       const isSelectable = canDraw && tool === 'select' && isInteractive;
+
       obj.set({
         selectable: isSelectable,
         hasControls: isSelectable,

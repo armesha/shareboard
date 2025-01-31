@@ -489,47 +489,11 @@ const Whiteboard = React.memo(() => {
     if (currentShape.current) {
       const shape = currentShape.current;
       
-      shape.set({
-        selectable: false,
-        hasControls: false,
-        hasBorders: false,
-        evented: false,
-        lockMovementX: true,
-        lockMovementY: true,
-        hoverCursor: 'default',
-        perPixelTargetFind: false,
-        targetFindTolerance: 0,
-        selection: false,
-        selectionBackgroundColor: 'transparent',
-        transparentCorners: true,
-        padding: 0,
-        borderColor: 'transparent',
-        cornerColor: 'transparent',
-        cornerSize: 0,
-        borderOpacityWhenMoving: 0
-      });
-
       addElement({
         id: shape.id,
         type: shape.type,
         data: {
-          ...shape.toObject(['id']),
-          selectable: false,
-          hasControls: false,
-          hasBorders: false,
-          evented: false,
-          lockMovementX: true,
-          lockMovementY: true,
-          perPixelTargetFind: false,
-          targetFindTolerance: 0,
-          selection: false,
-          selectionBackgroundColor: 'transparent',
-          transparentCorners: true,
-          padding: 0,
-          borderColor: 'transparent',
-          cornerColor: 'transparent',
-          cornerSize: 0,
-          borderOpacityWhenMoving: 0
+          ...shape.toObject(['id'])
         }
       });
 
