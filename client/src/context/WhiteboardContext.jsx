@@ -291,27 +291,27 @@ export function WhiteboardProvider({ children }) {
       const path = e.path;
       if (!path.id) {
         path.id = uuidv4();
-        // Save ALL path properties
-        const data = path.toObject(FABRIC_OBJECT_PROPS);
-        
-        // Make sure stroke and width are set
-        data.stroke = data.stroke || color;
-        data.strokeWidth = data.strokeWidth || width;
-        data.strokeLineCap = 'round';
-        data.strokeLineJoin = 'round';
-        
-        const element = {
-          id: path.id,
-          type: 'path',
-          data: data
-        };
-
-        // Add to local state and broadcast
-        addElement(element);
-        
-        // Update local map immediately
-        elementsMapRef.current.set(path.id, element);
       }
+      // Save ALL path properties
+      const data = path.toObject(FABRIC_OBJECT_PROPS);
+      
+      // Make sure stroke and width are set
+      data.stroke = data.stroke || color;
+      data.strokeWidth = data.strokeWidth || width;
+      data.strokeLineCap = 'round';
+      data.strokeLineJoin = 'round';
+      
+      const element = {
+        id: path.id,
+        type: 'path',
+        data: data
+      };
+
+      // Add to local state and broadcast
+      addElement(element);
+      
+      // Update local map immediately
+      elementsMapRef.current.set(path.id, element);
     };
 
     // Handle object modifications

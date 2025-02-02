@@ -2049,6 +2049,19 @@ export function WhiteboardProvider({ children }) {
       });
     }
 
+    // Immediately create and add diagram objects to canvas
+    if (elementWithProps.type === 'diagram') {
+      const canvas = canvasRef.current;
+      if (canvas && !canvas.getObjects().some(o => o.id === elementWithProps.id)) {
+        const obj = createFabricObject(elementWithProps);
+        if (obj) {
+          canvas.add(obj);
+          obj.bringToFront();
+          canvas.requestRenderAll();
+        }
+      }
+    }
+
     setTimeout(() => {
       const canvas = canvasRef.current;
       if (canvas) {
