@@ -167,10 +167,25 @@ io.on('connection', (socket) => {
 
     workspace.lastActivity = Date.now();
     
+    // Create a map of current drawings for efficient lookup
     const existingDrawings = new Map(workspace.drawings.map(d => [d.id, d]));
     
+    // Keep track of deleted elements to prevent them from reappearing
+    const deletedElements = new Set(
+      workspace.allDrawings
+        .filter(d => !workspace.drawings.some(current => current.id === d.id))
+        .map(d => d.id)
+    );
+
+    console.log(`Processing whiteboard update for workspace ${workspaceId}:`, {
+      incomingElements: elements.length,
+      currentDrawings: workspace.drawings.length,
+      deletedElements: Array.from(deletedElements)
+    });
+    
+    // Update only non-deleted elements
     elements.forEach(element => {
-      if (element && element.id) {
+      if (element && element.id && !deletedElements.has(element.id)) {
         const newElement = {
           ...element,
           timestamp: Date.now()
@@ -178,20 +193,26 @@ io.on('connection', (socket) => {
         
         existingDrawings.set(element.id, newElement);
         
-        const existingIndex = workspace.allDrawings.findIndex(e => e.id === element.id);
-        if (existingIndex === -1) {
+        // Update allDrawings if it's a new element
+        if (!workspace.allDrawings.some(e => e.id === element.id)) {
           workspace.allDrawings.push(newElement);
         }
+      } else if (element && element.id) {
+        console.log(`Skipping deleted element ${element.id}`);
       }
     });
     
-    workspace.drawings = Array.from(existingDrawings.values());
+    // Update workspace drawings
+    workspace.drawings = Array.from(existingDrawings.values())
+      .filter(drawing => !deletedElements.has(drawing.id));
     
     console.log(`Updated workspace ${workspaceId} state:`, {
       currentDrawingsCount: workspace.drawings.length,
-      allDrawingsCount: workspace.allDrawings.length
+      allDrawingsCount: workspace.allDrawings.length,
+      skippedDeletedElements: Array.from(deletedElements)
     });
 
+    // Broadcast the update to all other clients in the workspace
     socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
@@ -242,11 +263,17 @@ io.on('connection', (socket) => {
     if (!workspace || !elementId) return;
 
     workspace.lastActivity = Date.now();
+    
+    // Remove from all arrays
     workspace.drawings = workspace.drawings.filter(el => el.id !== elementId);
     workspace.drawingHistory = workspace.drawingHistory.filter(el => el.id !== elementId);
     workspace.allDrawings = workspace.allDrawings.filter(el => el.id !== elementId);
     
-    io.to(workspaceId).emit('element-deleted', { elementId });
+    // Use io.to instead of socket.to to ensure ALL clients receive the event
+    io.to(workspaceId).emit('delete-element', { workspaceId, elementId });
+    
+    // After deletion, broadcast the current state to ensure everyone is in sync
+    io.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
   socket.on('disconnect', () => {

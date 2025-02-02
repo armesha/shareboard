@@ -223,8 +223,8 @@ export function WhiteboardProvider({ children }) {
     return obj;
   }, [color, width]);
 
-  const handleWhiteboardUpdate = useCallback((elements) => {
-    console.log('Processing whiteboard update:', elements);
+  const handleWhiteboardUpdate = useCallback((serverElements) => {
+    console.log('Processing whiteboard update:', serverElements);
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -233,7 +233,19 @@ export function WhiteboardProvider({ children }) {
     canvas.suspendDrawing = true;
 
     try {
-      elements.forEach(element => {
+      // 1) Create a Set of IDs from the new server elements
+      const newIds = new Set(serverElements.map(e => e.id));
+
+      // 2) Remove local objects that don't exist in newIds
+      canvas.getObjects().forEach((obj) => {
+        if (obj.id && !newIds.has(obj.id)) {
+          canvas.remove(obj);
+          elementsMapRef.current.delete(obj.id);
+        }
+      });
+
+      // 3) Add or update objects from server
+      serverElements.forEach(element => {
         if (!element || !element.id) return;
 
         // Check if object exists
@@ -260,6 +272,9 @@ export function WhiteboardProvider({ children }) {
         // Update elements map
         elementsMapRef.current.set(element.id, element);
       });
+
+      // 4) Update React state to match the Map
+      setElements(Array.from(elementsMapRef.current.values()));
     } finally {
       canvas.suspendDrawing = false;
       canvas.requestRenderAll();
@@ -442,9 +457,9 @@ export function WhiteboardProvider({ children }) {
               });
             } else {
               obj.set({
-                selectable: tool === 'select',
-                hasControls: tool === 'select',
-                hasBorders: tool === 'select'
+                selectable: tool === 'select' || tool === 'text' || tool === 'shapes',
+                hasControls: tool === 'select' || tool === 'text' || tool === 'shapes',
+                hasBorders: tool === 'select' || tool === 'text' || tool === 'shapes'
               });
             }
           });
@@ -469,11 +484,58 @@ export function WhiteboardProvider({ children }) {
       }
     };
 
+    const handleDeleteElement = ({ workspaceId, elementId }) => {
+      console.log(`Received delete-element event for workspace ${workspaceId}, element ${elementId}`);
+      
+      // Проверим, что мы действительно находимся в том же workspace
+      const currentWorkspace = window.location.pathname.split('/')[2];
+      if (currentWorkspace !== workspaceId) {
+        console.log('Ignoring delete event for different workspace');
+        return;
+      }
+
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        console.warn('Canvas not available for delete operation');
+        return;
+      }
+
+      console.log('Current elements before deletion:', Array.from(elementsMapRef.current.values()));
+
+      // Удаляем из Map
+      elementsMapRef.current.delete(elementId);
+
+      // Ищем объект на canvas и удаляем
+      const obj = canvas.getObjects().find(o => o.id === elementId);
+      if (obj) {
+        canvas.remove(obj);
+        console.log(`Removed object ${elementId} from canvas`);
+      } else {
+        console.warn(`Object ${elementId} not found on canvas`);
+      }
+
+      // Обновляем массив elements (React-состояние)
+      const updatedElements = Array.from(elementsMapRef.current.values());
+      setElements(updatedElements);
+      
+      console.log('Elements after deletion:', updatedElements);
+
+      // Ensure the canvas is properly updated
+      canvas.requestRenderAll();
+
+      // Double-check that the element is really gone
+      const stillExists = canvas.getObjects().some(o => o.id === elementId);
+      if (stillExists) {
+        console.warn(`Warning: Object ${elementId} still exists on canvas after deletion!`);
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('workspace-state', handleWhiteboardState);
     socket.on('whiteboard-update', handleWhiteboardUpdate);
     socket.on('whiteboard-clear', handleWhiteboardClear);
+    socket.on('delete-element', handleDeleteElement);
 
     if (socket.connected) {
       setIsConnected(true);
@@ -490,6 +552,7 @@ export function WhiteboardProvider({ children }) {
       socket.off('workspace-state', handleWhiteboardState);
       socket.off('whiteboard-update', handleWhiteboardUpdate);
       socket.off('whiteboard-clear', handleWhiteboardClear);
+      socket.off('delete-element', handleDeleteElement);
     };
   }, [socket, handleWhiteboardUpdate]);
 
