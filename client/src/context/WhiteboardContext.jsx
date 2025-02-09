@@ -487,7 +487,6 @@ export function WhiteboardProvider({ children }) {
     const handleDeleteElement = ({ workspaceId, elementId }) => {
       console.log(`Received delete-element event for workspace ${workspaceId}, element ${elementId}`);
       
-      // Проверим, что мы действительно находимся в том же workspace
       const currentWorkspace = window.location.pathname.split('/')[2];
       if (currentWorkspace !== workspaceId) {
         console.log('Ignoring delete event for different workspace');
@@ -502,10 +501,8 @@ export function WhiteboardProvider({ children }) {
 
       console.log('Current elements before deletion:', Array.from(elementsMapRef.current.values()));
 
-      // Удаляем из Map
       elementsMapRef.current.delete(elementId);
 
-      // Ищем объект на canvas и удаляем
       const obj = canvas.getObjects().find(o => o.id === elementId);
       if (obj) {
         canvas.remove(obj);
@@ -514,7 +511,6 @@ export function WhiteboardProvider({ children }) {
         console.warn(`Object ${elementId} not found on canvas`);
       }
 
-      // Обновляем массив elements (React-состояние)
       const updatedElements = Array.from(elementsMapRef.current.values());
       setElements(updatedElements);
       

@@ -12,10 +12,11 @@ Thumbs.db
 *.bak
 *.tmp
 
-# Python files (own script for collect all code)
+# Python files (own script for collect all code and anylyze it)
 *.py
 *.pyc
 __pycache__/
+*.ps1
 
 # Build 
 dist/
