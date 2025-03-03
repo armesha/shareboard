@@ -48,6 +48,7 @@ export default function WorkspaceContent({
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
   const [isConnected, setIsConnected] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
 
   const handleAddImageToWhiteboard = useCallback((imageUrl) => {
     console.log('Adding diagram to whiteboard:', imageUrl);
@@ -203,6 +204,28 @@ export default function WorkspaceContent({
                 <span className="text-sm text-gray-600 w-8">{width}px</span>
               </div>
 
+              {/* Color Picker */}
+              <div className="flex items-center space-x-2 border-r pr-3">
+                <div className="flex flex-wrap gap-1 items-center">
+                  {["#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500"].map((predefinedColor) => (
+                    <button
+                      key={predefinedColor}
+                      className={`w-5 h-5 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
+                      style={{ backgroundColor: predefinedColor }}
+                      onClick={() => setColor(predefinedColor)}
+                      title={predefinedColor}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-5 h-5 cursor-pointer"
+                    title="Custom color"
+                  />
+                </div>
+              </div>
+
               {/* Select/Cursor tool */}
               <button
                 className={`p-2 rounded-full transition-all duration-200 ${
@@ -303,26 +326,45 @@ export default function WorkspaceContent({
               </button>
 
               <div className="h-6 w-px bg-gray-200 mx-1" />
-              <div className="flex items-center space-x-2">
-                <button
-                  className="p-2 rounded-full transition-all duration-200 hover:bg-gray-100"
-                  onClick={() => {
-                    const confirmClear = window.confirm("Are you sure you want to clear the whiteboard?");
-                    if (confirmClear) {
-                      clearCanvas();
-                    }
-                  }}
-                  title="Clear Canvas"
-                >
-                  <DeleteOutlineIcon className="text-gray-700" />
-                </button>
+              
+              {/* Button for CodeBoard */}
+              <button
+                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                onClick={cycleViewMode}
+                title={viewMode === 'split' ? 'Close CodeBoard' : 'Open CodeBoard'}
+              >
+                <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
+              </button>
+              
+              {/* More Options Dropdown */}
+              <div className="relative">
                 <button
                   className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                  onClick={cycleViewMode}
-                  title={viewMode === 'split' ? 'Close CodeBoard' : 'Open CodeBoard'}
+                  onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                  title="More Options"
                 >
-                  <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                  </svg>
                 </button>
+                
+                {showOptionsMenu && (
+                  <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
+                      onClick={() => {
+                        const confirmClear = window.confirm("Are you sure you want to clear the whiteboard?");
+                        if (confirmClear) {
+                          clearCanvas();
+                        }
+                        setShowOptionsMenu(false);
+                      }}
+                    >
+                      <CleaningServicesIcon className="text-gray-700 mr-2" />
+                      <span>Clear Canvas</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

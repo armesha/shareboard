@@ -183,7 +183,7 @@ io.on('connection', (socket) => {
       deletedElements: Array.from(deletedElements)
     });
     
-    // Update only non-deleted elements
+    // Process each incoming element
     elements.forEach(element => {
       if (element && element.id && !deletedElements.has(element.id)) {
         const newElement = {
@@ -196,6 +196,12 @@ io.on('connection', (socket) => {
         // Update allDrawings if it's a new element
         if (!workspace.allDrawings.some(e => e.id === element.id)) {
           workspace.allDrawings.push(newElement);
+        } else {
+          // Update existing element in allDrawings
+          const index = workspace.allDrawings.findIndex(e => e.id === element.id);
+          if (index !== -1) {
+            workspace.allDrawings[index] = newElement;
+          }
         }
       } else if (element && element.id) {
         console.log(`Skipping deleted element ${element.id}`);
@@ -212,8 +218,8 @@ io.on('connection', (socket) => {
       skippedDeletedElements: Array.from(deletedElements)
     });
 
-    // Broadcast the update to all other clients in the workspace
-    socket.to(workspaceId).emit('whiteboard-update', workspace.drawings);
+    // Broadcast to all clients in the room EXCEPT the sender
+    socket.to(workspaceId).emit('whiteboard-update', elements);
   });
 
   socket.on('request-canvas-state', (workspaceId) => {

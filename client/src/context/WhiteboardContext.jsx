@@ -44,17 +44,19 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
+    // Update local state
     elementsMapRef.current.set(element.id, elementWithProps);
     
-    const allElements = Array.from(elementsMapRef.current.values());
-    setElements(allElements);
+    const updatedElements = Array.from(elementsMapRef.current.values());
+    setElements(updatedElements);
     
+    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending new element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: allElements
+        elements: [elementWithProps]  // Send only the new/updated element
       });
     }
 
@@ -93,17 +95,19 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
+    // Update local state
     elementsMapRef.current.set(id, elementWithProps);
     
-    const allElements = Array.from(elementsMapRef.current.values());
-    setElements(allElements);
+    const updatedElements = Array.from(elementsMapRef.current.values());
+    setElements(updatedElements);
 
+    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending updated element to server:', elementWithProps);
       socket.emit('whiteboard-update', {
         workspaceId,
-        elements: allElements
+        elements: [elementWithProps]  // Send only the updated element
       });
     }
   }, [socket, tool]);
@@ -224,8 +228,12 @@ export function WhiteboardProvider({ children }) {
   }, [color, width]);
 
   const handleWhiteboardUpdate = useCallback((serverElements) => {
-    console.log('Processing whiteboard update:', serverElements);
-    
+    console.log('Received whiteboard update from server:', serverElements);
+    if (!serverElements || !Array.isArray(serverElements) || serverElements.length === 0) {
+      console.warn('Received invalid whiteboard update:', serverElements);
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -236,24 +244,16 @@ export function WhiteboardProvider({ children }) {
       // 1) Create a Set of IDs from the new server elements
       const newIds = new Set(serverElements.map(e => e.id));
 
-      // 2) Remove local objects that don't exist in newIds
-      canvas.getObjects().forEach((obj) => {
-        if (obj.id && !newIds.has(obj.id)) {
-          canvas.remove(obj);
-          elementsMapRef.current.delete(obj.id);
-        }
-      });
-
-      // 3) Add or update objects from server
+      // 2) Process each element from the server
       serverElements.forEach(element => {
         if (!element || !element.id) return;
 
-        // Check if object exists
+        // Check if object exists on canvas
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
           // Update existing object with new properties
-          const data = element.data;
+          const data = element.data || {};
           Object.keys(data).forEach(key => {
             if (existingObject[key] !== data[key]) {
               existingObject.set(key, data[key]);
@@ -273,8 +273,11 @@ export function WhiteboardProvider({ children }) {
         elementsMapRef.current.set(element.id, element);
       });
 
-      // 4) Update React state to match the Map
-      setElements(Array.from(elementsMapRef.current.values()));
+      // 3) Update React state to match the Map
+      const updatedElements = Array.from(elementsMapRef.current.values());
+      setElements(updatedElements);
+      
+      console.log('Updated whiteboard with server elements:', updatedElements.length);
     } finally {
       canvas.suspendDrawing = false;
       canvas.requestRenderAll();
