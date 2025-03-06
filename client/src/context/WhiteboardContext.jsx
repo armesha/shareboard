@@ -586,7 +586,7 @@ export function WhiteboardProvider({ children }) {
       });
     });
 
-    canvas.skipTargetFind = (tool !== 'select' && tool !== 'shapes');
+    canvas.skipTargetFind = (tool !== 'select');
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected, elements]);
 

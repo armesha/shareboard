@@ -54,7 +54,10 @@ const Whiteboard = React.memo(() => {
 
     try {
       const shouldBeDrawing = tool === 'pen';
-      const shouldBeSelection = tool === 'select' || tool === 'text' || tool === 'shapes';
+      // Только в режиме 'select' объекты должны быть выделяемыми
+      const shouldBeSelection = tool === 'select';
+      const isShapesMode = tool === 'shapes';
+      const isTextMode = tool === 'text';
 
       // Update drawing mode
       if (canvas.isDrawingMode !== shouldBeDrawing) {
@@ -62,9 +65,9 @@ const Whiteboard = React.memo(() => {
         needRerender = true;
       }
 
-      // Update selection mode
-      if (canvas.selection !== false) {
-        canvas.selection = false;
+      // Update selection mode - только в режиме select разрешаем выделение
+      if (canvas.selection !== shouldBeSelection) {
+        canvas.selection = shouldBeSelection;
         needRerender = true;
       }
 
@@ -86,8 +89,10 @@ const Whiteboard = React.memo(() => {
       canvas.getObjects().forEach(obj => {
         const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path'];
         const isInteractive = isInteractiveTypes.includes(obj.type);
+        // Только в режиме 'select' объекты должны быть выделяемыми
         const shouldBeSelectable = shouldBeSelection && isInteractive;
-        const shouldBeEvented = isInteractive;
+        // В режиме text разрешаем взаимодействие только с текстовыми объектами
+        const shouldBeEvented = shouldBeSelection || (isTextMode && (obj.type === 'text' || obj.type === 'i-text'));
 
         const currentProps = {
           selectable: obj.selectable,
@@ -210,6 +215,60 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:rotating', handleObjectModification);
     };
   }, [updateElement, addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleObjectMoving = (e) => {
+      // Если мы не в режиме select, отменяем перемещение объекта
+      if (tool !== 'select') {
+        if (e.target.originalState) {
+          e.target.set({
+            left: e.target.originalState.left,
+            top: e.target.originalState.top
+          });
+          canvas.renderAll();
+        }
+        return;
+      }
+
+      const obj = e.target;
+      const boundingRect = canvas.calcViewportBoundaries();
+      const objBoundingRect = obj.getBoundingRect();
+      
+      // Ограничиваем перемещение объекта в пределах холста
+      if (objBoundingRect.left < boundingRect.tl.x) {
+        obj.left = boundingRect.tl.x;
+      }
+      if (objBoundingRect.top < boundingRect.tl.y) {
+        obj.top = boundingRect.tl.y;
+      }
+      if (objBoundingRect.left + objBoundingRect.width > boundingRect.br.x) {
+        obj.left = boundingRect.br.x - objBoundingRect.width;
+      }
+      if (objBoundingRect.top + objBoundingRect.height > boundingRect.br.y) {
+        obj.top = boundingRect.br.y - objBoundingRect.height;
+      }
+    };
+
+    const handleMouseDown = (e) => {
+      if (e.target) {
+        e.target.originalState = {
+          left: e.target.left,
+          top: e.target.top
+        };
+      }
+    };
+
+    canvas.on('object:moving', handleObjectMoving);
+    canvas.on('mouse:down', handleMouseDown);
+
+    return () => {
+      canvas.off('object:moving', handleObjectMoving);
+      canvas.off('mouse:down', handleMouseDown);
+    };
+  }, [tool, fabricCanvasRef]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -358,7 +417,19 @@ const Whiteboard = React.memo(() => {
 
     if (e.e.button !== 0) return;
 
-    if (tool === 'text') {
+    // В режиме text, если нажали на текстовый объект, позволяем его редактировать
+    if (tool === 'text' && e.target && (e.target.type === 'text' || e.target.type === 'i-text')) {
+      // Разрешаем редактирование текста
+      return;
+    }
+
+    // В режиме shapes игнорируем клики по существующим объектам
+    if (tool === 'shapes' && selectedShape && e.target) {
+      // Если нажали на объект, игнорируем это событие
+      return;
+    }
+
+    if (tool === 'text' && !e.target) {
       const pointer = canvas.getPointer(e.e);
       clickPosition.current = pointer;
       setIsTextModalOpen(true);
@@ -377,10 +448,12 @@ const Whiteboard = React.memo(() => {
         fill: 'transparent',
         stroke: color,
         strokeWidth: width,
-        selectable: true,
-        hasControls: true,
-        hasBorders: true,
-        evented: true,
+        selectable: false, // Фигура не выделяемая в режиме рисования
+        evented: false,    // Фигура не реагирует на события мыши в режиме рисования
+        hasControls: false,
+        hasBorders: false,
+        lockMovementX: true,
+        lockMovementY: true,
         id: uuidv4()
       };
 
@@ -493,6 +566,7 @@ const Whiteboard = React.memo(() => {
       const shape = currentShape.current;
       shape.setCoords(); // Add setCoords() before adding the element
       
+      // После завершения рисования фигуры, добавляем её в элементы
       addElement({
         id: shape.id,
         type: shape.type,
@@ -500,13 +574,17 @@ const Whiteboard = React.memo(() => {
           ...shape.toObject(['id'])
         }
       });
-
+      
+      // Убираем автоматическое переключение в режим select
+      // setTool('select');
+      
+      // Очищаем текущую фигуру
       currentShape.current = null;
     }
 
     startPoint.current = null;
     canvas.renderAll();
-  }, [addElement, fabricCanvasRef]);
+  }, [addElement]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
