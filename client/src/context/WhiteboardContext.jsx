@@ -590,26 +590,54 @@ export function WhiteboardProvider({ children }) {
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected, elements]);
 
+  // Создаем отдельную функцию для обработки изменения цвета
+  const handleColorChange = useCallback((newColor) => {
+    // Сохраняем текущее состояние холста
+    const canvas = canvasRef.current;
+    let canvasState = null;
+    
+    if (canvas) {
+      canvasState = JSON.stringify(canvas);
+    }
+    
+    // Устанавливаем новый цвет
+    setColor(newColor);
+    
+    // Обновляем цвет для кисти, если холст существует
+    if (canvas && canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = newColor;
+      
+      // Восстанавливаем состояние холста, если оно было сохранено
+      if (canvasState) {
+        setTimeout(() => {
+          canvas.loadFromJSON(canvasState, () => {
+            canvas.renderAll();
+          });
+        }, 0);
+      }
+    }
+  }, []);
+
   const value = {
     tool,
     color,
     width,
-    elements,
+    WHITEBOARD_BG_COLOR,
     selectedShape,
     activeUsers,
+    elements,
+    canvasRef,
     isConnected,
     isLoading,
     connectionStatus,
-    canvasRef,
-    WHITEBOARD_BG_COLOR,
+    initCanvas,
+    clearCanvas,
     addElement,
     updateElement,
     setTool,
     setSelectedShape,
-    setColor,
-    setWidth,
-    initCanvas,
-    clearCanvas
+    setColor: handleColorChange, // Используем нашу новую функцию
+    setWidth
   };
 
   return (

@@ -206,24 +206,37 @@ export default function WorkspaceContent({
 
               {/* Color Picker */}
               <div className="flex items-center space-x-2 border-r pr-3">
-                <div className="flex flex-wrap gap-1 items-center">
-                  {["#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500"].map((predefinedColor) => (
-                    <button
-                      key={predefinedColor}
-                      className={`w-5 h-5 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
-                      style={{ backgroundColor: predefinedColor }}
-                      onClick={() => setColor(predefinedColor)}
-                      title={predefinedColor}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="w-5 h-5 cursor-pointer"
-                    title="Custom color"
-                  />
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-1 items-center">
+                    {["#000000", "#FF0000", "#00FF00", "#0000FF"].map((predefinedColor) => (
+                      <button
+                        key={predefinedColor}
+                        className={`w-6 h-6 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
+                        style={{ backgroundColor: predefinedColor }}
+                        onClick={() => setColor(predefinedColor)}
+                        title={predefinedColor}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    {["#FFFF00", "#FF00FF", "#00FFFF", "#FFA500"].map((predefinedColor) => (
+                      <button
+                        key={predefinedColor}
+                        className={`w-6 h-6 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
+                        style={{ backgroundColor: predefinedColor }}
+                        onClick={() => setColor(predefinedColor)}
+                        title={predefinedColor}
+                      />
+                    ))}
+                  </div>
                 </div>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-6 h-12 cursor-pointer"
+                  title="Custom color"
+                />
               </div>
 
               {/* Select/Cursor tool */}
