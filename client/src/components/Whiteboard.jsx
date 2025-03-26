@@ -10,7 +10,7 @@ const Whiteboard = React.memo(() => {
   const currentShape = useRef(null);
   const startPoint = useRef(null);
   const clickPosition = useRef(null);
-  const socket = useSocket();
+  const { socket, connectionStatus, connectionError } = useSocket();
   const { 
     tool, 
     color, 
@@ -283,10 +283,12 @@ const Whiteboard = React.memo(() => {
           activeObjects.forEach(obj => {
             if (obj.id) {
               canvas.remove(obj);
-              socket.emit('delete-element', { 
-                workspaceId,
-                elementId: obj.id 
-              });
+              if (socket) {
+                socket.emit('delete-element', { 
+                  workspaceId,
+                  elementId: obj.id 
+                });
+              }
             }
           });
 
@@ -309,8 +311,8 @@ const Whiteboard = React.memo(() => {
     const handleScaling = (e) => {
       const object = e.target;
       if (object.strokeWidth) {
-        const newStrokeWidth = object.strokeWidth / ((object.scaleX + object.scaleY) / 2);
-        object.set('strokeWidth', newStrokeWidth);
+        // Don't modify strokeWidth during scaling
+        // This fixes the issue where objects break during scaling
         object.setCoords();
       }
     };
@@ -319,16 +321,21 @@ const Whiteboard = React.memo(() => {
     canvas.on('object:modified', (e) => {
       const object = e.target;
       if (object.strokeWidth) {
+        // Only adjust strokeWidth after scaling is complete
+        const scaleFactor = Math.max(0.1, (object.scaleX + object.scaleY) / 2);
         object.set({
-          strokeWidth: object.strokeWidth * ((object.scaleX + object.scaleY) / 2),
+          strokeWidth: object.strokeWidth * scaleFactor,
           scaleX: 1,
           scaleY: 1
         });
+        object.setCoords();
+        canvas.requestRenderAll();
       }
     });
 
     return () => {
       canvas.off('object:scaling', handleScaling);
+      canvas.off('object:modified');
     };
   }, [fabricCanvasRef]);
 

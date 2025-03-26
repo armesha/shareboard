@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
+import { useSocket } from '../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
@@ -19,7 +20,6 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function WorkspaceContent({ 
-  socket, 
   workspaceId, 
   status, 
   setStatus,
@@ -31,6 +31,7 @@ export default function WorkspaceContent({
   containerRef,
   cycleViewMode 
 }) {
+  const { socket, connectionStatus, connectionError } = useSocket();
   const { 
     clearCanvas, 
     tool, 
@@ -158,11 +159,41 @@ export default function WorkspaceContent({
   const ConnectionStatus = () => {
     if (!socket) return null;
     
+    const getStatusColor = () => {
+      switch(connectionStatus) {
+        case 'connected': return 'text-green-600';
+        case 'connecting': return 'text-yellow-600';
+        case 'disconnected': return 'text-yellow-600';
+        case 'error': return 'text-red-600';
+        default: return 'text-gray-600';
+      }
+    };
+    
+    const getStatusText = () => {
+      switch(connectionStatus) {
+        case 'connected': return 'Online';
+        case 'connecting': return 'Connecting...';
+        case 'disconnected': return 'Offline - Reconnecting...';
+        case 'error': return 'Connection Error';
+        default: return 'Unknown Status';
+      }
+    };
+    
+    const getStatusDotColor = () => {
+      switch(connectionStatus) {
+        case 'connected': return 'bg-green-600';
+        case 'connecting': return 'bg-yellow-600';
+        case 'disconnected': return 'bg-yellow-600';
+        case 'error': return 'bg-red-600';
+        default: return 'bg-gray-600';
+      }
+    };
+    
     return (
-      <div className={`flex items-center gap-2 ${isConnected ? 'text-green-600' : 'text-yellow-600'}`}>
-        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-600' : 'bg-yellow-600'}`} />
+      <div className={`flex items-center gap-2 ${getStatusColor()}`} title={connectionError || ''}>
+        <div className={`w-2 h-2 rounded-full ${getStatusDotColor()}`} />
         <span className="text-sm font-medium">
-          {isConnected ? 'Online' : 'Connecting...'}
+          {getStatusText()}
         </span>
       </div>
     );
@@ -206,35 +237,34 @@ export default function WorkspaceContent({
 
               {/* Color Picker */}
               <div className="flex items-center space-x-2 border-r pr-3">
-                <div className="flex flex-col gap-1">
-                  <div className="flex gap-1 items-center">
-                    {["#000000", "#FF0000", "#00FF00", "#0000FF"].map((predefinedColor) => (
-                      <button
-                        key={predefinedColor}
-                        className={`w-6 h-6 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
-                        style={{ backgroundColor: predefinedColor }}
-                        onClick={() => setColor(predefinedColor)}
-                        title={predefinedColor}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex gap-1 items-center">
-                    {["#FFFF00", "#FF00FF", "#00FFFF", "#FFA500"].map((predefinedColor) => (
-                      <button
-                        key={predefinedColor}
-                        className={`w-6 h-6 rounded-full border ${color === predefinedColor ? 'ring-2 ring-blue-500' : 'border-gray-300'}`}
-                        style={{ backgroundColor: predefinedColor }}
-                        onClick={() => setColor(predefinedColor)}
-                        title={predefinedColor}
-                      />
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1 max-w-40">
+                  {[
+                    "#000000", // Black
+                    "#FFFFFF", // White
+                    "#FF0000", // Red
+                    "#00FF00", // Green
+                    "#0000FF", // Blue
+                    "#FFFF00", // Yellow
+                    "#FF00FF", // Magenta
+                    "#00FFFF"  // Cyan
+                  ].map((predefinedColor) => (
+                    <button
+                      key={predefinedColor}
+                      className={`w-7 h-7 rounded-md border ${
+                        color === predefinedColor ? 'ring-2 ring-blue-500 ring-offset-1' : 
+                        predefinedColor === "#FFFFFF" ? 'border-gray-300' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: predefinedColor }}
+                      onClick={() => setColor(predefinedColor)}
+                      title={predefinedColor}
+                    />
+                  ))}
                 </div>
                 <input
                   type="color"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
-                  className="w-6 h-12 cursor-pointer"
+                  className="w-8 h-8 cursor-pointer rounded"
                   title="Custom color"
                 />
               </div>
@@ -362,7 +392,8 @@ export default function WorkspaceContent({
                 </button>
                 
                 {showOptionsMenu && (
-                  <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 w-48">
+                    {/* Add other options here if needed */}
                     <button
                       className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
                       onClick={() => {

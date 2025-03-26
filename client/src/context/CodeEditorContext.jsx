@@ -9,7 +9,8 @@ export function useCodeEditor() {
 }
 
 export function CodeEditorProvider({ children }) {
-  const socket = useSocket();
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
   const [content, setContent] = useState('');
   const [language, setLanguage] = useState('javascript');
   const [isEditing, setIsEditing] = useState(false);

@@ -15,7 +15,8 @@ const SAMPLE_DIAGRAM = `graph TD
 `;
 
 export function DiagramEditorProvider({ children }) {
-  const socket = useSocket();
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
   const [content, setContent] = useState(SAMPLE_DIAGRAM);
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');

@@ -19,7 +19,8 @@ export function useWhiteboard() {
 }
 
 export function WhiteboardProvider({ children }) {
-  const socket = useSocket();
+  const socketContext = useSocket();
+  const socket = socketContext?.socket;
   const [elements, setElements] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
   const [tool, setTool] = useState('pen');

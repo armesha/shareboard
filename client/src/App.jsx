@@ -1,47 +1,55 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { 
+  BrowserRouter as Router, 
+  Routes, 
+  Route, 
+  Navigate, 
+  useParams,
+  createBrowserRouter,
+  RouterProvider
+} from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import Workspace from './pages/Workspace';
-import { SocketProvider, useSocket } from './context/SocketContext';
+import { SocketProvider } from './context/SocketContext';
+import { WhiteboardProvider } from './context/WhiteboardContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Create router with future flags to avoid warnings
+const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      element: <LandingPage />
+    },
+    {
+      path: "/w/:workspaceId",
+      element: <Workspace />
+    },
+    {
+      path: "*",
+      element: <Navigate to="/" replace />
+    }
+  ],
+  {
+    // Apply future flags to avoid warnings
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }
+  }
+);
 
 function App() {
-  const socket = useSocket();
-  const [viewMode, setViewMode] = useState('split');
-  const [status, setStatus] = useState('');
-  const { workspaceId } = useParams();
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleConnect = () => {
-      console.log('Socket connected successfully');
-    };
-
-    const handleError = (error) => {
-      console.error('Socket error:', error);
-    };
-
-    socket.on('connect', handleConnect);
-    socket.on('error', handleError);
-
-    return () => {
-      socket.off('connect', handleConnect);
-      socket.off('error', handleError);
-    };
-  }, [socket]);
-
   return (
-    <Router>
-      <SocketProvider>
+    <SocketProvider>
+      <WhiteboardProvider>
         <div className="min-h-screen bg-gray-100">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/w/:workspaceId" element={<Workspace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <RouterProvider router={router} />
+          <ToastContainer position="bottom-right" />
         </div>
-      </SocketProvider>
-    </Router>
+      </WhiteboardProvider>
+    </SocketProvider>
   );
 }
 

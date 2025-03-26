@@ -3,13 +3,13 @@ import { useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
-import { DiagramEditorProvider } from '../context/DiagramEditorContext'; // Add this line
+import { DiagramEditorProvider } from '../context/DiagramEditorContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 
 function WorkspaceLayout() {
   const { workspaceId } = useParams();
-  const socket = useSocket();
-  const { isLoading, connectionStatus } = useWhiteboard();
+  const { socket, connectionStatus: socketConnectionStatus } = useSocket();
+  const { isLoading, connectionStatus: whiteboardConnectionStatus } = useWhiteboard();
   const [viewMode, setViewMode] = useState('whiteboard');
   const [splitPosition, setSplitPosition] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
@@ -18,6 +18,15 @@ function WorkspaceLayout() {
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
+  
+  // Use the most restrictive connection status between socket and whiteboard
+  const connectionStatus = whiteboardConnectionStatus === 'connected' && socketConnectionStatus === 'connected'
+    ? 'connected'
+    : socketConnectionStatus === 'error' || whiteboardConnectionStatus === 'error'
+      ? 'error'
+      : socketConnectionStatus === 'disconnected' || whiteboardConnectionStatus === 'disconnected'
+        ? 'disconnected'
+        : 'connecting';
 
   const handleMouseDown = (e) => {
     e.preventDefault();
@@ -87,6 +96,16 @@ function WorkspaceLayout() {
                 <p className="text-lg text-red-600">Connection lost. Reconnecting...</p>
               </>
             )}
+            {connectionStatus === 'error' && (
+              <>
+                <div className="inline-block h-8 w-8 text-red-500 mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <p className="text-lg text-red-600">Connection error. Please try refreshing the page.</p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -96,6 +115,7 @@ function WorkspaceLayout() {
         <WorkspaceContent
           workspaceId={workspaceId}
           viewMode={viewMode}
+          setViewMode={setViewMode}
           splitPosition={splitPosition}
           isDragging={isDragging}
           handleMouseDown={handleMouseDown}

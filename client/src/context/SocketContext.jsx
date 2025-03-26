@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { toast } from 'react-toastify';
 
 const SocketContext = createContext(null);
 
@@ -10,6 +11,8 @@ export function useSocket() {
 export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [connectionError, setConnectionError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const maxReconnectAttempts = 5;
 
   const initializeSocket = useCallback(() => {
@@ -25,6 +28,7 @@ export function SocketProvider({ children }) {
       });
 
       console.log('Initializing socket connection...');
+      setConnectionStatus('connecting');
 
       socketInstance.on('connect', () => {
         console.log('Connected to Socket.IO server with ID:', socketInstance.id);
@@ -33,8 +37,17 @@ export function SocketProvider({ children }) {
           disconnected: socketInstance.disconnected,
           id: socketInstance.id
         });
+        
         setConnectionAttempts(0);
+        setConnectionError(null);
+        setConnectionStatus('connected');
         setSocket(socketInstance);
+        
+        // Show connection success message to user
+        toast.success('Connected to server successfully!', {
+          position: 'bottom-right',
+          autoClose: 3000
+        });
       });
 
       socketInstance.on('connect_error', (error) => {
@@ -45,19 +58,55 @@ export function SocketProvider({ children }) {
           id: socketInstance.id,
           error: error
         });
+        
+        setConnectionStatus('error');
+        setConnectionError(error.message);
+        
         setConnectionAttempts(prev => {
           const newAttempts = prev + 1;
           if (newAttempts >= maxReconnectAttempts) {
             console.error('Max reconnection attempts reached. Please check server status.');
             socketInstance.disconnect();
+            
+            // Show critical error to user
+            toast.error(`Failed to connect to server after ${maxReconnectAttempts} attempts. Please check your internet connection or try again later.`, {
+              position: 'bottom-right',
+              autoClose: false,
+              closeOnClick: false,
+              draggable: true
+            });
+          } else {
+            // Show warning for each attempt
+            toast.warning(`Connection error: ${error.message}. Retrying... (${newAttempts}/${maxReconnectAttempts})`, {
+              position: 'bottom-right',
+              autoClose: 5000
+            });
           }
           return newAttempts;
         });
       });
 
-      socketInstance.on('disconnect', () => {
-        console.log('Disconnected from server');
+      socketInstance.on('disconnect', (reason) => {
+        console.log('Disconnected from server:', reason);
+        setConnectionStatus('disconnected');
         setSocket(null);
+        
+        // Notify user of disconnection
+        toast.info('Disconnected from server. Attempting to reconnect...', {
+          position: 'bottom-right',
+          autoClose: 5000
+        });
+      });
+
+      // Handle other socket errors
+      socketInstance.on('error', (error) => {
+        console.error('Socket error:', error);
+        setConnectionError(error.message || 'Unknown socket error');
+        
+        toast.error(`Socket error: ${error.message || 'Unknown error'}`, {
+          position: 'bottom-right',
+          autoClose: 5000
+        });
       });
 
       setSocket(socketInstance);
@@ -76,11 +125,18 @@ export function SocketProvider({ children }) {
   useEffect(() => {
     if (connectionAttempts >= maxReconnectAttempts) {
       console.error('Max reconnection attempts reached');
+      setConnectionError('Max reconnection attempts reached. Please refresh the page or check server status.');
     }
-  }, [connectionAttempts]);
+  }, [connectionAttempts, maxReconnectAttempts]);
 
   return (
-    <SocketContext.Provider value={socket}>
+    <SocketContext.Provider value={{ 
+      socket, 
+      connectionStatus, 
+      connectionError,
+      connectionAttempts,
+      maxReconnectAttempts
+    }}>
       {children}
     </SocketContext.Provider>
   );
