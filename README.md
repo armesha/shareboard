@@ -7,6 +7,7 @@
 ## Spuštění projektu
 ```bash
 npm install
+npm install react-toastify*
 npm run dev:all
 ```
 

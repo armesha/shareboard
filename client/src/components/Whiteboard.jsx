@@ -183,6 +183,7 @@ const Whiteboard = React.memo(() => {
               addElement({ id: obj.id, type: 'text', data });
             }
           } else {
+            // Сохраняем все данные объекта, включая масштаб
             const data = {
               ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
               stroke: obj.stroke,
@@ -311,8 +312,7 @@ const Whiteboard = React.memo(() => {
     const handleScaling = (e) => {
       const object = e.target;
       if (object.strokeWidth) {
-        // Don't modify strokeWidth during scaling
-        // This fixes the issue where objects break during scaling
+        // Только обновляем координаты во время масштабирования
         object.setCoords();
       }
     };
@@ -321,13 +321,8 @@ const Whiteboard = React.memo(() => {
     canvas.on('object:modified', (e) => {
       const object = e.target;
       if (object.strokeWidth) {
-        // Only adjust strokeWidth after scaling is complete
-        const scaleFactor = Math.max(0.1, (object.scaleX + object.scaleY) / 2);
-        object.set({
-          strokeWidth: object.strokeWidth * scaleFactor,
-          scaleX: 1,
-          scaleY: 1
-        });
+        // При модификации объекта не изменяем толщину линии
+        // Это позволит сохранять одну и ту же толщину линии независимо от масштаба
         object.setCoords();
         canvas.requestRenderAll();
       }
@@ -461,7 +456,7 @@ const Whiteboard = React.memo(() => {
         hasBorders: false,
         lockMovementX: true,
         lockMovementY: true,
-        id: uuidv4()
+        id: uuidv4(),
       };
 
       switch (selectedShape) {
