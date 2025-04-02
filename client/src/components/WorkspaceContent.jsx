@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
+import { useSharing } from '../context/SharingContext';
 import { useNavigate } from 'react-router-dom';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
@@ -17,6 +18,8 @@ import ComputerIcon from '@mui/icons-material/Computer';
 import HomeIcon from '@mui/icons-material/Home';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import ShareIcon from '@mui/icons-material/Share';
+import LockIcon from '@mui/icons-material/Lock';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function WorkspaceContent({ 
@@ -29,7 +32,8 @@ export default function WorkspaceContent({
   isDragging,
   handleMouseDown,
   containerRef,
-  cycleViewMode 
+  cycleViewMode,
+  onShareClick
 }) {
   const { socket, connectionStatus, connectionError } = useSocket();
   const { 
@@ -46,10 +50,23 @@ export default function WorkspaceContent({
     setColor 
   } = useWhiteboard();
   
+  const { canWrite, sharingMode, isOwner } = useSharing();
+  
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
   const [isConnected, setIsConnected] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [persistentUserId, setPersistentUserId] = useState(null);
+
+  // Get persistent userId from localStorage
+  useEffect(() => {
+    let userId = localStorage.getItem('shareboardUserId');
+    if (!userId) {
+      userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      localStorage.setItem('shareboardUserId', userId);
+    }
+    setPersistentUserId(userId);
+  }, []);
 
   const handleAddImageToWhiteboard = useCallback((imageUrl) => {
     console.log('Adding diagram to whiteboard:', imageUrl);
@@ -89,11 +106,11 @@ export default function WorkspaceContent({
   }, [showShapesMenu, selectedShape]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !persistentUserId) return;
 
     const handleConnect = () => {
       setIsConnected(true);
-      socket.emit('join-workspace', workspaceId);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
     };
 
     const handleDisconnect = () => {
@@ -106,22 +123,22 @@ export default function WorkspaceContent({
     socket.on('disconnect', handleDisconnect);
 
     if (socket.connected) {
-      socket.emit('join-workspace', workspaceId);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
     }
 
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
     };
-  }, [socket, workspaceId]);
+  }, [socket, workspaceId, persistentUserId]);
 
   useEffect(() => {
-    if (!socket || !workspaceId) return;
+    if (!socket || !workspaceId || !persistentUserId) return;
     
     socket.on('connect', () => {
       setStatus('connected');
-      console.log('Joining workspace:', workspaceId);
-      socket.emit('join-workspace', workspaceId);
+      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
       socket.emit('request-canvas-state', workspaceId);
     });
 
@@ -144,7 +161,7 @@ export default function WorkspaceContent({
     });
 
     if (socket.connected) {
-      socket.emit('join-workspace', workspaceId);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
       socket.emit('request-canvas-state', workspaceId);
     }
 
@@ -154,7 +171,7 @@ export default function WorkspaceContent({
       socket.off('error');
       socket.off('canvas-state');
     };
-  }, [socket, workspaceId, canvasRef, setStatus]);
+  }, [socket, workspaceId, persistentUserId, setStatus]);
 
   const ConnectionStatus = () => {
     if (!socket) return null;
@@ -207,69 +224,79 @@ export default function WorkspaceContent({
         <div className="flex items-center space-x-4">
           <button
             onClick={() => navigate('/')}
-
             className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
             title="Return to Home"
           >
             <HomeIcon className="text-gray-700" />
           </button>
           <h1 className="text-xl font-semibold">Workspace: {workspaceId}</h1>
+          
+          {!canWrite() && (
+            <div className="flex items-center ml-4 text-sm text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+              <LockIcon className="h-4 w-4 mr-1" />
+              Read-Only Mode
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center w-full">
             <div className="flex items-center space-x-3 bg-white rounded-full shadow-lg border border-gray-200 py-2 z-50">
-              {/* Width control */}
-              <div className="flex items-center space-x-2 border-r pr-3">
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={width}
-                  onChange={(e) => {
-                    const newWidth = parseInt(e.target.value);
-                    setWidth(newWidth);
-                  }}
-                  className="w-24"
-                  title={`Width: ${width}px`}
-                />
-                <span className="text-sm text-gray-600 w-8">{width}px</span>
-              </div>
-
-              {/* Color Picker */}
-              <div className="flex items-center space-x-2 border-r pr-3">
-                <div className="flex flex-wrap gap-1 max-w-40">
-                  {[
-                    "#000000", // Black
-                    "#FFFFFF", // White
-                    "#FF0000", // Red
-                    "#00FF00", // Green
-                    "#0000FF", // Blue
-                    "#FFFF00", // Yellow
-                    "#FF00FF", // Magenta
-                    "#00FFFF"  // Cyan
-                  ].map((predefinedColor) => (
-                    <button
-                      key={predefinedColor}
-                      className={`w-7 h-7 rounded-md border ${
-                        color === predefinedColor ? 'ring-2 ring-blue-500 ring-offset-1' : 
-                        predefinedColor === "#FFFFFF" ? 'border-gray-300' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: predefinedColor }}
-                      onClick={() => setColor(predefinedColor)}
-                      title={predefinedColor}
-                    />
-                  ))}
+              {/* Width control - only show if user can write */}
+              {canWrite() && (
+                <div className="flex items-center space-x-2 border-r pr-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={width}
+                    onChange={(e) => {
+                      const newWidth = parseInt(e.target.value);
+                      setWidth(newWidth);
+                    }}
+                    className="w-24"
+                    title={`Width: ${width}px`}
+                  />
+                  <span className="text-sm text-gray-600 w-8">{width}px</span>
                 </div>
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-8 h-8 cursor-pointer rounded"
-                  title="Custom color"
-                />
-              </div>
+              )}
 
-              {/* Select/Cursor tool */}
+              {/* Color Picker - only show if user can write */}
+              {canWrite() && (
+                <div className="flex items-center space-x-2 border-r pr-3">
+                  <div className="flex flex-wrap gap-1 max-w-40">
+                    {[
+                      "#000000", // Black
+                      "#FFFFFF", // White
+                      "#FF0000", // Red
+                      "#00FF00", // Green
+                      "#0000FF", // Blue
+                      "#FFFF00", // Yellow
+                      "#FF00FF", // Magenta
+                      "#00FFFF"  // Cyan
+                    ].map((predefinedColor) => (
+                      <button
+                        key={predefinedColor}
+                        className={`w-7 h-7 rounded-md border ${
+                          color === predefinedColor ? 'ring-2 ring-blue-500 ring-offset-1' : 
+                          predefinedColor === "#FFFFFF" ? 'border-gray-300' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: predefinedColor }}
+                        onClick={() => setColor(predefinedColor)}
+                        title={predefinedColor}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-8 h-8 cursor-pointer rounded"
+                    title="Custom color"
+                  />
+                </div>
+              )}
+
+              {/* Select/Cursor tool - always shown */}
               <button
                 className={`p-2 rounded-full transition-all duration-200 ${
                   tool === 'select' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
@@ -283,90 +310,95 @@ export default function WorkspaceContent({
                 <MouseIcon className={tool === 'select' ? 'text-white' : 'text-gray-700'} />
               </button>
 
-              <button
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  tool === 'pen' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                }`}
-                onClick={() => {
-                  setTool('pen');
-                  setSelectedShape(null);
-                  setShowShapesMenu(false);
-                }}
-                title="Pen"
-              >
-                <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
-              </button>
-
-              {/* Shapes dropdown */}
-              <div className="relative shapes-menu-container">
-                <button
-                  className={`p-2 rounded-full transition-all duration-200 shapes-button ${
-                    selectedShape ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                  }`}
-                  onClick={() => {
-                    if (showShapesMenu) {
-                      setShowShapesMenu(false);
+              {/* Drawing tools - only if user can write */}
+              {canWrite() && (
+                <>
+                  <button
+                    className={`p-2 rounded-full transition-all duration-200 ${
+                      tool === 'pen' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                    }`}
+                    onClick={() => {
+                      setTool('pen');
                       setSelectedShape(null);
-                    } else {
-                      setShowShapesMenu(true);
-                    }
-                  }}
-                  title="Shapes"
-                >
-                  {selectedShape === 'rectangle' ? <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
-                   selectedShape === 'triangle' ? <ChangeHistoryIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
-                   selectedShape === 'circle' ? <CircleOutlinedIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
-                   <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />}
-                </button>
-                
-                {showShapesMenu && (
-                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                    <button
-                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                      onClick={() => {
-                        setSelectedShape('rectangle');
-                        setTool('shapes');
-                        setShowShapesMenu(false);
-                      }}
-                    >
-                      <CropSquareIcon className="text-gray-700" />
-                    </button>
-                    <button
-                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                      onClick={() => {
-                        setSelectedShape('triangle');
-                        setTool('shapes');
-                        setShowShapesMenu(false);
-                      }}
-                    >
-                      <ChangeHistoryIcon className="text-gray-700" />
-                    </button>
-                    <button
-                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
-                      onClick={() => {
-                        setSelectedShape('circle');
-                        setTool('shapes');
-                        setShowShapesMenu(false);
-                      }}
-                    >
-                      <CircleOutlinedIcon className="text-gray-700" />
-                    </button>
-                  </div>
-                )}
-              </div>
+                      setShowShapesMenu(false);
+                    }}
+                    title="Pen"
+                  >
+                    <CreateIcon className={tool === 'pen' ? 'text-white' : 'text-gray-700'} />
+                  </button>
 
-              <button
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  tool === 'text' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                }`}
-                onClick={() => {
-                  setTool(tool === 'text' ? 'select' : 'text');
-                  setSelectedShape(null);
-                }}
-                title="Text"
-              >
-                <TextFieldsIcon className={tool === 'text' ? 'text-white' : 'text-gray-700'} />
-              </button>
+                  {/* Shapes dropdown */}
+                  <div className="relative shapes-menu-container">
+                    <button
+                      className={`p-2 rounded-full transition-all duration-200 shapes-button ${
+                        selectedShape ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                      }`}
+                      onClick={() => {
+                        if (showShapesMenu) {
+                          setShowShapesMenu(false);
+                          setSelectedShape(null);
+                        } else {
+                          setShowShapesMenu(true);
+                        }
+                      }}
+                      title="Shapes"
+                    >
+                      {selectedShape === 'rectangle' ? <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
+                       selectedShape === 'triangle' ? <ChangeHistoryIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> :
+                       selectedShape === 'circle' ? <CircleOutlinedIcon className={selectedShape ? 'text-white' : 'text-gray-700'} /> : 
+                       <CropSquareIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />}
+                    </button>
+                    
+                    {showShapesMenu && (
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                        <button
+                          className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                          onClick={() => {
+                            setSelectedShape('rectangle');
+                            setTool('shapes');
+                            setShowShapesMenu(false);
+                          }}
+                        >
+                          <CropSquareIcon className="text-gray-700" />
+                        </button>
+                        <button
+                          className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                          onClick={() => {
+                            setSelectedShape('triangle');
+                            setTool('shapes');
+                            setShowShapesMenu(false);
+                          }}
+                        >
+                          <ChangeHistoryIcon className="text-gray-700" />
+                        </button>
+                        <button
+                          className="w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center"
+                          onClick={() => {
+                            setSelectedShape('circle');
+                            setTool('shapes');
+                            setShowShapesMenu(false);
+                          }}
+                        >
+                          <CircleOutlinedIcon className="text-gray-700" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    className={`p-2 rounded-full transition-all duration-200 ${
+                      tool === 'text' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+                    }`}
+                    onClick={() => {
+                      setTool(tool === 'text' ? 'select' : 'text');
+                      setSelectedShape(null);
+                    }}
+                    title="Text"
+                  >
+                    <TextFieldsIcon className={tool === 'text' ? 'text-white' : 'text-gray-700'} />
+                  </button>
+                </>
+              )}
 
               <div className="h-6 w-px bg-gray-200 mx-1" />
               
@@ -379,37 +411,52 @@ export default function WorkspaceContent({
                 <ComputerIcon className={`${viewMode === 'split' ? 'text-blue-500' : 'text-gray-700'}`} />
               </button>
               
-              {/* More Options Dropdown */}
-              <div className="relative">
-                <button
-                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
-                  onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-                  title="More Options"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                  </svg>
-                </button>
-                
-                {showOptionsMenu && (
-                  <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 w-48">
-                    {/* Add other options here if needed */}
-                    <button
-                      className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
-                      onClick={() => {
-                        const confirmClear = window.confirm("Are you sure you want to clear the whiteboard?");
-                        if (confirmClear) {
-                          clearCanvas();
-                        }
-                        setShowOptionsMenu(false);
-                      }}
-                    >
-                      <CleaningServicesIcon className="text-gray-700 mr-2" />
-                      <span>Clear Canvas</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Share Button */}
+              <button
+                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                onClick={onShareClick}
+                title="Share Settings"
+              >
+                <ShareIcon className={`text-${isOwner ? 'blue' : 'gray'}-500`} />
+              </button>
+              
+              {/* More Options Dropdown - only if user can write */}
+              {canWrite() && (
+                <div className="relative">
+                  <button
+                    className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                    onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                    title="More Options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                    </svg>
+                  </button>
+                  
+                  {showOptionsMenu && (
+                    <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 w-48">
+                      {/* Add other options here if needed */}
+                      <button
+                        className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
+                        onClick={() => {
+                          const confirmClear = window.confirm("Are you sure you want to clear the whiteboard?");
+                          if (confirmClear) {
+                            if (socket) {
+                              socket.emit('whiteboard-clear', { workspaceId });
+                            }
+                            clearCanvas();
+                          }
+                          setShowOptionsMenu(false);
+                        }}
+                      >
+                        <CleaningServicesIcon className="h-5 w-5 mr-2 text-red-500" />
+                        <span>Clear Whiteboard</span>
+                      </button>
+                      {/* Add more options as needed */}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <ConnectionStatus />
@@ -443,6 +490,12 @@ export default function WorkspaceContent({
           <DiagramRenderer onAddImageToWhiteboard={handleAddImageToWhiteboard} />
         )}
       </div>
+    </div>
+  );
+
+  const renderWhiteboardSection = () => (
+    <div className="flex-1 relative">
+      <Whiteboard disabled={!canWrite()} />
     </div>
   );
 

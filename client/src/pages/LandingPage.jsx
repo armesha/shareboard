@@ -7,26 +7,31 @@ export default function LandingPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const createNewWorkspace = async () => {
+  const createWorkspace = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      let userId = localStorage.getItem('shareboardUserId');
+      if (!userId) {
+        userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        localStorage.setItem('shareboardUserId', userId);
+      }
+      
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ userId })
       });
+      
       if (!response.ok) {
         throw new Error('Failed to create workspace');
       }
+      
       const data = await response.json();
       navigate(`/w/${data.workspaceId}`);
     } catch (error) {
-      console.error('Error creating workspace:', error);
       setError('Failed to create workspace. Please try again.');
-    } finally {
-      setIsLoading(false);
+      console.error('Error creating workspace:', error);
     }
   };
 
@@ -51,7 +56,7 @@ export default function LandingPage() {
         
         <div className="mt-8 space-y-6">
           <button
-            onClick={createNewWorkspace}
+            onClick={createWorkspace}
             disabled={isLoading}
             className={`w-full btn btn-primary ${
               isLoading ? 'opacity-50 cursor-not-allowed' : ''

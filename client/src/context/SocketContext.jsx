@@ -13,7 +13,18 @@ export function SocketProvider({ children }) {
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [userId, setUserId] = useState(null);
   const maxReconnectAttempts = 5;
+
+  // Get or create a persistent user ID
+  useEffect(() => {
+    let persistentUserId = localStorage.getItem('shareboardUserId');
+    if (!persistentUserId) {
+      persistentUserId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      localStorage.setItem('shareboardUserId', persistentUserId);
+    }
+    setUserId(persistentUserId);
+  }, []);
 
   const initializeSocket = useCallback(() => {
     setTimeout(() => {
@@ -135,7 +146,8 @@ export function SocketProvider({ children }) {
       connectionStatus, 
       connectionError,
       connectionAttempts,
-      maxReconnectAttempts
+      maxReconnectAttempts,
+      userId
     }}>
       {children}
     </SocketContext.Provider>

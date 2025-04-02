@@ -413,7 +413,7 @@ export function WhiteboardProvider({ children }) {
       setConnectionStatus('connected');
       const workspaceId = window.location.pathname.split('/')[2];
       if (workspaceId) {
-        socket.emit('join-workspace', workspaceId);
+        socket.emit('join-workspace', { workspaceId, userId: socket.id });
       }
     };
 
@@ -542,7 +542,7 @@ export function WhiteboardProvider({ children }) {
       setConnectionStatus('connected');
       const workspaceId = window.location.pathname.split('/')[2];
       if (workspaceId) {
-        socket.emit('join-workspace', workspaceId);
+        socket.emit('join-workspace', { workspaceId, userId: socket.id });
       }
     }
 

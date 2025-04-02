@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import { v4 as uuidv4 } from 'uuid';
 import TextInputModal from './TextInputModal';
 
-const Whiteboard = React.memo(() => {
+const Whiteboard = React.memo(({ disabled = false }) => {
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
   const currentShape = useRef(null);
@@ -130,7 +130,7 @@ const Whiteboard = React.memo(() => {
         canvas.requestRenderAll();
       }
     }
-  }, [tool, color, width, elements]); // Added elements to dependencies
+  }, [tool, color, width, elements, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -215,7 +215,7 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:scaling', handleObjectModification);
       canvas.off('object:rotating', handleObjectModification);
     };
-  }, [updateElement, addElement]);
+  }, [updateElement, addElement, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -254,6 +254,8 @@ const Whiteboard = React.memo(() => {
     };
 
     const handleMouseDown = (e) => {
+      if (disabled) return;
+      
       if (e.target) {
         e.target.originalState = {
           left: e.target.left,
@@ -269,13 +271,15 @@ const Whiteboard = React.memo(() => {
       canvas.off('object:moving', handleObjectMoving);
       canvas.off('mouse:down', handleMouseDown);
     };
-  }, [tool, fabricCanvasRef]);
+  }, [tool, fabricCanvasRef, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
     const handleKeyDown = (e) => {
+      if (disabled) return;
+      
       if (e.key === 'Delete' && tool === 'select') {
         const activeObjects = canvas.getActiveObjects();
         if (activeObjects.length > 0) {
@@ -303,7 +307,7 @@ const Whiteboard = React.memo(() => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [fabricCanvasRef, tool, socket]);
+  }, [fabricCanvasRef, tool, socket, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -339,7 +343,8 @@ const Whiteboard = React.memo(() => {
     if (!canvas) return;
 
     const handleDblClick = (opt) => {
-      console.log('Double click event:', opt);
+      if (disabled) return;
+      
       if (tool !== 'select') return;
 
       const pointer = canvas.getPointer(opt.e);
@@ -373,7 +378,7 @@ const Whiteboard = React.memo(() => {
     return () => {
       canvas.off('mouse:dblclick', handleDblClick);
     };
-  }, [tool]);
+  }, [tool, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -414,6 +419,8 @@ const Whiteboard = React.memo(() => {
   }, [addElement]);
 
   const handleMouseDown = useCallback((e) => {
+    if (disabled) return;
+    
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
@@ -487,9 +494,11 @@ const Whiteboard = React.memo(() => {
         currentShape.current = shapeObj;
       }
     }
-  }, [tool, selectedShape, color, width, fabricCanvasRef]);
+  }, [tool, selectedShape, color, width, fabricCanvasRef, disabled]);
 
   const handleMouseMove = useCallback((e) => {
+    if (disabled) return;
+    
     const canvas = fabricCanvasRef.current;
     if (!canvas || !isDrawing.current || !startPoint.current) return;
 
@@ -556,9 +565,11 @@ const Whiteboard = React.memo(() => {
       shape.setCoords(); // Add setCoords() after updating shape properties
       canvas.renderAll();
     }
-  }, [selectedShape, fabricCanvasRef]);
+  }, [selectedShape, fabricCanvasRef, disabled]);
 
   const handleMouseUp = useCallback(() => {
+    if (disabled) return;
+    
     const canvas = fabricCanvasRef.current;
     if (!canvas || !isDrawing.current) return;
 
@@ -586,7 +597,7 @@ const Whiteboard = React.memo(() => {
 
     startPoint.current = null;
     canvas.renderAll();
-  }, [addElement]);
+  }, [addElement, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -740,7 +751,9 @@ const Whiteboard = React.memo(() => {
 
   return (
     <>
-      <canvas ref={canvasRef} />
+      <div className={disabled ? 'cursor-not-allowed' : ''}>
+        <canvas ref={canvasRef} style={{ pointerEvents: disabled ? 'none' : 'auto' }} />
+      </div>
       <TextInputModal
         isOpen={isTextModalOpen}
         onClose={() => {
@@ -748,8 +761,9 @@ const Whiteboard = React.memo(() => {
           clickPosition.current = null;
           setEditingText(null);
         }}
-        onSubmit={handleTextSubmit}
+        onSubmit={disabled ? null : handleTextSubmit}
         initialText={editingText ? editingText.text : ''}
+        disabled={disabled}
       />
     </>
   );

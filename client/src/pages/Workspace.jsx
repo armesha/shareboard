@@ -4,7 +4,9 @@ import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
 import { DiagramEditorProvider } from '../context/DiagramEditorContext';
+import { SharingProvider } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
+import SharingSettings from '../components/SharingSettings';
 
 function WorkspaceLayout() {
   const { workspaceId } = useParams();
@@ -15,10 +17,25 @@ function WorkspaceLayout() {
   const [isDragging, setIsDragging] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(null);
   const [initialWidth, setInitialWidth] = useState(null);
+  const [showSharingSettings, setShowSharingSettings] = useState(false);
+  const [status, setStatus] = useState('connecting');
+  const [isConnected, setIsConnected] = useState(false);
+  const [persistentUserId, setPersistentUserId] = useState(null);
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
   
+  // Get persistent userId from localStorage
+  useEffect(() => {
+    let userId = localStorage.getItem('shareboardUserId');
+    if (!userId) {
+      userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      localStorage.setItem('shareboardUserId', userId);
+    }
+    setPersistentUserId(userId);
+    console.log("Using persistent user ID:", userId);
+  }, []);
+
   // Use the most restrictive connection status between socket and whiteboard
   const connectionStatus = whiteboardConnectionStatus === 'connected' && socketConnectionStatus === 'connected'
     ? 'connected'
@@ -67,6 +84,69 @@ function WorkspaceLayout() {
     setViewMode(viewMode === 'whiteboard' ? 'split' : 'whiteboard');
     setSplitPosition(40);
   };
+
+  const toggleSharingSettings = () => {
+    setShowSharingSettings(!showSharingSettings);
+  };
+
+  useEffect(() => {
+    if (!socket || !persistentUserId) return;
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    setIsConnected(socket.connected);
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    if (socket.connected) {
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket, workspaceId, persistentUserId]);
+
+  useEffect(() => {
+    if (!socket || !workspaceId || !persistentUserId) return;
+    
+    socket.on('connect', () => {
+      setStatus('connected');
+      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId);
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+      socket.emit('request-canvas-state', workspaceId);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from workspace');
+      setStatus('disconnected');
+    });
+    
+    socket.on('error', (error) => {
+      console.error('Workspace error:', error);
+      setStatus('error');
+    });
+
+    if (socket.connected) {
+      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+      socket.emit('request-canvas-state', workspaceId);
+    }
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('error');
+    };
+  }, [socket, workspaceId, persistentUserId, setStatus]);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100">
@@ -121,20 +201,37 @@ function WorkspaceLayout() {
           handleMouseDown={handleMouseDown}
           containerRef={containerRef}
           cycleViewMode={cycleViewMode}
+          onShareClick={toggleSharingSettings}
+          status={status}
+          setStatus={setStatus}
         />
       </div>
+      
+      {/* Sharing settings modal */}
+      {showSharingSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <SharingSettings 
+            workspaceId={workspaceId} 
+            onClose={toggleSharingSettings} 
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 export default function Workspace() {
+  const { workspaceId } = useParams();
+  
   return (
-    <WhiteboardProvider>
-      <CodeEditorProvider>
-        <DiagramEditorProvider>
-          <WorkspaceLayout />
-        </DiagramEditorProvider>
-      </CodeEditorProvider>
-    </WhiteboardProvider>
+    <SharingProvider workspaceId={workspaceId}>
+      <WhiteboardProvider>
+        <CodeEditorProvider>
+          <DiagramEditorProvider>
+            <WorkspaceLayout />
+          </DiagramEditorProvider>
+        </CodeEditorProvider>
+      </WhiteboardProvider>
+    </SharingProvider>
   );
 }

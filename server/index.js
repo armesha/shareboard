@@ -20,6 +20,7 @@ const io = new Server(httpServer, {
 
 const workspaces = new Map();
 const activeConnections = new Map();
+const userSessions = new Map(); // Maps socket IDs to user info
 
 function generateWorkspaceKey(length = 6) {
   const bytes = crypto.randomBytes(Math.ceil(length * 3 / 4));
@@ -57,6 +58,8 @@ app.get('/', (req, res) => {
 
 app.post('/api/workspaces', (req, res) => {
   const workspaceId = generateWorkspaceKey();
+  const userId = req.body.userId || generateWorkspaceKey(10);
+  
   workspaces.set(workspaceId, {
     id: workspaceId,
     created: Date.now(),
@@ -64,8 +67,13 @@ app.post('/api/workspaces', (req, res) => {
     diagrams: new Map(),
     drawings: [],
     allDrawings: [],
-    drawingHistory: []
+    drawingHistory: [],
+    // Add sharing configuration
+    owner: userId,
+    sharingMode: 'read-write-all', // Default sharing mode
+    allowedUsers: [] // Users with edit permission when in selective mode
   });
+  
   res.json({ workspaceId });
 });
 
@@ -94,13 +102,20 @@ const SAMPLE_DIAGRAM = '';
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   let currentWorkspace = null;
-  let diagramHandler = null;
+  let currentUser = {
+    id: socket.id,
+    joinedAt: Date.now()
+  };
+  
+  userSessions.set(socket.id, currentUser);
 
-  socket.on('join-workspace', (workspaceId) => {
+  socket.on('join-workspace', ({ workspaceId, userId }) => {
     console.log(`User ${socket.id} joining workspace ${workspaceId}`);
     let workspace = workspaces.get(workspaceId);
     
     if (!workspace) {
+      // Create new workspace if it doesn't exist
+      // First user to join becomes the owner
       workspace = {
         id: workspaceId,
         created: Date.now(),
@@ -108,9 +123,26 @@ io.on('connection', (socket) => {
         diagrams: new Map(),
         drawings: [],
         allDrawings: [],
-        diagramContent: ''
+        diagramContent: '',
+        owner: userId || socket.id,
+        sharingMode: 'read-write-all',
+        allowedUsers: []
       };
       workspaces.set(workspaceId, workspace);
+      
+      // Set this user as owner since they're creating the workspace
+      currentUser.isOwner = true;
+    }
+
+    // Update user information
+    currentUser.userId = userId || socket.id;
+    currentUser.workspaceId = workspaceId;
+    
+    // Check if this user is the owner
+    if (workspace.owner === currentUser.userId || workspace.owner === socket.id) {
+      currentUser.isOwner = true;
+      // Make sure the owner ID is consistently stored
+      workspace.owner = currentUser.userId;
     }
 
     if (currentWorkspace) {
@@ -155,15 +187,130 @@ io.on('connection', (socket) => {
 
     socket.emit('workspace-state', initialState);
     
+    // Send sharing info immediately after joining
+    socket.emit('sharing-info', {
+      sharingMode: workspace.sharingMode,
+      allowedUsers: workspace.allowedUsers,
+      isOwner: currentUser.isOwner || false,
+      currentUser: currentUser.userId
+    });
+    
     socket.to(workspaceId).emit('user-joined', { 
       userId: socket.id,
       activeUsers: activeConnections.get(workspaceId).size
     });
   });
 
+  // Handle sharing info requests
+  socket.on('get-sharing-info', ({ workspaceId, userId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) return;
+    
+    // Update the userId if it's provided in the request
+    if (userId) {
+      currentUser.userId = userId;
+      // Check if this is the owner
+      if (workspace.owner === userId) {
+        currentUser.isOwner = true;
+        // Ensure owner ID is consistent
+        workspace.owner = userId;
+      }
+    }
+    
+    socket.emit('sharing-info', {
+      sharingMode: workspace.sharingMode,
+      allowedUsers: workspace.allowedUsers,
+      isOwner: workspace.owner === currentUser.userId,
+      currentUser: currentUser.userId
+    });
+    
+    console.log("Sent sharing info for workspace", workspaceId, {
+      sharingMode: workspace.sharingMode,
+      allowedUsers: workspace.allowedUsers,
+      owner: workspace.owner,
+      isOwner: workspace.owner === currentUser.userId,
+      currentUser: currentUser.userId,
+      socketId: socket.id
+    });
+  });
+  
+  // Handle changes to sharing mode
+  socket.on('change-sharing-mode', ({ workspaceId, sharingMode, allowedUsers }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) return;
+    
+    // Only the owner can change sharing mode
+    if (workspace.owner !== currentUser.userId) {
+      socket.emit('error', { message: 'Only the workspace owner can change sharing settings' });
+      return;
+    }
+    
+    workspace.sharingMode = sharingMode;
+    
+    if (sharingMode === 'read-write-selected') {
+      workspace.allowedUsers = allowedUsers || [];
+    }
+    
+    // Notify all users in the workspace about the change
+    io.to(workspaceId).emit('sharing-info', {
+      sharingMode: workspace.sharingMode,
+      allowedUsers: workspace.allowedUsers,
+      currentUser: null // Each client will fill in their own user ID
+    });
+  });
+  
+  // Get list of active users
+  socket.on('get-active-users', ({ workspaceId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) return;
+    
+    const connections = activeConnections.get(workspaceId) || new Set();
+    const users = [];
+    
+    for (const socketId of connections) {
+      const userInfo = userSessions.get(socketId);
+      if (userInfo) {
+        users.push({
+          id: userInfo.userId,
+          online: true,
+          isOwner: workspace.owner === userInfo.userId
+        });
+      }
+    }
+    
+    socket.emit('active-users-update', { activeUsers: users });
+  });
+  
+  // Invite a user to the workspace
+  socket.on('invite-user', ({ workspaceId, email }, callback) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) {
+      callback({ error: 'Workspace not found' });
+      return;
+    }
+    
+    // In a real app, you would send an invitation email
+    // For this demo, we'll simulate creating a user from the email
+    const userId = email.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    callback({ userId });
+  });
+
+  // When modifying whiteboard, check if the user has permission
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace || !Array.isArray(elements)) return;
+    
+    // Check if user has write permission
+    const canWrite = workspace.sharingMode === 'read-write-all' || 
+                   workspace.owner === currentUser.userId ||
+                   (workspace.sharingMode === 'read-write-selected' && 
+                    workspace.allowedUsers.includes(currentUser.userId));
+    
+    if (!canWrite) {
+      socket.emit('error', { message: 'You do not have permission to edit this workspace' });
+      return;
+    }
 
     workspace.lastActivity = Date.now();
     
@@ -212,14 +359,30 @@ io.on('connection', (socket) => {
     workspace.drawings = Array.from(existingDrawings.values())
       .filter(drawing => !deletedElements.has(drawing.id));
     
-    console.log(`Updated workspace ${workspaceId} state:`, {
-      currentDrawingsCount: workspace.drawings.length,
-      allDrawingsCount: workspace.allDrawings.length,
-      skippedDeletedElements: Array.from(deletedElements)
-    });
-
     // Broadcast to all clients in the room EXCEPT the sender
     socket.to(workspaceId).emit('whiteboard-update', elements);
+  });
+
+  // For other methods like whiteboard-clear, delete-element, etc., add similar permission checks
+  socket.on('whiteboard-clear', ({ workspaceId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) return;
+    
+    // Check if user has write permission
+    const canWrite = workspace.sharingMode === 'read-write-all' || 
+                   workspace.owner === currentUser.userId ||
+                   (workspace.sharingMode === 'read-write-selected' && 
+                    workspace.allowedUsers.includes(currentUser.userId));
+    
+    if (!canWrite) {
+      socket.emit('error', { message: 'You do not have permission to clear this workspace' });
+      return;
+    }
+
+    workspace.lastActivity = Date.now();
+    workspace.drawings = [];
+    workspace.allDrawings = [];
+    io.to(workspaceId).emit('whiteboard-clear');
   });
 
   socket.on('request-canvas-state', (workspaceId) => {
@@ -244,16 +407,6 @@ io.on('connection', (socket) => {
     workspace.drawings = workspace.drawings.filter(el => el.id !== diagramId);
 
     io.to(workspaceId).emit('diagram-deleted', { diagramId });
-  });
-
-  socket.on('whiteboard-clear', ({ workspaceId }) => {
-    const workspace = workspaces.get(workspaceId);
-    if (workspace) {
-      workspace.lastActivity = Date.now();
-      workspace.drawings = [];
-      workspace.allDrawings = [];
-      io.to(workspaceId).emit('whiteboard-clear');
-    }
   });
 
   socket.on('code-update', ({ workspaceId, language, content }) => {
