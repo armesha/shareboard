@@ -39,7 +39,14 @@ export function SharingProvider({ children, workspaceId }) {
     const handleSharingUpdate = (data) => {
       setSharingMode(data.sharingMode);
       setAllowedUsers(data.allowedUsers || []);
-      setIsOwner(data.isOwner || false);
+
+      // Handle the isOwner flag
+      if (data.isOwner !== undefined) {
+        setIsOwner(data.isOwner);
+      } else if (data.owner && persistentUserId) {
+        // If isOwner is not provided, but owner is, compute it ourselves
+        setIsOwner(data.owner === persistentUserId);
+      }
       
       // If currentUser isn't provided, use our persistent ID
       if (data.currentUser) {
@@ -51,8 +58,10 @@ export function SharingProvider({ children, workspaceId }) {
       console.log("Sharing info update:", {
         sharingMode: data.sharingMode,
         allowedUsers: data.allowedUsers,
-        isOwner: data.isOwner,
-        currentUser: data.currentUser || persistentUserId
+        isOwner: data.isOwner || (data.owner === persistentUserId),
+        owner: data.owner,
+        currentUser: data.currentUser || persistentUserId,
+        persistentUserId
       });
     };
 

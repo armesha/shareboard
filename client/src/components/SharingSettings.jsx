@@ -25,12 +25,22 @@ export default function SharingSettings({ workspaceId, onClose }) {
       isOwner,
       currentUser,
       sharingMode,
-      allowedUsers
+      allowedUsers,
+      persistedUserId: localStorage.getItem('shareboardUserId')
     });
   }, [isOwner, currentUser, sharingMode, allowedUsers]);
 
   useEffect(() => {
     if (!socket || !workspaceId) return;
+
+    // Force a refresh of sharing info when opened
+    const persistentUserId = localStorage.getItem('shareboardUserId');
+    if (persistentUserId) {
+      socket.emit('get-sharing-info', { 
+        workspaceId, 
+        userId: persistentUserId 
+      });
+    }
 
     const handleActiveUsersUpdate = (data) => {
       setActiveUsers(data.activeUsers || []);
@@ -72,8 +82,10 @@ export default function SharingSettings({ workspaceId, onClose }) {
   };
 
   if (!isOwner) {
+    const persistentUserId = localStorage.getItem('shareboardUserId');
+    
     return (
-      <div className="p-6 bg-white rounded-lg shadow-lg">
+      <div className="p-6 bg-white rounded-lg shadow-lg max-w-lg w-full">
         <h2 className="text-xl font-semibold mb-4">Sharing Settings</h2>
         <p className="text-gray-600">
           You don't have permission to change sharing settings.
@@ -81,18 +93,33 @@ export default function SharingSettings({ workspaceId, onClose }) {
         </p>
         <div className="mt-4 text-sm text-gray-500">
           <p>Debug info:</p>
-          <p>Is owner: {String(isOwner)}</p>
+          <p>Is owner (prop): {String(isOwner)}</p>
           <p>Current user: {currentUser}</p>
           <p>Current mode: {sharingMode}</p>
           <p>Workspace ID: {workspaceId}</p>
-          <p>Persisted user ID: {localStorage.getItem('shareboardUserId')}</p>
+          <p>Persisted user ID: {persistentUserId}</p>
+          <p>localStorage ID matches current user: {String(persistentUserId === currentUser)}</p>
         </div>
-        <button
-          onClick={onClose}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Close
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => {
+              // Force a refresh of the sharing info
+              socket.emit('get-sharing-info', { 
+                workspaceId, 
+                userId: persistentUserId 
+              });
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          >
+            Refresh permissions
+          </button>
+        </div>
       </div>
     );
   }

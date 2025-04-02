@@ -110,12 +110,14 @@ io.on('connection', (socket) => {
   userSessions.set(socket.id, currentUser);
 
   socket.on('join-workspace', ({ workspaceId, userId }) => {
-    console.log(`User ${socket.id} joining workspace ${workspaceId}`);
+    console.log(`User ${socket.id} joining workspace ${workspaceId} with userId ${userId}`);
     let workspace = workspaces.get(workspaceId);
+    let isNewWorkspace = false;
     
     if (!workspace) {
       // Create new workspace if it doesn't exist
       // First user to join becomes the owner
+      isNewWorkspace = true;
       workspace = {
         id: workspaceId,
         created: Date.now(),
@@ -130,8 +132,7 @@ io.on('connection', (socket) => {
       };
       workspaces.set(workspaceId, workspace);
       
-      // Set this user as owner since they're creating the workspace
-      currentUser.isOwner = true;
+      console.log(`Created new workspace ${workspaceId} with owner ${userId || socket.id}`);
     }
 
     // Update user information
@@ -139,11 +140,21 @@ io.on('connection', (socket) => {
     currentUser.workspaceId = workspaceId;
     
     // Check if this user is the owner
-    if (workspace.owner === currentUser.userId || workspace.owner === socket.id) {
+    const isOwner = workspace.owner === currentUser.userId;
+    currentUser.isOwner = isOwner;
+    
+    // If this is a new workspace, the first joiner is automatically the owner
+    if (isNewWorkspace) {
       currentUser.isOwner = true;
-      // Make sure the owner ID is consistently stored
       workspace.owner = currentUser.userId;
     }
+    
+    console.log(`User ${socket.id} joining workspace ${workspaceId}:`, { 
+      userId: currentUser.userId,
+      owner: workspace.owner,
+      isOwner: currentUser.isOwner,
+      isNewWorkspace
+    });
 
     if (currentWorkspace) {
       const prevWorkspaceId = Object.keys(workspaces).find(key => workspaces.get(key) === currentWorkspace);
@@ -191,8 +202,9 @@ io.on('connection', (socket) => {
     socket.emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
-      isOwner: currentUser.isOwner || false,
-      currentUser: currentUser.userId
+      isOwner: currentUser.isOwner,
+      currentUser: currentUser.userId,
+      owner: workspace.owner
     });
     
     socket.to(workspaceId).emit('user-joined', { 
@@ -217,18 +229,21 @@ io.on('connection', (socket) => {
       }
     }
     
+    const isOwner = workspace.owner === currentUser.userId;
+    
     socket.emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
-      isOwner: workspace.owner === currentUser.userId,
-      currentUser: currentUser.userId
+      isOwner: isOwner,
+      currentUser: currentUser.userId,
+      owner: workspace.owner
     });
     
     console.log("Sent sharing info for workspace", workspaceId, {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
       owner: workspace.owner,
-      isOwner: workspace.owner === currentUser.userId,
+      isOwner: isOwner,
       currentUser: currentUser.userId,
       socketId: socket.id
     });
@@ -239,8 +254,24 @@ io.on('connection', (socket) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
+    // Check if this user is the owner based on userId
+    const isOwner = workspace.owner === currentUser.userId;
+    console.log("Change sharing mode request:", {
+      workspaceId,
+      requestedBy: currentUser.userId,
+      workspaceOwner: workspace.owner,
+      isOwner,
+      sharingMode,
+      allowedUsersCount: allowedUsers?.length || 0
+    });
+    
     // Only the owner can change sharing mode
-    if (workspace.owner !== currentUser.userId) {
+    if (!isOwner) {
+      console.log("Permission denied: user is not owner", {
+        workspaceId,
+        requestedBy: currentUser.userId,
+        workspaceOwner: workspace.owner
+      });
       socket.emit('error', { message: 'Only the workspace owner can change sharing settings' });
       return;
     }
@@ -251,11 +282,20 @@ io.on('connection', (socket) => {
       workspace.allowedUsers = allowedUsers || [];
     }
     
-    // Notify all users in the workspace about the change
+    // Log the change
+    console.log("Sharing mode changed successfully", {
+      workspaceId,
+      newMode: sharingMode,
+      allowedUsers: workspace.allowedUsers
+    });
+    
+    // Notify all users in the workspace about the change but ensure the owner status is preserved
     io.to(workspaceId).emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
-      currentUser: null // Each client will fill in their own user ID
+      currentUser: null, // Each client will fill in their own user ID
+      // Important: all users need to know who the owner is to show proper UI
+      owner: workspace.owner
     });
   });
   
