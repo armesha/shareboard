@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useCodeEditor } from '../context/CodeEditorContext';
+import { useSharing } from '../context/SharingContext';
 
 const SUPPORTED_LANGUAGES = [
   'javascript',
@@ -25,7 +26,16 @@ export default function CodeEditor() {
     setIsEditing
   } = useCodeEditor();
   
+  const { canWrite } = useSharing();
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const editorRef = useRef(null);
+
+  // Update read-only state when permissions change
+  useEffect(() => {
+    const readOnly = !canWrite();
+    setIsReadOnly(readOnly);
+    console.log(`CodeEditor: Setting read-only mode to ${readOnly}`);
+  }, [canWrite]);
 
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;
@@ -37,11 +47,15 @@ export default function CodeEditor() {
   };
 
   const handleEditorChange = (value) => {
-    setContent(value);
+    if (!isReadOnly) {
+      setContent(value);
+    }
   };
 
   const handleLanguageChange = (e) => {
-    setLanguage(e.target.value);
+    if (!isReadOnly) {
+      setLanguage(e.target.value);
+    }
   };
 
   useEffect(() => {
@@ -62,6 +76,7 @@ export default function CodeEditor() {
           value={language}
           onChange={handleLanguageChange}
           className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isReadOnly}
         >
           {SUPPORTED_LANGUAGES.map(lang => (
             <option key={lang} value={lang}>
@@ -69,6 +84,11 @@ export default function CodeEditor() {
             </option>
           ))}
         </select>
+        {isReadOnly && (
+          <div className="ml-4 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+            Read-Only Mode
+          </div>
+        )}
       </div>
       <div className="flex-1 relative">
         <div className="absolute inset-0">
@@ -86,7 +106,8 @@ export default function CodeEditor() {
               automaticLayout: true,
               tabSize: 2,
               wordWrap: 'on',
-              fixedOverflowWidgets: true
+              fixedOverflowWidgets: true,
+              readOnly: isReadOnly
             }}
             theme="vs-light"
           />

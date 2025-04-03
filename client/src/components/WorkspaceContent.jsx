@@ -465,33 +465,71 @@ export default function WorkspaceContent({
     );
   };
 
-  const renderCodeSection = () => (
-    <div className="h-full flex flex-col">
-      <div className="flex border-b border-gray-200">
-        <button
-          className={`px-4 py-2 ${activeTab === 'code' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
-          onClick={() => setActiveTab('code')}
-        >
-          <ComputerIcon className="mr-2" />
-          Code Editor
-        </button>
-        <button
-          className={`px-4 py-2 ${activeTab === 'diagram' ? 'bg-white border-b-2 border-blue-500' : 'bg-gray-100'}`}
-          onClick={() => setActiveTab('diagram')}
-        >
-          <AccountTreeIcon className="mr-2" />
-          Diagram Editor
-        </button>
+  const renderCodeEditor = () => {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="border-b border-gray-200 p-2 flex justify-between items-center">
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-gray-700 mr-4">Code Editor</span>
+            {!canWrite() && (
+              <div className="ml-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+                Read-Only
+              </div>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setActiveTab('code')}
+              className={`px-3 py-1 rounded text-sm ${
+                activeTab === 'code' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Code
+            </button>
+            <button
+              onClick={() => setActiveTab('diagram')}
+              className={`px-3 py-1 rounded text-sm ${
+                activeTab === 'diagram' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Diagram
+            </button>
+          </div>
+        </div>
+        {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer workspaceId={workspaceId} />}
       </div>
-      <div className="flex-1">
-        {activeTab === 'code' ? (
-          <CodeEditor socket={socket} workspaceId={workspaceId} />
-        ) : (
-          <DiagramRenderer onAddImageToWhiteboard={handleAddImageToWhiteboard} />
-        )}
+    );
+  };
+
+  const renderDiagramEditor = () => {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="border-b border-gray-200 p-2 flex justify-between items-center">
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-gray-700 mr-4">Diagram Editor</span>
+            {!canWrite() && (
+              <div className="ml-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+                Read-Only
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleAddImageToWhiteboard}
+            className={`px-3 py-1 ${
+              canWrite() 
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            } rounded text-sm`}
+            disabled={!canWrite()}
+            title={!canWrite() ? "Read-only mode - Cannot add to whiteboard" : "Add to Whiteboard"}
+          >
+            Add to Whiteboard
+          </button>
+        </div>
+        <DiagramRenderer workspaceId={workspaceId} />
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderWhiteboardSection = () => (
     <div className="flex-1 relative">
@@ -525,7 +563,7 @@ export default function WorkspaceContent({
 
         {/* Content */}
         <div className="flex-1 h-full overflow-hidden">
-          {renderCodeSection()}
+          {renderCodeEditor()}
         </div>
 
         {/* Right resize handle */}

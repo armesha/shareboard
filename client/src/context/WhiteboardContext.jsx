@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useSocket } from './SocketContext';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
+import { useSharing } from './SharingContext';
 
 const WhiteboardContext = createContext(null);
 const WHITEBOARD_BG_COLOR = 'rgb(249, 250, 251)'; // Tailwind's bg-gray-50
@@ -23,7 +24,7 @@ export function WhiteboardProvider({ children }) {
   const socket = socketContext?.socket;
   const [elements, setElements] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
-  const [tool, setTool] = useState('pen');
+  const [tool, setTool] = useState('select');
   const [selectedShape, setSelectedShape] = useState(null);
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
@@ -33,6 +34,8 @@ export function WhiteboardProvider({ children }) {
   const canvasRef = useRef(null);
   const elementsMapRef = useRef(new Map());
   const isUpdatingRef = useRef(false);
+
+  const { canWrite } = useSharing() || { canWrite: () => true };
 
   const addElement = useCallback((element) => {
     if (!element.id) {
@@ -618,6 +621,16 @@ export function WhiteboardProvider({ children }) {
       }
     }
   }, []);
+
+  // Listen for permission changes and reset tools when permissions are revoked
+  useEffect(() => {
+    // If user can't write, force select tool
+    if (!canWrite() && (tool !== 'select' || selectedShape !== null)) {
+      console.log('Permission changed to read-only, resetting to select tool');
+      setTool('select');
+      setSelectedShape(null);
+    }
+  }, [canWrite, tool, selectedShape]);
 
   const value = {
     tool,

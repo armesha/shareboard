@@ -418,7 +418,25 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     };
   }, [addElement]);
 
+  // Add a useEffect to respond to permission changes
+  useEffect(() => {
+    // If permissions change and we're now disabled, reset to select tool
+    if (disabled && tool !== 'select') {
+      setTool('select');
+      
+      // If we have an active canvas, deselect all objects
+      const canvas = fabricCanvasRef.current;
+      if (canvas) {
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+      }
+      
+      console.log('Tools disabled due to permission change, switched to select tool');
+    }
+  }, [disabled, setTool, tool]);
+
   const handleMouseDown = useCallback((e) => {
+    // Return early if disabled 
     if (disabled) return;
     
     const canvas = fabricCanvasRef.current;

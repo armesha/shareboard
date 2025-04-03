@@ -1,134 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
-import mermaid from 'mermaid';
-import { fabric } from 'fabric';
-import { useWhiteboard } from '../context/WhiteboardContext';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
+import mermaid from 'mermaid';
 
-const SAMPLE_DIAGRAM = `graph TD
-  A[Start] --> B{Is it?}
-  B -- Yes --> C[OK]
-  B -- No --> D[End]
-`;
-
-export default function DiagramRenderer({ onAddImageToWhiteboard }) {
-  const { content, setContent, isEditing, setIsEditing } = useDiagramEditor();
-  const [svg, setSvg] = useState('');
+export default function DiagramRenderer({ workspaceId }) {
+  const { content, setContent, debouncedEmit, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
-  const { setTool, setSelectedShape } = useWhiteboard();
+  const diagramRef = useRef(null);
 
-  useEffect(() => {
-    if (!content) {
-      setContent(SAMPLE_DIAGRAM);
-    }
-  }, []);
-
+  // Initialize mermaid
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: true,
       theme: 'default',
+      logLevel: 'error',
       securityLevel: 'loose',
-      themeVariables: {
-        fontFamily: 'Arial',
-        fontSize: '16px',
-        background: 'transparent',
-        mainBkg: 'transparent',
-        nodeBkg: 'transparent',
-        clusterBkg: 'transparent'
-      }
+      flowchart: { curve: 'basis' },
+      fontFamily: 'sans-serif'
     });
   }, []);
 
+  // Render diagram whenever content changes
   useEffect(() => {
     const renderDiagram = async () => {
-      if (!content) return;
-
-      try {
-        const { svg } = await mermaid.render('diagram-' + Date.now(), content);
-        setSvg(svg);
-        setError(null);
-      } catch (error) {
-        console.error('Error rendering diagram:', error);
-        setError(error.message);
+      if (diagramRef.current) {
+        try {
+          diagramRef.current.innerHTML = '';
+          const { svg } = await mermaid.render('diagram', content);
+          diagramRef.current.innerHTML = svg;
+          setError(null);
+        } catch (err) {
+          console.error('Error rendering diagram:', err);
+          setError(err.message || 'Failed to render diagram');
+        }
       }
     };
 
     renderDiagram();
   }, [content]);
 
-  const handleAddToWhiteboard = async () => {
-    try {
-      const svgElement = document.querySelector('#diagram-preview svg');
-      if (!svgElement) return;
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      const svgRect = svgElement.getBoundingClientRect();
-      canvas.width = svgRect.width * 2;
-      canvas.height = svgRect.height * 2;
-      
-      const svgData = new XMLSerializer().serializeToString(svgElement);
-      const img = new Image();
-      img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
-      const dataUrl = canvas.toDataURL('image/png');
-      onAddImageToWhiteboard(dataUrl);
-      setTool('select');
-      setSelectedShape(null);
-    } catch (error) {
-      console.error('Error adding diagram to whiteboard:', error);
-    }
+  const handleContentChange = (e) => {
+    if (isReadOnly) return;
+    const newContent = e.target.value;
+    setContent(newContent);
+    debouncedEmit(workspaceId, newContent);
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-none p-2 border-b flex justify-between items-center">
-        <span className="text-sm font-medium text-gray-700">Mermaid Diagram Editor</span>
-        <button
-          onClick={handleAddToWhiteboard}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-        >
-          Add to Whiteboard
-        </button>
+    <div className="h-full flex flex-col bg-white overflow-hidden">
+      <div className="border-b border-gray-200 p-2 flex items-center space-x-4">
+        <h2 className="text-lg font-medium">Diagram Editor</h2>
+        {isReadOnly && (
+          <div className="ml-4 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+            Read-Only Mode
+          </div>
+        )}
       </div>
       <div className="flex-1 flex">
-        <div className="w-1/2 h-full border-r">
-          <Editor
-            height="100%"
-            defaultLanguage="markdown"
+        <div className="w-1/2 h-full border-r border-gray-200 flex flex-col">
+          <textarea
             value={content}
-            onChange={setContent}
-            onMount={() => setIsEditing(true)}
-            onBlur={() => setIsEditing(false)}
-            theme="vs-light"
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-              wordWrap: 'on',
-              padding: { top: 10 }
-            }}
+            onChange={handleContentChange}
+            className="flex-1 p-2 font-mono text-sm focus:outline-none resize-none"
+            disabled={isReadOnly}
+            placeholder={isReadOnly ? "Read-only" : "Enter diagram code here..."}
           />
+          {error && (
+            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200">
+              {error}
+            </div>
+          )}
         </div>
-        <div className="w-1/2 h-full">
-          <div className="h-full overflow-auto p-4 flex items-start justify-center" id="diagram-preview" style={{ background: 'transparent' }}>
-            {error ? (
-              <div className="text-red-500 p-4 bg-red-50 rounded">
-                <div className="font-medium">Error rendering diagram:</div>
-                <div className="mt-1">{error}</div>
-              </div>
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: svg }} />
-            )}
-          </div>
+        <div className="w-1/2 h-full p-4 overflow-auto">
+          <div ref={diagramRef} className="flex items-center justify-center h-full"></div>
         </div>
       </div>
     </div>

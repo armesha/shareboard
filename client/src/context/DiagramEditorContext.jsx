@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSocket } from './SocketContext';
+import { useSharing } from './SharingContext'; 
 import debounce from 'lodash/debounce';
 
 const DiagramEditorContext = createContext(null);
@@ -17,19 +18,28 @@ const SAMPLE_DIAGRAM = `graph TD
 export function DiagramEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
+  const { canWrite } = useSharing() || { canWrite: () => true };
   const [content, setContent] = useState(SAMPLE_DIAGRAM);
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
+  const [isReadOnly, setIsReadOnly] = useState(false);
+
+  // Update read-only state when permissions change
+  useEffect(() => {
+    const readOnly = !canWrite();
+    setIsReadOnly(readOnly);
+    console.log(`DiagramEditor: Setting read-only mode to ${readOnly}`);
+  }, [canWrite]);
 
   const emitDiagramChange = useCallback((workspaceId, newContent) => {
-    if (socket && newContent !== lastEmittedContent) {
+    if (socket && newContent !== lastEmittedContent && !isReadOnly) {
       socket.emit('diagram-update', {
         workspaceId,
         content: newContent
       });
       setLastEmittedContent(newContent);
     }
-  }, [socket, lastEmittedContent]);
+  }, [socket, lastEmittedContent, isReadOnly]);
 
   const debouncedEmit = useCallback(
     debounce((workspaceId, content) => {
@@ -78,7 +88,9 @@ export function DiagramEditorProvider({ children }) {
     content,
     setContent: updateContent,
     isEditing,
-    setIsEditing
+    setIsEditing,
+    debouncedEmit,
+    isReadOnly
   };
 
   return (
