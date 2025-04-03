@@ -9,15 +9,13 @@ export default function SharingSettings({ workspaceId, onClose }) {
     allowedUsers, 
     isOwner, 
     currentUser,
-    changePermission, 
-    addAllowedUser, 
-    removeAllowedUser 
+    changePermission 
   } = useSharing();
   
   const [activeUsers, setActiveUsers] = useState([]);
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [editLink, setEditLink] = useState('');
+  const [copySuccess, setCopySuccess] = useState('');
 
   // Debug logging
   useEffect(() => {
@@ -49,36 +47,67 @@ export default function SharingSettings({ workspaceId, onClose }) {
     socket.on('active-users-update', handleActiveUsersUpdate);
     socket.emit('get-active-users', { workspaceId });
 
+    // Only owners can access edit tokens directly
+    if (isOwner) {
+      // Request the existing edit token from the server
+      socket.emit('get-edit-token', { workspaceId }, (response) => {
+        if (response && response.editToken) {
+          // Use the existing token
+          const baseUrl = window.location.origin;
+          const path = window.location.pathname;
+          setEditLink(`${baseUrl}${path}?access=${response.editToken}`);
+          console.log("Retrieved existing edit token from server");
+        } else {
+          // Generate a new edit token only if one doesn't exist yet
+          const baseUrl = window.location.origin;
+          const path = window.location.pathname;
+          const editToken = `edit_${Math.random().toString(36).substring(2, 10)}`;
+          setEditLink(`${baseUrl}${path}?access=${editToken}`);
+          
+          // Send the new token to the server to be stored if in selected users mode
+          if (sharingMode === 'read-write-selected') {
+            socket.emit('set-edit-token', { workspaceId, editToken });
+            console.log("Generated and sent new edit token to server");
+          }
+        }
+      });
+    }
+
     return () => {
       socket.off('active-users-update', handleActiveUsersUpdate);
     };
-  }, [socket, workspaceId]);
+  }, [socket, workspaceId, sharingMode, isOwner]);
 
   const handleChangePermission = (mode) => {
-    changePermission(mode, mode === 'read-write-selected' ? allowedUsers : []);
-  };
-
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUserEmail) return;
+    if (!socket || !workspaceId) return;
     
-    setIsSubmitting(true);
-    setErrorMessage('');
-    
-    socket.emit('invite-user', { workspaceId, email: newUserEmail }, (response) => {
-      setIsSubmitting(false);
-      
-      if (response.error) {
-        setErrorMessage(response.error);
-      } else {
-        addAllowedUser(response.userId);
-        setNewUserEmail('');
+    // If switching to read-write-selected, ensure we have a token
+    if (mode === 'read-write-selected' && editLink) {
+      try {
+        const urlParams = new URLSearchParams(new URL(editLink).search);
+        const editToken = urlParams.get('access');
+        if (editToken) {
+          // Make sure token is stored on the server
+          socket.emit('set-edit-token', { workspaceId, editToken });
+          console.log("Sent token to server for read-write-selected mode:", editToken);
+        }
+      } catch (error) {
+        console.error("Error parsing edit link:", error);
       }
-    });
+    }
+    
+    // Change the permission
+    changePermission(mode);
   };
 
-  const handleRemoveUser = (userId) => {
-    removeAllowedUser(userId);
+  const copyToClipboard = (text, isEditLink = false) => {
+    navigator.clipboard.writeText(text);
+    if (isEditLink) {
+      setCopySuccess('edit');
+    } else {
+      setCopySuccess('view');
+    }
+    setTimeout(() => setCopySuccess(''), 2000);
   };
 
   if (!isOwner) {
@@ -149,7 +178,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
               checked={sharingMode === 'read-only'}
               onChange={() => handleChangePermission('read-only')}
             />
-            <span className="ml-2">Read Only - Anyone with the link can view</span>
+            <span className="ml-2">Read Only – Anyone with the link can view</span>
           </label>
           <label className="inline-flex items-center">
             <input
@@ -159,7 +188,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
               checked={sharingMode === 'read-write-all'}
               onChange={() => handleChangePermission('read-write-all')}
             />
-            <span className="ml-2">Read/Write (All) - Anyone with the link can edit</span>
+            <span className="ml-2">Read/Write (All) – Anyone with the link can edit</span>
           </label>
           <label className="inline-flex items-center">
             <input
@@ -169,83 +198,39 @@ export default function SharingSettings({ workspaceId, onClose }) {
               checked={sharingMode === 'read-write-selected'}
               onChange={() => handleChangePermission('read-write-selected')}
             />
-            <span className="ml-2">Read/Write (Selected Users) - Only specific users can edit</span>
+            <span className="ml-2">Read/Write (Selected Users) – Only users with the special edit link can edit</span>
           </label>
         </div>
       </div>
       
-      {sharingMode === 'read-write-selected' && (
-        <div className="mb-6">
-          <h3 className="text-md font-medium mb-2">Users with Edit Access</h3>
-          <div className="mb-4">
-            <form onSubmit={handleAddUser} className="flex space-x-2">
-              <input
-                type="email"
-                value={newUserEmail}
-                onChange={(e) => setNewUserEmail(e.target.value)}
-                placeholder="Enter email address"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                disabled={isSubmitting}
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
-                disabled={isSubmitting || !newUserEmail}
-              >
-                Add
-              </button>
-            </form>
-            {errorMessage && (
-              <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {allowedUsers.length > 0 ? (
-              allowedUsers.map((user) => {
-                const activeUser = activeUsers.find(u => u.id === user);
-                return (
-                  <div key={user} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <div className="flex items-center">
-                      <span className="font-medium">{activeUser?.email || user}</span>
-                      {activeUser?.online && (
-                        <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-green-500"></span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleRemoveUser(user)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-gray-500">No users with edit access</p>
-            )}
-          </div>
-        </div>
-      )}
-      
       <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-md font-medium">Workspace Link</h3>
-            <p className="text-sm text-gray-500">Share this link to grant access to others</p>
+            <p className="text-sm text-gray-500">Share this link to grant view access</p>
           </div>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              alert('Link copied to clipboard!');
-            }}
+            onClick={() => copyToClipboard(window.location.href)}
             className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
           >
-            Copy Link
+            {copySuccess === 'view' ? 'Copied!' : 'Copy Link'}
           </button>
         </div>
+        
+        {sharingMode === 'read-write-selected' && (
+          <div className="flex justify-between items-center mt-4">
+            <div>
+              <h3 className="text-md font-medium">Edit Access Link</h3>
+              <p className="text-sm text-gray-500">Share this special link to grant edit access</p>
+            </div>
+            <button
+              onClick={() => copyToClipboard(editLink, true)}
+              className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 rounded"
+            >
+              {copySuccess === 'edit' ? 'Copied!' : 'Copy Edit Link'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
