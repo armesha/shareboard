@@ -26,7 +26,29 @@ export default function DiagramRenderer({ workspaceId }) {
         try {
           diagramRef.current.innerHTML = '';
           const { svg } = await mermaid.render('diagram', content);
-          diagramRef.current.innerHTML = svg;
+          
+          // Убедимся, что SVG имеет id="diagram" и дополнительно добавим класс и атрибуты
+          let svgWithId = svg;
+          if (!svgWithId.includes('id="diagram"')) {
+            svgWithId = svg.replace('<svg ', '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" ');
+          }
+          
+          diagramRef.current.innerHTML = svgWithId;
+          
+          // Чтобы гарантировать, что у SVG есть id, найдем его и добавим id, если его всё еще нет
+          const svgElement = diagramRef.current.querySelector('svg');
+          if (svgElement) {
+            if (!svgElement.id) {
+              svgElement.id = 'diagram';
+              svgElement.classList.add('mermaid-diagram');
+            }
+            
+            // Добавляем дополнительные атрибуты для экспорта
+            svgElement.setAttribute('data-exportable', 'true');
+            svgElement.setAttribute('data-name', 'diagram');
+            svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          }
+          
           setError(null);
         } catch (err) {
           console.error('Error rendering diagram:', err);
@@ -71,7 +93,11 @@ export default function DiagramRenderer({ workspaceId }) {
           )}
         </div>
         <div className="w-1/2 h-full p-4 overflow-auto">
-          <div ref={diagramRef} className="flex items-center justify-center h-full"></div>
+          <div 
+            ref={diagramRef} 
+            className="flex items-center justify-center h-full diagram-container"
+            style={{ minHeight: '200px' }}
+          ></div>
         </div>
       </div>
     </div>

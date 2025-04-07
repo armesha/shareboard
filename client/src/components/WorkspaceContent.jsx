@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
@@ -21,6 +21,8 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ShareIcon from '@mui/icons-material/Share';
 import LockIcon from '@mui/icons-material/Lock';
 import { v4 as uuidv4 } from 'uuid';
+import { useDiagramEditor } from '../context/DiagramEditorContext';
+import mermaid from 'mermaid';
 
 export default function WorkspaceContent({ 
   workspaceId, 
@@ -51,12 +53,15 @@ export default function WorkspaceContent({
   } = useWhiteboard();
   
   const { canWrite, sharingMode, isOwner } = useSharing();
+  const { content: diagramContent } = useDiagramEditor();
   
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('code'); // 'code' or 'diagram'
   const [isConnected, setIsConnected] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [persistentUserId, setPersistentUserId] = useState(null);
+  const [showDiagramAddedNotification, setShowDiagramAddedNotification] = useState(false);
+  const diagramRef = useRef(null);
 
   // Get persistent userId from localStorage
   useEffect(() => {
@@ -68,22 +73,212 @@ export default function WorkspaceContent({
     setPersistentUserId(userId);
   }, []);
 
-  const handleAddImageToWhiteboard = useCallback((imageUrl) => {
-    console.log('Adding diagram to whiteboard:', imageUrl);
-    addElement({
-      id: uuidv4(),
-      type: 'diagram',
-      data: {
-        src: imageUrl,
-        left: 100,
-        top: 100,
-        scaleX: 0.5,
-        scaleY: 0.5,
-        angle: 0
+  const handleAddImageToWhiteboard = useCallback(async () => {
+    try {
+      console.log('Starting high quality diagram generation for whiteboard');
+      
+      // Настраиваем mermaid для генерации диаграмм высокого качества с прозрачным фоном
+      await mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'loose',
+        theme: 'default',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 16, // Увеличиваем размер шрифта для лучшей читаемости
+        flowchart: {
+          htmlLabels: true,
+          curve: 'basis',
+          diagramPadding: 8,
+          useMaxWidth: false, // Важно для сохранения качества
+          nodeSpacing: 40,
+          rankSpacing: 50,
+          rankMargin: 30,
+        },
+        themeVariables: {
+          primaryColor: '#0078D7',
+          primaryTextColor: '#333',
+          primaryBorderColor: '#0078D7',
+          lineColor: '#0078D7',
+          textColor: '#333',
+          fontSize: '16px',
+          background: 'transparent',
+          backgroundColor: 'transparent',
+          nodeBorder: '#0078D7',
+          mainBkg: 'rgba(220, 225, 255, 0.7)', // Повышаем непрозрачность узлов
+          titleColor: '#333',
+          edgeLabelBackground: 'transparent',
+          clusterBkg: 'transparent',
+          clusterBorder: '#0078D7',
+        }
+      });
+      
+      let { svg } = await mermaid.render(`diagram-${Date.now()}`, diagramContent);
+      console.log('High-quality SVG rendered successfully');
+      
+      // Модифицируем SVG для сохранения качества и улучшения прозрачности
+      svg = svg
+        // Удаляем белые фоны
+        .replace(/fill="white"/g, 'fill="rgba(240, 245, 255, 0.7)"')
+        .replace(/fill="#ffffff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
+        .replace(/fill="#fff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
+        // Улучшаем прозрачность фона
+        .replace(/<rect.*?class="background".*?\/>/g, '')
+        .replace(/style="background-color:.*?"/g, 'style="background-color:transparent"')
+        // Улучшаем внешний вид текста
+        .replace(/font-family=".*?"/g, 'font-family="Arial, sans-serif"')
+        .replace(/font-size=".*?"/g, 'font-size="16px"') 
+        // Увеличиваем толщину линий для лучшей видимости при маленьком размере
+        .replace(/stroke-width="1"/g, 'stroke-width="1.5"')
+        .replace(/stroke-width="1.2"/g, 'stroke-width="1.5"')
+        // Делаем границы узлов более заметными
+        .replace(/stroke="/g, 'stroke-width="1.5" stroke="')
+        // Добавляем тени для лучшей читаемости объектов
+        .replace(/<g class="node/g, '<g filter="url(#shadow)" class="node')
+        // Добавляем определение фильтра для мягкой тени
+        .replace(/<svg /g, '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
+      
+      // Создаем временный элемент для манипуляции с SVG
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = svg;
+      const svgElement = tempDiv.querySelector('svg');
+      
+      // Добавляем определение фильтра для тени
+      if (svgElement) {
+        // Добавляем тень, только если её ещё нет
+        if (!svgElement.querySelector('defs')) {
+          const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+          const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+          filter.setAttribute('id', 'shadow');
+          filter.setAttribute('x', '-8%');
+          filter.setAttribute('y', '-8%');
+          filter.setAttribute('width', '116%');
+          filter.setAttribute('height', '116%');
+          
+          const feDropShadow = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
+          feDropShadow.setAttribute('dx', '1');
+          feDropShadow.setAttribute('dy', '1');
+          feDropShadow.setAttribute('stdDeviation', '2');
+          feDropShadow.setAttribute('flood-opacity', '0.3');
+          feDropShadow.setAttribute('flood-color', 'rgb(0, 0, 0)');
+          
+          filter.appendChild(feDropShadow);
+          defs.appendChild(filter);
+          svgElement.insertBefore(defs, svgElement.firstChild);
+        }
+        
+        // Установить прозрачный фон
+        svgElement.style.backgroundColor = 'transparent';
+        svgElement.setAttribute('background', 'transparent');
+        
+        // Улучшаем ширину/высоту SVG элемента
+        if (!svgElement.hasAttribute('width') || !svgElement.hasAttribute('height')) {
+          const viewBox = svgElement.getAttribute('viewBox')?.split(' ');
+          if (viewBox && viewBox.length === 4) {
+            const width = parseInt(viewBox[2], 10);
+            const height = parseInt(viewBox[3], 10);
+            svgElement.setAttribute('width', width);
+            svgElement.setAttribute('height', height);
+          }
+        }
+        
+        // Получаем обновленный SVG
+        svg = tempDiv.innerHTML;
       }
-    });
-    setTool('select'); 
-  }, [addElement, setTool]);
+      
+      // Создаем SVG как изображение с прозрачностью
+      const img = new Image();
+      img.onload = () => {
+        // Создаем canvas для конвертации с высоким разрешением
+        const tempCanvas = document.createElement('canvas');
+        // Повышаем множитель размера для лучшего качества, но при этом конечная диаграмма будет меньше
+        tempCanvas.width = img.width * 2.0;
+        tempCanvas.height = img.height * 2.0;
+        const ctx = tempCanvas.getContext('2d');
+        
+        // Включаем сглаживание для лучшего качества
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Очищаем canvas до прозрачного состояния
+        ctx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Масштабированное рисование изображения на canvas
+        ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Конвертируем canvas в PNG с прозрачностью и максимальным качеством
+        // Для маленького размера важно иметь максимальную чёткость
+        const pngUrl = tempCanvas.toDataURL('image/png', 1.0);
+        console.log('Super-quality PNG created, dimensions:', tempCanvas.width, 'x', tempCanvas.height);
+        
+        // Проверяем, что изображение создано успешно, создавая предзагрузку
+        const preloadImg = new Image();
+        preloadImg.onload = () => {
+          console.log("Diagram image verified and ready to add:", preloadImg.width, "x", preloadImg.height);
+          
+          // Получаем размеры видимой области whiteboard для лучшего позиционирования
+          const container = document.querySelector('.whiteboard-container') || document.body;
+          const containerWidth = container.clientWidth || window.innerWidth;
+          const containerHeight = container.clientHeight || window.innerHeight;
+          
+          // Вычисляем оптимальный масштаб, чтобы диаграмма занимала ~15% ширины контейнера
+          const targetWidth = containerWidth * 0.15;
+          const scaleX = targetWidth / tempCanvas.width;
+          
+          // Добавляем диаграмму на доску с улучшенным масштабом
+          const newElementId = uuidv4();
+          const elementData = {
+            id: newElementId,
+            type: 'diagram',
+            data: {
+              src: pngUrl,
+              left: containerWidth / 2, // Размещаем точно в центре по горизонтали
+              top: containerHeight / 4, // Размещаем выше центра для лучшей видимости
+              // Меньший начальный масштаб, но высокое качество
+              scaleX: scaleX,
+              scaleY: scaleX, // Сохраняем пропорции
+              angle: 0,
+              isDiagram: true,
+              originalWidth: tempCanvas.width,
+              originalHeight: tempCanvas.height
+            }
+          };
+          
+          // Добавляем элемент и отправляем на сервер
+          console.log("Adding diagram with small scale but high quality:", scaleX);
+          addElement(elementData);
+          
+          // Явно отправляем данные на сервер
+          if (socket && workspaceId) {
+            console.log('Sending compact high-quality diagram to server');
+            socket.emit('whiteboard-update', {
+              workspaceId,
+              elements: [elementData]
+            });
+          }
+          
+          // Показываем уведомление о добавлении
+          setTool('select');
+          setShowDiagramAddedNotification(true);
+          setTimeout(() => setShowDiagramAddedNotification(false), 3000);
+        };
+        
+        preloadImg.onerror = (error) => {
+          console.error('Error verifying diagram image:', error);
+        };
+        
+        // Предзагружаем изображение для проверки
+        preloadImg.src = pngUrl;
+      };
+      
+      img.onerror = (error) => {
+        console.error('Error loading SVG image:', error);
+      };
+      
+      // Установка Data URL для SVG
+      img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    } catch (error) {
+      console.error('Error adding diagram to whiteboard:', error);
+    }
+  }, [addElement, setTool, diagramContent, socket, workspaceId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -300,15 +495,22 @@ export default function WorkspaceContent({
               <button
                 className={`p-2 rounded-full transition-all duration-200 ${
                   tool === 'select' ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-                }`}
+                } ${!canWrite() ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
                   setTool('select');
                   setSelectedShape(null);
                 }}
-                title="Select"
+                title={canWrite() ? "Select" : "Select (Read-Only View)"}
               >
                 <MouseIcon className={tool === 'select' ? 'text-white' : 'text-gray-700'} />
               </button>
+
+              {!canWrite() && (
+                <div className="ml-2 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded flex items-center">
+                  <LockIcon className="h-3 w-3 mr-1" />
+                  View Only
+                </div>
+              )}
 
               {/* Drawing tools - only if user can write */}
               {canWrite() && (
@@ -470,14 +672,28 @@ export default function WorkspaceContent({
       <div className="h-full flex flex-col">
         <div className="border-b border-gray-200 p-2 flex justify-between items-center">
           <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-700 mr-4">Code Editor</span>
+            <span className="text-sm font-medium text-gray-700 mr-4">
+              {activeTab === 'code' ? 'Code Editor' : 'Diagram Editor'}
+            </span>
             {!canWrite() && (
               <div className="ml-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
                 Read-Only
               </div>
             )}
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
+            {activeTab === 'diagram' && canWrite() && (
+              <button
+                onClick={handleAddImageToWhiteboard}
+                className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded-md text-sm mr-3 flex items-center shadow-md transition-all duration-200 font-medium"
+                title="Instantly add the current diagram to whiteboard (no confirmation)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add to Whiteboard
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('code')}
               className={`px-3 py-1 rounded text-sm ${
@@ -590,6 +806,16 @@ export default function WorkspaceContent({
       {renderHeader()}
       <div className="flex-1 relative bg-gray-50">
         {renderContent()}
+        
+        {/* Уведомление о добавлении диаграммы */}
+        {showDiagramAddedNotification && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Diagram added to whiteboard
+          </div>
+        )}
       </div>
     </div>
   );

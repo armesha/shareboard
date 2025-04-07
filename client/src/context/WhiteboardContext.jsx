@@ -163,61 +163,91 @@ export function WhiteboardProvider({ children }) {
           return null;
         }
         
+        console.log('Creating diagram object from source:', element.data.src.substring(0, 30) + '...');
+        
+        // Создаем простой прямоугольник-заглушку пока изображение не загрузится
         obj = new fabric.Rect({
           ...element.data,
-          fill: 'rgba(0,0,0,0)',
-          stroke: 'rgba(0,0,0,0)',
-          width: 150,
-          height: 100
+          fill: 'rgba(240, 240, 240, 0.5)',
+          stroke: '#ccc',
+          strokeDashArray: [5, 5],
+          strokeWidth: 1,
+          width: 200,
+          height: 150
         });
-
-        fabric.Image.fromURL(element.data.src, (img) => {
-          img.set({
+        
+        // Загружаем изображение напрямую, без fabric.Image.fromURL
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          console.log('Diagram image loaded successfully:', img.width, 'x', img.height);
+          
+          // Создаем fabric.Image объект из загруженного изображения
+          const fabricImage = new fabric.Image(img, {
             ...element.data,
             id: element.id,
-            data: {
-              ...element.data,
-              isDiagram: true
-            },
             left: element.data.left || 50,
             top: element.data.top || 50,
-            scaleX: element.data.scaleX ?? 1,
-            scaleY: element.data.scaleY ?? 1,
-            angle: element.data.angle ?? 0,
+            scaleX: element.data.scaleX || 0.5,
+            scaleY: element.data.scaleY || 0.5,
+            angle: element.data.angle || 0,
             selectable: true,
             hasControls: true,
             hasBorders: true,
-            evented: true,
-            lockMovementX: false,
-            lockMovementY: false,
-            hoverCursor: 'move',
-            perPixelTargetFind: false,
-            padding: 20,
-            transparentCorners: true,
-            cornerStyle: 'circle',
-            cornerSize: 8,
             cornerColor: '#2196F3',
             borderColor: '#2196F3',
-            borderOpacityWhenMoving: 0.5
+            cornerSize: 8,
+            padding: 10
           });
-
+          
+          if (!fabricImage) {
+            console.error('Failed to create fabric.Image object');
+            return;
+          }
+          
+          // Проверяем наличие холста
           const canvas = canvasRef.current;
-          if (!canvas) return;
-
-          canvas.remove(obj);
-          canvas.add(img);
-          img.bringToFront();
-          canvas.requestRenderAll();
-
-          elementsMapRef.current.set(element.id, {
-            ...element,
-            type: 'diagram',
-            data: {
-              ...element.data,
-              isDiagram: true
+          if (!canvas) {
+            console.error('Canvas not available when adding diagram');
+            return;
+          }
+          
+          try {
+            // Удаляем временную заглушку и добавляем настоящее изображение
+            const placeholderObj = canvas.getObjects().find(o => o.id === element.id);
+            if (placeholderObj) {
+              canvas.remove(placeholderObj);
             }
-          });
-        });
+            
+            // Добавляем изображение на холст
+            canvas.add(fabricImage);
+            fabricImage.bringToFront();
+            canvas.requestRenderAll();
+            console.log('Diagram successfully added to canvas with ID:', element.id);
+            
+            // Обновляем запись в элементах
+            elementsMapRef.current.set(element.id, {
+              ...element,
+              type: 'diagram',
+              data: {
+                ...element.data,
+                isDiagram: true,
+                width: img.width,
+                height: img.height
+              }
+            });
+          } catch (renderError) {
+            console.error('Error rendering diagram to canvas:', renderError);
+          }
+        };
+        
+        img.onerror = (error) => {
+          console.error('Error loading diagram image:', error, element.data.src.substring(0, 30) + '...');
+        };
+        
+        // Установка источника изображения
+        img.src = element.data.src;
         break;
       default:
         console.warn('Unknown shape type:', element.type);
@@ -252,7 +282,40 @@ export function WhiteboardProvider({ children }) {
       serverElements.forEach(element => {
         if (!element || !element.id) return;
 
-        // Check if object exists on canvas
+        // Специальная обработка для диаграмм
+        if (element.type === 'diagram') {
+          console.log('Processing diagram element update:', element.id);
+          
+          // Проверяем, существует ли объект на холсте
+          const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
+          
+          if (existingObject) {
+            // Если объект существует, обновляем его свойства
+            console.log('Updating existing diagram', element.id);
+            existingObject.set({
+              left: element.data.left || existingObject.left,
+              top: element.data.top || existingObject.top,
+              scaleX: element.data.scaleX || existingObject.scaleX,
+              scaleY: element.data.scaleY || existingObject.scaleY,
+              angle: element.data.angle || existingObject.angle
+            });
+            existingObject.setCoords();
+          } else {
+            // Если объекта нет, создаем новый
+            console.log('Creating new diagram object', element.id);
+            const newObject = createFabricObject(element);
+            if (newObject) {
+              canvas.add(newObject);
+              newObject.setCoords();
+            }
+          }
+          
+          // Обновляем запись в карте элементов
+          elementsMapRef.current.set(element.id, element);
+          return; // Переходим к следующему элементу
+        }
+        
+        // Обработка других типов элементов (не диаграмм)
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
@@ -444,8 +507,30 @@ export function WhiteboardProvider({ children }) {
         console.log('Adding whiteboardElements to canvas:', state.whiteboardElements.length);
         isUpdatingRef.current = true;
         try {
-          state.whiteboardElements.forEach(element => {
+          // Обрабатываем сначала не-диаграммы, а затем диаграммы
+          // Это гарантирует, что диаграммы будут над другими элементами
+          
+          // 1. Обрабатываем все элементы, кроме диаграмм
+          const regularElements = state.whiteboardElements.filter(el => el.type !== 'diagram');
+          const diagramElements = state.whiteboardElements.filter(el => el.type === 'diagram');
+          
+          console.log(`Processing ${regularElements.length} regular elements and ${diagramElements.length} diagrams`);
+          
+          // Обрабатываем обычные элементы
+          regularElements.forEach(element => {
             if (element && element.id) {
+              const obj = createFabricObject(element);
+              if (obj) {
+                canvas.add(obj);
+                elementsMapRef.current.set(element.id, element);
+              }
+            }
+          });
+          
+          // Обрабатываем диаграммы
+          diagramElements.forEach(element => {
+            if (element && element.id) {
+              console.log('Processing diagram from state:', element.id);
               const obj = createFabricObject(element);
               if (obj) {
                 canvas.add(obj);
@@ -455,20 +540,14 @@ export function WhiteboardProvider({ children }) {
           });
 
           canvas.getObjects().forEach(obj => {
-            if (obj.type === 'text') {
-              obj.set({
-                selectable: true,
-                hasControls: true,
-                hasBorders: true,
-                evented: true
-              });
-            } else {
-              obj.set({
-                selectable: tool === 'select' || tool === 'text' || tool === 'shapes',
-                hasControls: tool === 'select' || tool === 'text' || tool === 'shapes',
-                hasBorders: tool === 'select' || tool === 'text' || tool === 'shapes'
-              });
-            }
+            const isSelectable = tool === 'select' && canWrite();
+            
+            obj.set({
+              selectable: isSelectable,
+              hasControls: isSelectable,
+              hasBorders: isSelectable,
+              evented: isSelectable
+            });
           });
 
           canvas.requestRenderAll();
@@ -571,28 +650,31 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const canDraw = !isLoading && isConnected;
+    const userCanDraw = !isLoading && isConnected && canWrite();
     
-    canvas.selection = false;  // Always disable multiple selection
+    canvas.selection = userCanDraw && (tool === 'select');  // Enable selection only if user can write
 
     const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
       const isInteractive = interactiveTypes.includes(obj.type);
-      const isSelectable = canDraw && (tool === 'select' || tool === 'text' || tool === 'shapes') && isInteractive;
+      const isSelectable = userCanDraw && (tool === 'select' || tool === 'text' || tool === 'shapes') && isInteractive;
 
       obj.set({
         selectable: isSelectable,
         hasControls: isSelectable,
         hasBorders: isSelectable,
-        evented: isInteractive,
+        evented: isSelectable, // Only allow events if selectable
         lockMovementX: !isSelectable,
-        lockMovementY: !isSelectable
+        lockMovementY: !isSelectable,
+        lockRotation: !isSelectable,
+        lockScalingX: !isSelectable,
+        lockScalingY: !isSelectable
       });
     });
 
-    canvas.skipTargetFind = (tool !== 'select');
+    canvas.skipTargetFind = !userCanDraw || (tool !== 'select');
     canvas.requestRenderAll();
-  }, [tool, isLoading, isConnected, elements]);
+  }, [tool, isLoading, isConnected, elements, canWrite]);
 
   // Создаем отдельную функцию для обработки изменения цвета
   const handleColorChange = useCallback((newColor) => {

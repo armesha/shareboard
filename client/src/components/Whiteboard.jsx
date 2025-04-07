@@ -54,8 +54,8 @@ const Whiteboard = React.memo(({ disabled = false }) => {
 
     try {
       const shouldBeDrawing = tool === 'pen';
-      // Только в режиме 'select' объекты должны быть выделяемыми
-      const shouldBeSelection = tool === 'select';
+      // В режиме 'select' объекты должны быть выделяемыми, НО не в режиме disabled
+      const shouldBeSelection = tool === 'select' && !disabled;
       const isShapesMode = tool === 'shapes';
       const isTextMode = tool === 'text';
 
@@ -65,7 +65,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
         needRerender = true;
       }
 
-      // Update selection mode - только в режиме select разрешаем выделение
+      // Update selection mode - только в режиме select и не disabled разрешаем выделение
       if (canvas.selection !== shouldBeSelection) {
         canvas.selection = shouldBeSelection;
         needRerender = true;
@@ -89,10 +89,10 @@ const Whiteboard = React.memo(({ disabled = false }) => {
       canvas.getObjects().forEach(obj => {
         const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path'];
         const isInteractive = isInteractiveTypes.includes(obj.type);
-        // Только в режиме 'select' объекты должны быть выделяемыми
-        const shouldBeSelectable = shouldBeSelection && isInteractive;
-        // В режиме text разрешаем взаимодействие только с текстовыми объектами
-        const shouldBeEvented = shouldBeSelection || (isTextMode && (obj.type === 'text' || obj.type === 'i-text'));
+        // В режиме 'select' объекты должны быть выделяемыми, НО не в режиме disabled
+        const shouldBeSelectable = shouldBeSelection && isInteractive && !disabled;
+        // В режиме text разрешаем взаимодействие только с текстовыми объектами, НО не в режиме disabled
+        const shouldBeEvented = (shouldBeSelection || (isTextMode && (obj.type === 'text' || obj.type === 'i-text'))) && !disabled;
 
         const currentProps = {
           selectable: obj.selectable,
@@ -137,6 +137,16 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectModification = (e) => {
+      // Если в режиме только для чтения, отменяем модификацию
+      if (disabled) {
+        // Отменяем все изменения
+        if (e.target && e.target.originalState) {
+          e.target.set(e.target.originalState);
+          canvas.renderAll();
+        }
+        return;
+      }
+    
       const obj = e.target;
       if (!obj || !obj.id || isUpdatingRef.current) return;
 
@@ -222,8 +232,8 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectMoving = (e) => {
-      // Если мы не в режиме select, отменяем перемещение объекта
-      if (tool !== 'select') {
+      // Если в режиме чтения или не в режиме select, отменяем перемещение объекта
+      if (disabled || tool !== 'select') {
         if (e.target.originalState) {
           e.target.set({
             left: e.target.originalState.left,
@@ -254,7 +264,15 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     };
 
     const handleMouseDown = (e) => {
-      if (disabled) return;
+      if (disabled) {
+        // В режиме чтения отменяем все событие
+        canvas.selection = false;
+        if (e.target) {
+          e.target.selectable = false;
+          e.target.evented = false;
+        }
+        return;
+      }
       
       if (e.target) {
         e.target.originalState = {
@@ -385,13 +403,25 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectMoving = (e) => {
+      // Если в режиме чтения, отменяем перемещение
+      if (disabled) {
+        if (e.target && e.target.originalState) {
+          e.target.set({
+            left: e.target.originalState.left,
+            top: e.target.originalState.top
+          });
+          canvas.renderAll();
+        }
+        return;
+      }
+      
       const obj = e.target;
       if (!obj || !obj.id) return;
 
       if (obj.movementTimeout) {
         clearTimeout(obj.movementTimeout);
       }
-
+      
       obj.movementTimeout = setTimeout(() => {
         const data = {
           ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
@@ -769,8 +799,29 @@ const Whiteboard = React.memo(({ disabled = false }) => {
 
   return (
     <>
-      <div className={disabled ? 'cursor-not-allowed' : ''}>
-        <canvas ref={canvasRef} style={{ pointerEvents: disabled ? 'none' : 'auto' }} />
+      <div className={`relative ${disabled ? 'cursor-not-allowed' : ''}`}>
+        <canvas 
+          ref={canvasRef} 
+          style={{ 
+            pointerEvents: disabled ? 'none' : 'auto', 
+            userSelect: disabled ? 'none' : 'auto'
+          }} 
+        />
+        {disabled && (
+          <>
+            <div 
+              className="absolute inset-0 bg-transparent z-10" 
+              title="Read-only mode"
+            />
+            <div className="absolute bottom-4 right-4 z-20 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-md shadow-md border border-yellow-200 flex items-center opacity-70">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Only Mode
+            </div>
+          </>
+        )}
       </div>
       <TextInputModal
         isOpen={isTextModalOpen}
