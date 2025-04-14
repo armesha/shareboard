@@ -63,7 +63,6 @@ export default function WorkspaceContent({
   const [showDiagramAddedNotification, setShowDiagramAddedNotification] = useState(false);
   const diagramRef = useRef(null);
 
-  // Get persistent userId from localStorage
   useEffect(() => {
     let userId = localStorage.getItem('shareboardUserId');
     if (!userId) {
@@ -77,18 +76,17 @@ export default function WorkspaceContent({
     try {
       console.log('Starting high quality diagram generation for whiteboard');
       
-      // Настраиваем mermaid для генерации диаграмм высокого качества с прозрачным фоном
       await mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'loose',
         theme: 'default',
         fontFamily: 'Arial, sans-serif',
-        fontSize: 16, // Увеличиваем размер шрифта для лучшей читаемости
+        fontSize: 16,
         flowchart: {
           htmlLabels: true,
           curve: 'basis',
           diagramPadding: 8,
-          useMaxWidth: false, // Важно для сохранения качества
+          useMaxWidth: false,
           nodeSpacing: 40,
           rankSpacing: 50,
           rankMargin: 30,
@@ -103,7 +101,7 @@ export default function WorkspaceContent({
           background: 'transparent',
           backgroundColor: 'transparent',
           nodeBorder: '#0078D7',
-          mainBkg: 'rgba(220, 225, 255, 0.7)', // Повышаем непрозрачность узлов
+          mainBkg: 'rgba(220, 225, 255, 0.7)',
           titleColor: '#333',
           edgeLabelBackground: 'transparent',
           clusterBkg: 'transparent',
@@ -114,36 +112,25 @@ export default function WorkspaceContent({
       let { svg } = await mermaid.render(`diagram-${Date.now()}`, diagramContent);
       console.log('High-quality SVG rendered successfully');
       
-      // Модифицируем SVG для сохранения качества и улучшения прозрачности
       svg = svg
-        // Удаляем белые фоны
         .replace(/fill="white"/g, 'fill="rgba(240, 245, 255, 0.7)"')
         .replace(/fill="#ffffff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
         .replace(/fill="#fff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
-        // Улучшаем прозрачность фона
         .replace(/<rect.*?class="background".*?\/>/g, '')
         .replace(/style="background-color:.*?"/g, 'style="background-color:transparent"')
-        // Улучшаем внешний вид текста
         .replace(/font-family=".*?"/g, 'font-family="Arial, sans-serif"')
         .replace(/font-size=".*?"/g, 'font-size="16px"') 
-        // Увеличиваем толщину линий для лучшей видимости при маленьком размере
         .replace(/stroke-width="1"/g, 'stroke-width="1.5"')
         .replace(/stroke-width="1.2"/g, 'stroke-width="1.5"')
-        // Делаем границы узлов более заметными
         .replace(/stroke="/g, 'stroke-width="1.5" stroke="')
-        // Добавляем тени для лучшей читаемости объектов
         .replace(/<g class="node/g, '<g filter="url(#shadow)" class="node')
-        // Добавляем определение фильтра для мягкой тени
         .replace(/<svg /g, '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
       
-      // Создаем временный элемент для манипуляции с SVG
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = svg;
       const svgElement = tempDiv.querySelector('svg');
       
-      // Добавляем определение фильтра для тени
       if (svgElement) {
-        // Добавляем тень, только если её ещё нет
         if (!svgElement.querySelector('defs')) {
           const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
           const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -165,11 +152,9 @@ export default function WorkspaceContent({
           svgElement.insertBefore(defs, svgElement.firstChild);
         }
         
-        // Установить прозрачный фон
         svgElement.style.backgroundColor = 'transparent';
         svgElement.setAttribute('background', 'transparent');
         
-        // Улучшаем ширину/высоту SVG элемента
         if (!svgElement.hasAttribute('width') || !svgElement.hasAttribute('height')) {
           const viewBox = svgElement.getAttribute('viewBox')?.split(' ');
           if (viewBox && viewBox.length === 4) {
@@ -180,61 +165,47 @@ export default function WorkspaceContent({
           }
         }
         
-        // Получаем обновленный SVG
         svg = tempDiv.innerHTML;
       }
       
-      // Создаем SVG как изображение с прозрачностью
       const img = new Image();
       img.onload = () => {
-        // Создаем canvas для конвертации с высоким разрешением
         const tempCanvas = document.createElement('canvas');
-        // Повышаем множитель размера для лучшего качества, но при этом конечная диаграмма будет меньше
         tempCanvas.width = img.width * 2.0;
         tempCanvas.height = img.height * 2.0;
         const ctx = tempCanvas.getContext('2d');
         
-        // Включаем сглаживание для лучшего качества
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
-        // Очищаем canvas до прозрачного состояния
         ctx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         
-        // Масштабированное рисование изображения на canvas
         ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
         
-        // Конвертируем canvas в PNG с прозрачностью и максимальным качеством
-        // Для маленького размера важно иметь максимальную чёткость
         const pngUrl = tempCanvas.toDataURL('image/png', 1.0);
         console.log('Super-quality PNG created, dimensions:', tempCanvas.width, 'x', tempCanvas.height);
         
-        // Проверяем, что изображение создано успешно, создавая предзагрузку
         const preloadImg = new Image();
         preloadImg.onload = () => {
           console.log("Diagram image verified and ready to add:", preloadImg.width, "x", preloadImg.height);
           
-          // Получаем размеры видимой области whiteboard для лучшего позиционирования
           const container = document.querySelector('.whiteboard-container') || document.body;
           const containerWidth = container.clientWidth || window.innerWidth;
           const containerHeight = container.clientHeight || window.innerHeight;
           
-          // Вычисляем оптимальный масштаб, чтобы диаграмма занимала ~15% ширины контейнера
           const targetWidth = containerWidth * 0.15;
           const scaleX = targetWidth / tempCanvas.width;
           
-          // Добавляем диаграмму на доску с улучшенным масштабом
           const newElementId = uuidv4();
           const elementData = {
             id: newElementId,
             type: 'diagram',
             data: {
               src: pngUrl,
-              left: containerWidth / 2, // Размещаем точно в центре по горизонтали
-              top: containerHeight / 4, // Размещаем выше центра для лучшей видимости
-              // Меньший начальный масштаб, но высокое качество
+              left: containerWidth / 2, 
+              top: containerHeight / 4,
               scaleX: scaleX,
-              scaleY: scaleX, // Сохраняем пропорции
+              scaleY: scaleX, 
               angle: 0,
               isDiagram: true,
               originalWidth: tempCanvas.width,
@@ -242,11 +213,9 @@ export default function WorkspaceContent({
             }
           };
           
-          // Добавляем элемент и отправляем на сервер
           console.log("Adding diagram with small scale but high quality:", scaleX);
           addElement(elementData);
           
-          // Явно отправляем данные на сервер
           if (socket && workspaceId) {
             console.log('Sending compact high-quality diagram to server');
             socket.emit('whiteboard-update', {
@@ -255,7 +224,6 @@ export default function WorkspaceContent({
             });
           }
           
-          // Показываем уведомление о добавлении
           setTool('select');
           setShowDiagramAddedNotification(true);
           setTimeout(() => setShowDiagramAddedNotification(false), 3000);
@@ -265,7 +233,6 @@ export default function WorkspaceContent({
           console.error('Error verifying diagram image:', error);
         };
         
-        // Предзагружаем изображение для проверки
         preloadImg.src = pngUrl;
       };
       
@@ -273,7 +240,6 @@ export default function WorkspaceContent({
         console.error('Error loading SVG image:', error);
       };
       
-      // Установка Data URL для SVG
       img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     } catch (error) {
       console.error('Error adding diagram to whiteboard:', error);
@@ -455,7 +421,7 @@ export default function WorkspaceContent({
                 </div>
               )}
 
-              {/* Color Picker - only show if user can write */}
+              {}
               {canWrite() && (
                 <div className="flex items-center space-x-2 border-r pr-3">
                   <div className="flex flex-wrap gap-1 max-w-40">
@@ -622,7 +588,7 @@ export default function WorkspaceContent({
                 <ShareIcon className={`text-${isOwner ? 'blue' : 'gray'}-500`} />
               </button>
               
-              {/* More Options Dropdown - only if user can write */}
+              {}
               {canWrite() && (
                 <div className="relative">
                   <button
@@ -637,7 +603,7 @@ export default function WorkspaceContent({
                   
                   {showOptionsMenu && (
                     <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 w-48">
-                      {/* Add other options here if needed */}
+                      {}
                       <button
                         className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
                         onClick={() => {
@@ -807,7 +773,7 @@ export default function WorkspaceContent({
       <div className="flex-1 relative bg-gray-50">
         {renderContent()}
         
-        {/* Уведомление о добавлении диаграммы */}
+        {}
         {showDiagramAddedNotification && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

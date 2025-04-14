@@ -7,7 +7,6 @@ export default function DiagramRenderer({ workspaceId }) {
   const [error, setError] = useState(null);
   const diagramRef = useRef(null);
 
-  // Initialize mermaid
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: true,
@@ -19,7 +18,6 @@ export default function DiagramRenderer({ workspaceId }) {
     });
   }, []);
 
-  // Render diagram whenever content changes
   useEffect(() => {
     const renderDiagram = async () => {
       if (diagramRef.current) {
@@ -27,7 +25,6 @@ export default function DiagramRenderer({ workspaceId }) {
           diagramRef.current.innerHTML = '';
           const { svg } = await mermaid.render('diagram', content);
           
-          // Убедимся, что SVG имеет id="diagram" и дополнительно добавим класс и атрибуты
           let svgWithId = svg;
           if (!svgWithId.includes('id="diagram"')) {
             svgWithId = svg.replace('<svg ', '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" ');
@@ -35,7 +32,6 @@ export default function DiagramRenderer({ workspaceId }) {
           
           diagramRef.current.innerHTML = svgWithId;
           
-          // Чтобы гарантировать, что у SVG есть id, найдем его и добавим id, если его всё еще нет
           const svgElement = diagramRef.current.querySelector('svg');
           if (svgElement) {
             if (!svgElement.id) {
@@ -43,7 +39,6 @@ export default function DiagramRenderer({ workspaceId }) {
               svgElement.classList.add('mermaid-diagram');
             }
             
-            // Добавляем дополнительные атрибуты для экспорта
             svgElement.setAttribute('data-exportable', 'true');
             svgElement.setAttribute('data-name', 'diagram');
             svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');

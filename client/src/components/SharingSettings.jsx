@@ -17,7 +17,6 @@ export default function SharingSettings({ workspaceId, onClose }) {
   const [editLink, setEditLink] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
 
-  // Debug logging
   useEffect(() => {
     console.log("SharingSettings component state:", {
       isOwner,
@@ -31,7 +30,6 @@ export default function SharingSettings({ workspaceId, onClose }) {
   useEffect(() => {
     if (!socket || !workspaceId) return;
 
-    // Force a refresh of sharing info when opened
     const persistentUserId = localStorage.getItem('shareboardUserId');
     if (persistentUserId) {
       socket.emit('get-sharing-info', { 
@@ -47,24 +45,19 @@ export default function SharingSettings({ workspaceId, onClose }) {
     socket.on('active-users-update', handleActiveUsersUpdate);
     socket.emit('get-active-users', { workspaceId });
 
-    // Only owners can access edit tokens directly
     if (isOwner) {
-      // Request the existing edit token from the server
       socket.emit('get-edit-token', { workspaceId }, (response) => {
         if (response && response.editToken) {
-          // Use the existing token
           const baseUrl = window.location.origin;
           const path = window.location.pathname;
           setEditLink(`${baseUrl}${path}?access=${response.editToken}`);
           console.log("Retrieved existing edit token from server");
         } else {
-          // Generate a new edit token only if one doesn't exist yet
           const baseUrl = window.location.origin;
           const path = window.location.pathname;
           const editToken = `edit_${Math.random().toString(36).substring(2, 10)}`;
           setEditLink(`${baseUrl}${path}?access=${editToken}`);
           
-          // Send the new token to the server to be stored if in selected users mode
           if (sharingMode === 'read-write-selected') {
             socket.emit('set-edit-token', { workspaceId, editToken });
             console.log("Generated and sent new edit token to server");
@@ -81,13 +74,11 @@ export default function SharingSettings({ workspaceId, onClose }) {
   const handleChangePermission = (mode) => {
     if (!socket || !workspaceId) return;
     
-    // If switching to read-write-selected, ensure we have a token
     if (mode === 'read-write-selected' && editLink) {
       try {
         const urlParams = new URLSearchParams(new URL(editLink).search);
         const editToken = urlParams.get('access');
         if (editToken) {
-          // Make sure token is stored on the server
           socket.emit('set-edit-token', { workspaceId, editToken });
           console.log("Sent token to server for read-write-selected mode:", editToken);
         }
@@ -96,7 +87,6 @@ export default function SharingSettings({ workspaceId, onClose }) {
       }
     }
     
-    // Change the permission
     changePermission(mode);
   };
 
@@ -138,7 +128,6 @@ export default function SharingSettings({ workspaceId, onClose }) {
           </button>
           <button
             onClick={() => {
-              // Force a refresh of the sharing info
               socket.emit('get-sharing-info', { 
                 workspaceId, 
                 userId: persistentUserId 

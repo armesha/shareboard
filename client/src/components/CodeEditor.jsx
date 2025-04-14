@@ -30,7 +30,6 @@ export default function CodeEditor() {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const editorRef = useRef(null);
 
-  // Update read-only state when permissions change
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);

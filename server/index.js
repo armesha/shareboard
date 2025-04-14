@@ -68,10 +68,9 @@ app.post('/api/workspaces', (req, res) => {
     drawings: [],
     allDrawings: [],
     drawingHistory: [],
-    // Add sharing configuration
     owner: userId,
-    sharingMode: 'read-write-all', // Default sharing mode
-    allowedUsers: [] // Users with edit permission when in selective mode
+    sharingMode: 'read-write-all',
+    allowedUsers: [] 
   });
   
   res.json({ workspaceId });
@@ -115,8 +114,6 @@ io.on('connection', (socket) => {
     let isNewWorkspace = false;
     
     if (!workspace) {
-      // Create new workspace if it doesn't exist
-      // First user to join becomes the owner
       isNewWorkspace = true;
       workspace = {
         id: workspaceId,
@@ -129,45 +126,37 @@ io.on('connection', (socket) => {
         owner: userId || socket.id,
         sharingMode: 'read-write-all',
         allowedUsers: [],
-        editToken: null // Initialize edit token
+        editToken: null 
       };
       workspaces.set(workspaceId, workspace);
       
       console.log(`Created new workspace ${workspaceId} with owner ${userId || socket.id}`);
     }
 
-    // Update user information
     currentUser.userId = userId || socket.id;
     currentUser.workspaceId = workspaceId;
-    currentUser.hasEditAccess = false; // Reset edit access 
+    currentUser.hasEditAccess = false; 
     
-    // Check if this user is the owner
     const isOwner = workspace.owner === currentUser.userId;
     currentUser.isOwner = isOwner;
     
-    // If this is a new workspace, the first joiner is automatically the owner
     if (isNewWorkspace) {
       currentUser.isOwner = true;
       workspace.owner = currentUser.userId;
     }
     
-    // Check for edit access
     if (currentUser.isOwner) {
-      // Owner always has edit access
       currentUser.hasEditAccess = true;
     } 
     else if (workspace.sharingMode === 'read-write-all') {
-      // In read-write-all mode, everyone has edit access
       currentUser.hasEditAccess = true;
     }
     else if (workspace.sharingMode === 'read-write-selected' && 
              accessToken && workspace.editToken && accessToken === workspace.editToken) {
-      // In read-write-selected mode, check if the user has a valid edit token
       currentUser.hasEditAccess = true;
       console.log(`User ${currentUser.userId} granted edit access via token`);
     }
     
-    // Store the first edit token if needed
     if (accessToken && accessToken.startsWith('edit_') && !workspace.editToken) {
       workspace.editToken = accessToken;
       console.log(`Set first edit token for workspace ${workspaceId}: ${accessToken}`);
@@ -230,7 +219,6 @@ io.on('connection', (socket) => {
 
     socket.emit('workspace-state', initialState);
     
-    // Send sharing info immediately after joining
     socket.emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
@@ -247,34 +235,26 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle sharing info requests
   socket.on('get-sharing-info', ({ workspaceId, userId, accessToken }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
-    // Update the userId if it's provided in the request
     if (userId) {
       currentUser.userId = userId;
-      // Check if this is the owner
       if (workspace.owner === userId) {
         currentUser.isOwner = true;
-        // Ensure owner ID is consistent
         workspace.owner = userId;
       }
     }
     
-    // Check for edit access via token
     let hasEditAccess = false;
     
-    // Owners always have edit access
     if (workspace.owner === currentUser.userId) {
       hasEditAccess = true;
     }
-    // In read-write-all mode, everyone has edit access
     else if (workspace.sharingMode === 'read-write-all') {
       hasEditAccess = true;
     }
-    // In read-write-selected mode, check the token
     else if (workspace.sharingMode === 'read-write-selected') {
       if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
         hasEditAccess = true;
@@ -282,7 +262,6 @@ io.on('connection', (socket) => {
       }
     }
     
-    // Store the token if it's valid and we don't have one yet
     if (accessToken && accessToken.startsWith('edit_') && !workspace.editToken) {
       workspace.editToken = accessToken;
       console.log(`Stored first edit token for workspace ${workspaceId}: ${accessToken}`);
@@ -315,12 +294,10 @@ io.on('connection', (socket) => {
     });
   });
   
-  // Handle changes to sharing mode
   socket.on('change-sharing-mode', ({ workspaceId, sharingMode }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
-    // Check if this user is the owner based on userId
     const isOwner = workspace.owner === currentUser.userId;
     console.log("Change sharing mode request:", {
       workspaceId,
@@ -332,7 +309,6 @@ io.on('connection', (socket) => {
       currentEditToken: workspace.editToken || "none"
     });
     
-    // Only the owner can change sharing mode
     if (!isOwner) {
       console.log("Permission denied: user is not owner", {
         workspaceId,
@@ -345,15 +321,12 @@ io.on('connection', (socket) => {
     
     workspace.sharingMode = sharingMode;
     
-    // Determine edit access based on new mode
     let hasEditAccess = isOwner;
     
-    // In read-write-all, everyone has edit access
     if (sharingMode === 'read-write-all') {
       hasEditAccess = true;
     }
     
-    // Preserve the existing edit token or generate a new one if needed
     if (sharingMode === 'read-write-selected') {
       if (!workspace.editToken) {
         workspace.editToken = `edit_${Math.random().toString(36).substring(2, 10)}`;
@@ -363,24 +336,21 @@ io.on('connection', (socket) => {
       }
     }
     
-    // Log the change
     console.log("Sharing mode changed successfully", {
       workspaceId,
       newMode: sharingMode,
       editToken: workspace.editToken || "none"
     });
     
-    // Notify all users in the workspace about the change
     io.to(workspaceId).emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
-      currentUser: null, // Each client will fill in their own user ID
+      currentUser: null,
       owner: workspace.owner,
       editToken: workspace.editToken
     });
   });
   
-  // Get list of active users
   socket.on('get-active-users', ({ workspaceId }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
@@ -402,7 +372,6 @@ io.on('connection', (socket) => {
     socket.emit('active-users-update', { activeUsers: users });
   });
   
-  // Invite a user to the workspace
   socket.on('invite-user', ({ workspaceId, email }, callback) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) {
@@ -410,19 +379,15 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // In a real app, you would send an invitation email
-    // For this demo, we'll simulate creating a user from the email
     const userId = email.toLowerCase().replace(/[^a-z0-9]/g, '-');
     
     callback({ userId });
   });
 
-  // When modifying whiteboard, check if the user has permission
   socket.on('whiteboard-update', ({ workspaceId, elements }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace || !Array.isArray(elements)) return;
     
-    // Check if user has write permission
     const canWrite = workspace.sharingMode === 'read-write-all' || 
                    workspace.owner === currentUser.userId ||
                    (workspace.sharingMode === 'read-write-selected' && currentUser.hasEditAccess);
@@ -434,10 +399,8 @@ io.on('connection', (socket) => {
 
     workspace.lastActivity = Date.now();
     
-    // Create a map of current drawings for efficient lookup
     const existingDrawings = new Map(workspace.drawings.map(d => [d.id, d]));
     
-    // Keep track of deleted elements to prevent them from reappearing
     const deletedElements = new Set(
       workspace.allDrawings
         .filter(d => !workspace.drawings.some(current => current.id === d.id))
@@ -450,7 +413,6 @@ io.on('connection', (socket) => {
       deletedElements: Array.from(deletedElements)
     });
     
-    // Process each incoming element
     elements.forEach(element => {
       if (element && element.id && !deletedElements.has(element.id)) {
         const newElement = {
@@ -460,11 +422,9 @@ io.on('connection', (socket) => {
         
         existingDrawings.set(element.id, newElement);
         
-        // Update allDrawings if it's a new element
         if (!workspace.allDrawings.some(e => e.id === element.id)) {
           workspace.allDrawings.push(newElement);
         } else {
-          // Update existing element in allDrawings
           const index = workspace.allDrawings.findIndex(e => e.id === element.id);
           if (index !== -1) {
             workspace.allDrawings[index] = newElement;
@@ -474,21 +434,17 @@ io.on('connection', (socket) => {
         console.log(`Skipping deleted element ${element.id}`);
       }
     });
-    
-    // Update workspace drawings
+  
     workspace.drawings = Array.from(existingDrawings.values())
       .filter(drawing => !deletedElements.has(drawing.id));
     
-    // Broadcast to all clients in the room EXCEPT the sender
     socket.to(workspaceId).emit('whiteboard-update', elements);
   });
 
-  // For whiteboard-clear method, add similar permission checks
   socket.on('whiteboard-clear', ({ workspaceId }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
-    // Check if user has write permission
     const canWrite = workspace.sharingMode === 'read-write-all' || 
                    workspace.owner === currentUser.userId ||
                    (workspace.sharingMode === 'read-write-selected' && currentUser.hasEditAccess);
@@ -542,15 +498,12 @@ io.on('connection', (socket) => {
 
     workspace.lastActivity = Date.now();
     
-    // Remove from all arrays
     workspace.drawings = workspace.drawings.filter(el => el.id !== elementId);
     workspace.drawingHistory = workspace.drawingHistory.filter(el => el.id !== elementId);
     workspace.allDrawings = workspace.allDrawings.filter(el => el.id !== elementId);
     
-    // Use io.to instead of socket.to to ensure ALL clients receive the event
     io.to(workspaceId).emit('delete-element', { workspaceId, elementId });
     
-    // After deletion, broadcast the current state to ensure everyone is in sync
     io.to(workspaceId).emit('whiteboard-update', workspace.drawings);
   });
 
@@ -589,7 +542,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Get the edit token for a workspace
   socket.on('get-edit-token', ({ workspaceId }, callback) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) {
@@ -597,7 +549,6 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Only the owner can get the token
     if (workspace.owner !== currentUser.userId && !currentUser.isOwner) {
       if (callback) callback({ error: 'Permission denied' });
       return;
@@ -613,23 +564,19 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Set the edit token for a workspace
   socket.on('set-edit-token', ({ workspaceId, editToken }) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
-    // Only the owner can set the token
     if (workspace.owner !== currentUser.userId && !currentUser.isOwner) {
       console.log(`Permission denied: User ${currentUser.userId} attempted to set edit token but is not owner`);
       return;
     }
     
-    // Only set the token if it's valid
     if (editToken && editToken.startsWith('edit_')) {
       workspace.editToken = editToken;
       console.log(`Set edit token for workspace ${workspaceId}: ${editToken}`);
       
-      // Broadcast to all users in the workspace that there's a new edit token
       io.to(workspaceId).emit('edit-token-updated', { 
         editToken: workspace.editToken
       });

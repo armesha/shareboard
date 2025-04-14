@@ -15,7 +15,6 @@ import { WhiteboardProvider } from './context/WhiteboardContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Create router with future flags to avoid warnings
 const router = createBrowserRouter(
   [
     {
@@ -32,7 +31,6 @@ const router = createBrowserRouter(
     }
   ],
   {
-    // Apply future flags to avoid warnings
     future: {
       v7_startTransition: true,
       v7_relativeSplatPath: true

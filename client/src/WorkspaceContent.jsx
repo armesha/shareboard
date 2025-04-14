@@ -15,11 +15,9 @@ const WorkspaceContent = () => {
   }, []);
 
   const addElement = (elementData) => {
-    // Implementation of addElement function
   };
 
   const setTool = (tool) => {
-    // Implementation of setTool function
   };
 
   const handleDiagramUpload = (event) => {
@@ -28,7 +26,6 @@ const WorkspaceContent = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target.result;
-        // Добавляем диаграмму на доску после проверки изображения
         const newElementId = uuidv4();
         const elementData = {
           id: newElementId,
@@ -46,7 +43,6 @@ const WorkspaceContent = () => {
         
         addElement(elementData);
         
-        // Явно отправляем данные на сервер для надежности
         const workspaceId = window.location.pathname.split('/')[2];
         if (socket && workspaceId) {
           console.log('Explicitly sending diagram to server');

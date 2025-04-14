@@ -48,13 +48,11 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
-    // Update local state
     elementsMapRef.current.set(element.id, elementWithProps);
     
     const updatedElements = Array.from(elementsMapRef.current.values());
     setElements(updatedElements);
     
-    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending new element to server:', elementWithProps);
@@ -64,7 +62,6 @@ export function WhiteboardProvider({ children }) {
       });
     }
 
-    // Immediately create and add diagram objects to canvas
     if (elementWithProps.type === 'diagram') {
       const canvas = canvasRef.current;
       if (canvas && !canvas.getObjects().some(o => o.id === elementWithProps.id)) {
@@ -99,13 +96,11 @@ export function WhiteboardProvider({ children }) {
       evented: tool === 'select'
     };
 
-    // Update local state
     elementsMapRef.current.set(id, elementWithProps);
     
     const updatedElements = Array.from(elementsMapRef.current.values());
     setElements(updatedElements);
 
-    // Send to server
     const workspaceId = window.location.pathname.split('/')[2];
     if (workspaceId && socket && !isUpdatingRef.current) {
       console.log('Sending updated element to server:', elementWithProps);
@@ -165,7 +160,6 @@ export function WhiteboardProvider({ children }) {
         
         console.log('Creating diagram object from source:', element.data.src.substring(0, 30) + '...');
         
-        // Создаем простой прямоугольник-заглушку пока изображение не загрузится
         obj = new fabric.Rect({
           ...element.data,
           fill: 'rgba(240, 240, 240, 0.5)',
@@ -176,14 +170,12 @@ export function WhiteboardProvider({ children }) {
           height: 150
         });
         
-        // Загружаем изображение напрямую, без fabric.Image.fromURL
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
           console.log('Diagram image loaded successfully:', img.width, 'x', img.height);
           
-          // Создаем fabric.Image объект из загруженного изображения
           const fabricImage = new fabric.Image(img, {
             ...element.data,
             id: element.id,
@@ -206,7 +198,6 @@ export function WhiteboardProvider({ children }) {
             return;
           }
           
-          // Проверяем наличие холста
           const canvas = canvasRef.current;
           if (!canvas) {
             console.error('Canvas not available when adding diagram');
@@ -214,19 +205,16 @@ export function WhiteboardProvider({ children }) {
           }
           
           try {
-            // Удаляем временную заглушку и добавляем настоящее изображение
             const placeholderObj = canvas.getObjects().find(o => o.id === element.id);
             if (placeholderObj) {
               canvas.remove(placeholderObj);
             }
             
-            // Добавляем изображение на холст
             canvas.add(fabricImage);
             fabricImage.bringToFront();
             canvas.requestRenderAll();
             console.log('Diagram successfully added to canvas with ID:', element.id);
             
-            // Обновляем запись в элементах
             elementsMapRef.current.set(element.id, {
               ...element,
               type: 'diagram',
@@ -246,7 +234,6 @@ export function WhiteboardProvider({ children }) {
           console.error('Error loading diagram image:', error, element.data.src.substring(0, 30) + '...');
         };
         
-        // Установка источника изображения
         img.src = element.data.src;
         break;
       default:
@@ -275,22 +262,17 @@ export function WhiteboardProvider({ children }) {
     canvas.suspendDrawing = true;
 
     try {
-      // 1) Create a Set of IDs from the new server elements
       const newIds = new Set(serverElements.map(e => e.id));
 
-      // 2) Process each element from the server
       serverElements.forEach(element => {
         if (!element || !element.id) return;
 
-        // Специальная обработка для диаграмм
         if (element.type === 'diagram') {
           console.log('Processing diagram element update:', element.id);
           
-          // Проверяем, существует ли объект на холсте
           const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
           
           if (existingObject) {
-            // Если объект существует, обновляем его свойства
             console.log('Updating existing diagram', element.id);
             existingObject.set({
               left: element.data.left || existingObject.left,
@@ -301,7 +283,6 @@ export function WhiteboardProvider({ children }) {
             });
             existingObject.setCoords();
           } else {
-            // Если объекта нет, создаем новый
             console.log('Creating new diagram object', element.id);
             const newObject = createFabricObject(element);
             if (newObject) {
@@ -310,16 +291,13 @@ export function WhiteboardProvider({ children }) {
             }
           }
           
-          // Обновляем запись в карте элементов
           elementsMapRef.current.set(element.id, element);
-          return; // Переходим к следующему элементу
+          return;
         }
         
-        // Обработка других типов элементов (не диаграмм)
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
-          // Update existing object with new properties
           const data = element.data || {};
           Object.keys(data).forEach(key => {
             if (existingObject[key] !== data[key]) {
@@ -328,7 +306,6 @@ export function WhiteboardProvider({ children }) {
           });
           existingObject.setCoords();
         } else {
-          // Create new object
           const newObject = createFabricObject(element);
           if (newObject) {
             canvas.add(newObject);
@@ -336,11 +313,8 @@ export function WhiteboardProvider({ children }) {
           }
         }
 
-        // Update elements map
         elementsMapRef.current.set(element.id, element);
       });
-
-      // 3) Update React state to match the Map
       const updatedElements = Array.from(elementsMapRef.current.values());
       setElements(updatedElements);
       
@@ -361,7 +335,6 @@ export function WhiteboardProvider({ children }) {
       isDrawingMode: tool === 'pen'
     });
 
-    // Initialize brush
     const brush = new fabric.PencilBrush(canvas);
     brush.color = color;
     brush.width = width;
@@ -370,17 +343,13 @@ export function WhiteboardProvider({ children }) {
     canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
-
-    // Handle path creation
     const handlePathCreated = (e) => {
       const path = e.path;
       if (!path.id) {
         path.id = uuidv4();
       }
-      // Save ALL path properties
       const data = path.toObject(FABRIC_OBJECT_PROPS);
       
-      // Make sure stroke and width are set
       data.stroke = data.stroke || color;
       data.strokeWidth = data.strokeWidth || width;
       data.strokeLineCap = 'round';
@@ -392,14 +361,11 @@ export function WhiteboardProvider({ children }) {
         data: data
       };
 
-      // Add to local state and broadcast
       addElement(element);
       
-      // Update local map immediately
       elementsMapRef.current.set(path.id, element);
     };
 
-    // Handle object modifications
     const handleObjectModified = (e) => {
       const obj = e.target;
       if (!obj || !obj.id || isUpdatingRef.current) return;
@@ -411,20 +377,16 @@ export function WhiteboardProvider({ children }) {
         data: data
       };
 
-      // Update element and broadcast
       updateElement(obj.id, element);
       
-      // Update local map immediately
       elementsMapRef.current.set(obj.id, element);
     };
 
-    // Set up event listeners
     canvas.on('path:created', handlePathCreated);
     canvas.on('object:modified', handleObjectModified);
     canvas.on('object:moving', handleObjectModified);
     canvas.on('text:changed', handleObjectModified);
 
-    // Handle window resize
     const handleResize = () => {
       canvas.setDimensions({
         width: window.innerWidth,
@@ -435,7 +397,6 @@ export function WhiteboardProvider({ children }) {
 
     window.addEventListener('resize', handleResize);
 
-    // Cleanup function
     return () => {
       window.removeEventListener('resize', handleResize);
       canvas.off('path:created', handlePathCreated);
@@ -446,7 +407,6 @@ export function WhiteboardProvider({ children }) {
     };
   }, [tool, color, width, addElement, updateElement]);
 
-  // Update brush when color or width changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas?.freeDrawingBrush) return;
@@ -507,16 +467,11 @@ export function WhiteboardProvider({ children }) {
         console.log('Adding whiteboardElements to canvas:', state.whiteboardElements.length);
         isUpdatingRef.current = true;
         try {
-          // Обрабатываем сначала не-диаграммы, а затем диаграммы
-          // Это гарантирует, что диаграммы будут над другими элементами
-          
-          // 1. Обрабатываем все элементы, кроме диаграмм
           const regularElements = state.whiteboardElements.filter(el => el.type !== 'diagram');
           const diagramElements = state.whiteboardElements.filter(el => el.type === 'diagram');
           
           console.log(`Processing ${regularElements.length} regular elements and ${diagramElements.length} diagrams`);
           
-          // Обрабатываем обычные элементы
           regularElements.forEach(element => {
             if (element && element.id) {
               const obj = createFabricObject(element);
@@ -527,7 +482,6 @@ export function WhiteboardProvider({ children }) {
             }
           });
           
-          // Обрабатываем диаграммы
           diagramElements.forEach(element => {
             if (element && element.id) {
               console.log('Processing diagram from state:', element.id);
@@ -602,10 +556,8 @@ export function WhiteboardProvider({ children }) {
       
       console.log('Elements after deletion:', updatedElements);
 
-      // Ensure the canvas is properly updated
       canvas.requestRenderAll();
 
-      // Double-check that the element is really gone
       const stillExists = canvas.getObjects().some(o => o.id === elementId);
       if (stillExists) {
         console.warn(`Warning: Object ${elementId} still exists on canvas after deletion!`);
@@ -676,9 +628,7 @@ export function WhiteboardProvider({ children }) {
     canvas.requestRenderAll();
   }, [tool, isLoading, isConnected, elements, canWrite]);
 
-  // Создаем отдельную функцию для обработки изменения цвета
   const handleColorChange = useCallback((newColor) => {
-    // Сохраняем текущее состояние холста
     const canvas = canvasRef.current;
     let canvasState = null;
     
@@ -686,14 +636,11 @@ export function WhiteboardProvider({ children }) {
       canvasState = JSON.stringify(canvas);
     }
     
-    // Устанавливаем новый цвет
     setColor(newColor);
     
-    // Обновляем цвет для кисти, если холст существует
     if (canvas && canvas.freeDrawingBrush) {
       canvas.freeDrawingBrush.color = newColor;
       
-      // Восстанавливаем состояние холста, если оно было сохранено
       if (canvasState) {
         setTimeout(() => {
           canvas.loadFromJSON(canvasState, () => {
@@ -704,9 +651,7 @@ export function WhiteboardProvider({ children }) {
     }
   }, []);
 
-  // Listen for permission changes and reset tools when permissions are revoked
   useEffect(() => {
-    // If user can't write, force select tool
     if (!canWrite() && (tool !== 'select' || selectedShape !== null)) {
       console.log('Permission changed to read-only, resetting to select tool');
       setTool('select');
@@ -732,7 +677,7 @@ export function WhiteboardProvider({ children }) {
     updateElement,
     setTool,
     setSelectedShape,
-    setColor: handleColorChange, // Используем нашу новую функцию
+    setColor: handleColorChange,
     setWidth
   };
 

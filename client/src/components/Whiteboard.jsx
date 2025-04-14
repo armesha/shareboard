@@ -24,27 +24,23 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     setTool, 
     setColor, 
     setWidth,
-    elements // Added elements to the destructured context
+    elements 
   } = useWhiteboard();
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [editingText, setEditingText] = useState(null);
   const isUpdatingRef = useRef(false);
 
-  // Add ref to track previous tool
   const previousToolRef = useRef(tool);
   const previousColorRef = useRef(color);
   const previousWidthRef = useRef(width);
 
-  // Single canvas initialization
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Create canvas only once during mount
     const cleanup = initCanvas(canvasRef.current);
     return cleanup;
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
-  // Tool switching effect
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -54,24 +50,20 @@ const Whiteboard = React.memo(({ disabled = false }) => {
 
     try {
       const shouldBeDrawing = tool === 'pen';
-      // В режиме 'select' объекты должны быть выделяемыми, НО не в режиме disabled
       const shouldBeSelection = tool === 'select' && !disabled;
       const isShapesMode = tool === 'shapes';
       const isTextMode = tool === 'text';
 
-      // Update drawing mode
       if (canvas.isDrawingMode !== shouldBeDrawing) {
         canvas.isDrawingMode = shouldBeDrawing;
         needRerender = true;
       }
 
-      // Update selection mode - только в режиме select и не disabled разрешаем выделение
       if (canvas.selection !== shouldBeSelection) {
         canvas.selection = shouldBeSelection;
         needRerender = true;
       }
 
-      // Update brush properties if in drawing mode
       if (shouldBeDrawing && canvas.freeDrawingBrush) {
         if (canvas.freeDrawingBrush.color !== color) {
           canvas.freeDrawingBrush.color = color;
@@ -85,13 +77,10 @@ const Whiteboard = React.memo(({ disabled = false }) => {
         canvas.freeDrawingBrush.strokeLineJoin = 'round';
       }
 
-      // Update object properties
       canvas.getObjects().forEach(obj => {
         const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path'];
         const isInteractive = isInteractiveTypes.includes(obj.type);
-        // В режиме 'select' объекты должны быть выделяемыми, НО не в режиме disabled
         const shouldBeSelectable = shouldBeSelection && isInteractive && !disabled;
-        // В режиме text разрешаем взаимодействие только с текстовыми объектами, НО не в режиме disabled
         const shouldBeEvented = (shouldBeSelection || (isTextMode && (obj.type === 'text' || obj.type === 'i-text'))) && !disabled;
 
         const currentProps = {
@@ -118,7 +107,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
           lockScalingY: !shouldBeSelectable
         };
 
-        // Only update if properties actually changed
         if (JSON.stringify(currentProps) !== JSON.stringify(newProps)) {
           obj.set(newProps);
           needRerender = true;
@@ -137,9 +125,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectModification = (e) => {
-      // Если в режиме только для чтения, отменяем модификацию
       if (disabled) {
-        // Отменяем все изменения
         if (e.target && e.target.originalState) {
           e.target.set(e.target.originalState);
           canvas.renderAll();
@@ -150,7 +136,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
       const obj = e.target;
       if (!obj || !obj.id || isUpdatingRef.current) return;
 
-      // Use a single timeout for all modification events
       if (obj.modificationTimeout) {
         clearTimeout(obj.modificationTimeout);
       }
@@ -187,13 +172,11 @@ const Whiteboard = React.memo(({ disabled = false }) => {
               hasBorders: true
             };
 
-            // For text objects, we want to both update and potentially add new elements
             updateElement(obj.id, { type: 'text', data });
             if (e.transform?.action === 'drag' || e.transform?.action === 'scale') {
               addElement({ id: obj.id, type: 'text', data });
             }
           } else {
-            // Сохраняем все данные объекта, включая масштаб
             const data = {
               ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']),
               stroke: obj.stroke,
@@ -210,10 +193,9 @@ const Whiteboard = React.memo(({ disabled = false }) => {
           canvas.suspendDrawing = false;
           canvas.requestRenderAll();
         }
-      }, 50); // 50ms debounce for all modifications
+      }, 50);
     };
 
-    // Single handler for all modification events
     canvas.on('object:modified', handleObjectModification);
     canvas.on('object:moving', handleObjectModification);
     canvas.on('object:scaling', handleObjectModification);
@@ -232,7 +214,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectMoving = (e) => {
-      // Если в режиме чтения или не в режиме select, отменяем перемещение объекта
       if (disabled || tool !== 'select') {
         if (e.target.originalState) {
           e.target.set({
@@ -248,7 +229,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
       const boundingRect = canvas.calcViewportBoundaries();
       const objBoundingRect = obj.getBoundingRect();
       
-      // Ограничиваем перемещение объекта в пределах холста
       if (objBoundingRect.left < boundingRect.tl.x) {
         obj.left = boundingRect.tl.x;
       }
@@ -265,7 +245,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
 
     const handleMouseDown = (e) => {
       if (disabled) {
-        // В режиме чтения отменяем все событие
         canvas.selection = false;
         if (e.target) {
           e.target.selectable = false;
@@ -334,7 +313,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     const handleScaling = (e) => {
       const object = e.target;
       if (object.strokeWidth) {
-        // Только обновляем координаты во время масштабирования
         object.setCoords();
       }
     };
@@ -343,8 +321,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     canvas.on('object:modified', (e) => {
       const object = e.target;
       if (object.strokeWidth) {
-        // При модификации объекта не изменяем толщину линии
-        // Это позволит сохранять одну и ту же толщину линии независимо от масштаба
         object.setCoords();
         canvas.requestRenderAll();
       }
@@ -403,7 +379,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     if (!canvas) return;
 
     const handleObjectMoving = (e) => {
-      // Если в режиме чтения, отменяем перемещение
       if (disabled) {
         if (e.target && e.target.originalState) {
           e.target.set({
@@ -438,7 +413,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
           type: obj.type || 'text',
           data: data
         });
-      }, 50); // 50ms debounce
+      }, 50);
     };
 
     canvas.on('object:moving', handleObjectMoving);
@@ -448,13 +423,10 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     };
   }, [addElement]);
 
-  // Add a useEffect to respond to permission changes
   useEffect(() => {
-    // If permissions change and we're now disabled, reset to select tool
     if (disabled && tool !== 'select') {
       setTool('select');
       
-      // If we have an active canvas, deselect all objects
       const canvas = fabricCanvasRef.current;
       if (canvas) {
         canvas.discardActiveObject();
@@ -466,7 +438,6 @@ const Whiteboard = React.memo(({ disabled = false }) => {
   }, [disabled, setTool, tool]);
 
   const handleMouseDown = useCallback((e) => {
-    // Return early if disabled 
     if (disabled) return;
     
     const canvas = fabricCanvasRef.current;
@@ -474,15 +445,11 @@ const Whiteboard = React.memo(({ disabled = false }) => {
 
     if (e.e.button !== 0) return;
 
-    // В режиме text, если нажали на текстовый объект, позволяем его редактировать
     if (tool === 'text' && e.target && (e.target.type === 'text' || e.target.type === 'i-text')) {
-      // Разрешаем редактирование текста
       return;
     }
 
-    // В режиме shapes игнорируем клики по существующим объектам
     if (tool === 'shapes' && selectedShape && e.target) {
-      // Если нажали на объект, игнорируем это событие
       return;
     }
 
@@ -505,8 +472,8 @@ const Whiteboard = React.memo(({ disabled = false }) => {
         fill: 'transparent',
         stroke: color,
         strokeWidth: width,
-        selectable: false, // Фигура не выделяемая в режиме рисования
-        evented: false,    // Фигура не реагирует на события мыши в режиме рисования
+        selectable: false, 
+        evented: false,    
         hasControls: false,
         hasBorders: false,
         lockMovementX: true,
@@ -610,7 +577,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
           break;
       }
 
-      shape.setCoords(); // Add setCoords() after updating shape properties
+      shape.setCoords();
       canvas.renderAll();
     }
   }, [selectedShape, fabricCanvasRef, disabled]);
@@ -625,9 +592,8 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     
     if (currentShape.current) {
       const shape = currentShape.current;
-      shape.setCoords(); // Add setCoords() before adding the element
+      shape.setCoords();
       
-      // После завершения рисования фигуры, добавляем её в элементы
       addElement({
         id: shape.id,
         type: shape.type,
@@ -636,10 +602,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
         }
       });
       
-      // Убираем автоматическое переключение в режим select
-      // setTool('select');
       
-      // Очищаем текущую фигуру
       currentShape.current = null;
     }
 

@@ -16,7 +16,6 @@ export function SocketProvider({ children }) {
   const [userId, setUserId] = useState(null);
   const maxReconnectAttempts = 5;
 
-  // Get or create a persistent user ID
   useEffect(() => {
     let persistentUserId = localStorage.getItem('shareboardUserId');
     if (!persistentUserId) {
@@ -54,7 +53,6 @@ export function SocketProvider({ children }) {
         setConnectionStatus('connected');
         setSocket(socketInstance);
         
-        // Show connection success message to user
         toast.success('Connected to server successfully!', {
           position: 'bottom-right',
           autoClose: 3000
@@ -79,7 +77,6 @@ export function SocketProvider({ children }) {
             console.error('Max reconnection attempts reached. Please check server status.');
             socketInstance.disconnect();
             
-            // Show critical error to user
             toast.error(`Failed to connect to server after ${maxReconnectAttempts} attempts. Please check your internet connection or try again later.`, {
               position: 'bottom-right',
               autoClose: false,
@@ -87,7 +84,6 @@ export function SocketProvider({ children }) {
               draggable: true
             });
           } else {
-            // Show warning for each attempt
             toast.warning(`Connection error: ${error.message}. Retrying... (${newAttempts}/${maxReconnectAttempts})`, {
               position: 'bottom-right',
               autoClose: 5000
@@ -102,14 +98,12 @@ export function SocketProvider({ children }) {
         setConnectionStatus('disconnected');
         setSocket(null);
         
-        // Notify user of disconnection
         toast.info('Disconnected from server. Attempting to reconnect...', {
           position: 'bottom-right',
           autoClose: 5000
         });
       });
 
-      // Handle other socket errors
       socketInstance.on('error', (error) => {
         console.error('Socket error:', error);
         setConnectionError(error.message || 'Unknown socket error');

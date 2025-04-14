@@ -24,7 +24,6 @@ export function DiagramEditorProvider({ children }) {
   const [lastEmittedContent, setLastEmittedContent] = useState('');
   const [isReadOnly, setIsReadOnly] = useState(false);
 
-  // Update read-only state when permissions change
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);

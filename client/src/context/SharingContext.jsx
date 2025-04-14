@@ -16,7 +16,6 @@ export function SharingProvider({ children, workspaceId }) {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [hasEditAccess, setHasEditAccess] = useState(false);
   
-  // Get persistent userId and check for access token in URL
   useEffect(() => {
     let userId = localStorage.getItem('shareboardUserId');
     if (!userId) {
@@ -26,12 +25,10 @@ export function SharingProvider({ children, workspaceId }) {
     setPersistentUserId(userId);
     setCurrentUser(userId);
     
-    // Check URL for access token
     const urlParams = new URLSearchParams(window.location.search);
     const accessToken = urlParams.get('access');
     
     if (accessToken) {
-      // Store access token in localStorage so it persists across refreshes
       localStorage.setItem(`accessToken_${workspaceId}`, accessToken);
     }
     
@@ -42,10 +39,8 @@ export function SharingProvider({ children, workspaceId }) {
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
 
-    // Get access token from localStorage if available
     const accessToken = localStorage.getItem(`accessToken_${workspaceId}`);
 
-    // Request workspace sharing info on connection
     const handleConnect = () => {
       console.log(`Requesting sharing info with token: ${accessToken}`);
       socket.emit('get-sharing-info', { 
@@ -55,38 +50,30 @@ export function SharingProvider({ children, workspaceId }) {
       });
     };
 
-    // Listen for sharing updates
     const handleSharingUpdate = (data) => {
       setSharingMode(data.sharingMode || 'read-write-all');
       setAllowedUsers(data.allowedUsers || []);
       
-      // Update edit access flag
       if (data.hasEditAccess !== undefined) {
         setHasEditAccess(data.hasEditAccess);
       } else if (data.sharingMode === 'read-write-all') {
-        // In read-write-all mode, everyone has edit access
         setHasEditAccess(true);
       } else if (data.sharingMode === 'read-only') {
-        // In read-only mode, only the owner has edit access
         setHasEditAccess(data.isOwner || (data.owner === persistentUserId));
       }
 
-      // Handle the isOwner flag
       if (data.isOwner !== undefined) {
         setIsOwner(data.isOwner);
       } else if (data.owner && persistentUserId) {
-        // If isOwner is not provided, but owner is, compute it ourselves
         setIsOwner(data.owner === persistentUserId);
       }
       
-      // If currentUser isn't provided, use our persistent ID
       if (data.currentUser) {
         setCurrentUser(data.currentUser);
       } else if (persistentUserId) {
         setCurrentUser(persistentUserId);
       }
       
-      // Save the edit token if provided
       if (data.editToken) {
         localStorage.setItem(`editToken_${workspaceId}`, data.editToken);
       }
@@ -103,7 +90,6 @@ export function SharingProvider({ children, workspaceId }) {
       });
     };
 
-    // Handle edit token updates
     const handleEditTokenUpdate = (data) => {
       if (data.editToken) {
         localStorage.setItem(`editToken_${workspaceId}`, data.editToken);
@@ -123,7 +109,6 @@ export function SharingProvider({ children, workspaceId }) {
       });
     }
 
-    // Join with access token if available
     if (socket.connected) {
       socket.emit('join-workspace', {
         workspaceId,
@@ -142,10 +127,8 @@ export function SharingProvider({ children, workspaceId }) {
   const changePermission = (mode) => {
     if (!socket || !workspaceId) return;
     
-    // Update UI immediately for better responsiveness
     setSharingMode(mode);
     
-    // Update hasEditAccess based on the new mode
     if (mode === 'read-write-all') {
       setHasEditAccess(true);
     } else if (mode === 'read-only') {
@@ -185,17 +168,14 @@ export function SharingProvider({ children, workspaceId }) {
   };
 
   const canWrite = () => {
-    // Always allow the owner to write
     if (isOwner) return true;
     
-    // Allow write access based on access mode
     switch (sharingMode) {
       case 'read-write-all':
         return true;
       case 'read-only':
         return false;
       case 'read-write-selected':
-        // Allow if user has a valid edit token
         return hasEditAccess;
       default:
         return false;
