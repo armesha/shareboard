@@ -582,6 +582,33 @@ io.on('connection', (socket) => {
       });
     }
   });
+
+  socket.on('end-session', ({ workspaceId }) => {
+    const workspace = workspaces.get(workspaceId);
+    if (!workspace) return;
+    
+    if (workspace.owner !== currentUser.userId && !currentUser.isOwner) {
+      console.log(`Permission denied: User ${currentUser.userId} attempted to end session but is not owner`);
+      socket.emit('error', { message: 'Only the workspace owner can end the session' });
+      return;
+    }
+    
+    console.log(`Session ended by owner for workspace ${workspaceId}`);
+    
+    io.to(workspaceId).emit('session-ended', { 
+      message: 'The workspace owner has ended this session'
+    });
+    
+    const connections = activeConnections.get(workspaceId);
+    if (connections) {
+      for (const socketId of connections) {
+        const clientSocket = io.sockets.sockets.get(socketId);
+        if (clientSocket && clientSocket.id !== socket.id) {
+          clientSocket.leave(workspaceId);
+        }
+      }
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
@@ -7,6 +7,7 @@ import { DiagramEditorProvider } from '../context/DiagramEditorContext';
 import { SharingProvider } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
+import { toast } from 'react-toastify';
 
 function WorkspaceLayout() {
   const { workspaceId } = useParams();
@@ -24,6 +25,7 @@ function WorkspaceLayout() {
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
+  const navigate = useNavigate();
   
   // Get persistent userId from localStorage
   useEffect(() => {
@@ -135,6 +137,20 @@ function WorkspaceLayout() {
       console.error('Workspace error:', error);
       setStatus('error');
     });
+    
+    socket.on('session-ended', (data) => {
+      toast.info(data.message, {
+        position: 'top-center',
+        autoClose: 5000,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
+      
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 2000);
+    });
 
     if (socket.connected) {
       socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
@@ -145,8 +161,9 @@ function WorkspaceLayout() {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('error');
+      socket.off('session-ended');
     };
-  }, [socket, workspaceId, persistentUserId, setStatus]);
+  }, [socket, workspaceId, persistentUserId, setStatus, navigate]);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100">

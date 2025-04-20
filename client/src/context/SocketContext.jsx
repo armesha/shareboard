@@ -104,6 +104,21 @@ export function SocketProvider({ children }) {
         });
       });
 
+      socketInstance.on('session-ended', (data) => {
+        console.log('Session ended by owner:', data);
+        
+        toast.warning(data.message || 'The session has been ended by the owner', {
+          position: 'bottom-right',
+          autoClose: false,
+          closeOnClick: false,
+          draggable: true
+        });
+        
+        setTimeout(() => {
+          window.location.href = 'http://localhost:5173/';
+        }, 3000);
+      });
+
       socketInstance.on('error', (error) => {
         console.error('Socket error:', error);
         setConnectionError(error.message || 'Unknown socket error');
@@ -123,6 +138,11 @@ export function SocketProvider({ children }) {
     return () => {
       if (socket) {
         socket.disconnect();
+        socket.off('connect');
+        socket.off('connect_error');
+        socket.off('disconnect');
+        socket.off('error');
+        socket.off('session-ended');
       }
     };
   }, [initializeSocket]);
