@@ -190,7 +190,16 @@ export function WhiteboardProvider({ children }) {
             cornerColor: '#2196F3',
             borderColor: '#2196F3',
             cornerSize: 8,
-            padding: 10
+            padding: 10,
+            lockMovementX: false,
+            lockMovementY: false,
+            lockRotation: false,
+            lockScalingX: false,
+            lockScalingY: false,
+            data: {
+              ...element.data,
+              isDiagram: true
+            }
           });
           
           if (!fabricImage) {

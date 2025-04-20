@@ -226,20 +226,51 @@ const Whiteboard = React.memo(({ disabled = false }) => {
       }
 
       const obj = e.target;
+      
+      // Special handling for diagram objects to ensure they're always movable
+      if (obj.type === 'image' && obj.data?.isDiagram) {
+        obj.lockMovementX = false;
+        obj.lockMovementY = false;
+        obj.selectable = true;
+        obj.evented = true;
+      }
+      
       const boundingRect = canvas.calcViewportBoundaries();
       const objBoundingRect = obj.getBoundingRect();
       
-      if (objBoundingRect.left < boundingRect.tl.x) {
-        obj.left = boundingRect.tl.x;
+      // Add a larger buffer (20px) away from the edges to prevent sticking
+      const buffer = 20;
+      
+      let needsUpdate = false;
+      
+      // Instead of placing exactly at boundary + buffer, keep a distance from the edge
+      if (objBoundingRect.left < boundingRect.tl.x + buffer) {
+        obj.left += (boundingRect.tl.x + buffer - objBoundingRect.left);
+        needsUpdate = true;
       }
-      if (objBoundingRect.top < boundingRect.tl.y) {
-        obj.top = boundingRect.tl.y;
+      
+      if (objBoundingRect.top < boundingRect.tl.y + buffer) {
+        obj.top += (boundingRect.tl.y + buffer - objBoundingRect.top);
+        needsUpdate = true;
       }
-      if (objBoundingRect.left + objBoundingRect.width > boundingRect.br.x) {
-        obj.left = boundingRect.br.x - objBoundingRect.width;
+      
+      if (objBoundingRect.left + objBoundingRect.width > boundingRect.br.x - buffer) {
+        obj.left -= (objBoundingRect.left + objBoundingRect.width - (boundingRect.br.x - buffer));
+        needsUpdate = true;
       }
-      if (objBoundingRect.top + objBoundingRect.height > boundingRect.br.y) {
-        obj.top = boundingRect.br.y - objBoundingRect.height;
+      
+      if (objBoundingRect.top + objBoundingRect.height > boundingRect.br.y - buffer) {
+        obj.top -= (objBoundingRect.top + objBoundingRect.height - (boundingRect.br.y - buffer));
+        needsUpdate = true;
+      }
+      
+      // Ensure the object is still selectable and movable after constraint
+      obj.selectable = true;
+      obj.evented = true;
+      
+      if (needsUpdate) {
+        obj.setCoords();
+        canvas.renderAll();
       }
     };
 
@@ -759,6 +790,168 @@ const Whiteboard = React.memo(({ disabled = false }) => {
     clickPosition.current = null;
     setTool('select');
   };
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleDiagramMovement = (e) => {
+      const obj = e.target;
+      
+      // Only handle diagram objects
+      if (!obj || !obj.id || !(obj.type === 'image' && obj.data?.isDiagram)) return;
+      
+      // Add special handling for diagrams to prevent sticking
+      setTimeout(() => {
+        // Get canvas boundaries
+        const boundingRect = canvas.calcViewportBoundaries();
+        const objBoundingRect = obj.getBoundingRect();
+        
+        // Check if the object is too close to any edge
+        const buffer = 20;
+        let needsAdjustment = false;
+        
+        if (objBoundingRect.left < boundingRect.tl.x + buffer) {
+          obj.left = boundingRect.tl.x + buffer + 5;
+          needsAdjustment = true;
+        }
+        
+        if (objBoundingRect.top < boundingRect.tl.y + buffer) {
+          obj.top = boundingRect.tl.y + buffer + 5;
+          needsAdjustment = true;
+        }
+        
+        if (objBoundingRect.left + objBoundingRect.width > boundingRect.br.x - buffer) {
+          obj.left = boundingRect.br.x - objBoundingRect.width - buffer - 5;
+          needsAdjustment = true;
+        }
+        
+        if (objBoundingRect.top + objBoundingRect.height > boundingRect.br.y - buffer) {
+          obj.top = boundingRect.br.y - objBoundingRect.height - buffer - 5;
+          needsAdjustment = true;
+        }
+        
+        // Force all movement properties to be enabled
+        obj.lockMovementX = false;
+        obj.lockMovementY = false;
+        obj.selectable = true;
+        obj.evented = true;
+        
+        // Refresh object coordinates and render
+        obj.setCoords();
+        if (needsAdjustment) {
+          canvas.renderAll();
+        }
+        
+        // Update the element with current position to ensure it's saved correctly
+        if (obj.id) {
+          const data = {
+            ...obj.data,
+            left: obj.left,
+            top: obj.top,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY,
+            angle: obj.angle,
+            isDiagram: true,
+            lockMovementX: false,
+            lockMovementY: false
+          };
+          
+          addElement({
+            id: obj.id,
+            type: 'diagram',
+            data: data
+          });
+        }
+      }, 100);
+    };
+    
+    // Add handlers for both modification and movement events
+    canvas.on('object:modified', handleDiagramMovement);
+    canvas.on('object:moved', handleDiagramMovement);
+    
+    return () => {
+      canvas.off('object:modified', handleDiagramMovement);
+      canvas.off('object:moved', handleDiagramMovement);
+    };
+  }, [addElement]);
+
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    // Special handler to "unstick" objects when clicked
+    const handleMouseDown = (e) => {
+      if (disabled) return;
+      
+      const obj = e.target;
+      if (!obj || !obj.id) return;
+      
+      if (obj.type === 'image' && obj.data?.isDiagram) {
+        // For diagrams, ensure they're always movable when clicked
+        obj.lockMovementX = false;
+        obj.lockMovementY = false;
+        obj.selectable = true;
+        obj.evented = true;
+        
+        // Get viewport boundaries
+        const boundingRect = canvas.calcViewportBoundaries();
+        const objBoundingRect = obj.getBoundingRect();
+        
+        // If the object is at the edge, move it slightly away
+        const buffer = 30;
+        let needsAdjustment = false;
+        
+        if (Math.abs(objBoundingRect.left - boundingRect.tl.x) < buffer) {
+          obj.left = boundingRect.tl.x + buffer;
+          needsAdjustment = true;
+        }
+        
+        if (Math.abs(objBoundingRect.top - boundingRect.tl.y) < buffer) {
+          obj.top = boundingRect.tl.y + buffer;
+          needsAdjustment = true;
+        }
+        
+        if (Math.abs((objBoundingRect.left + objBoundingRect.width) - boundingRect.br.x) < buffer) {
+          obj.left = boundingRect.br.x - objBoundingRect.width - buffer;
+          needsAdjustment = true;
+        }
+        
+        if (Math.abs((objBoundingRect.top + objBoundingRect.height) - boundingRect.br.y) < buffer) {
+          obj.top = boundingRect.br.y - objBoundingRect.height - buffer;
+          needsAdjustment = true;
+        }
+        
+        if (needsAdjustment) {
+          obj.setCoords();
+          canvas.renderAll();
+          
+          // Also update the element data
+          addElement({
+            id: obj.id,
+            type: 'diagram',
+            data: {
+              ...obj.data,
+              left: obj.left,
+              top: obj.top,
+              scaleX: obj.scaleX,
+              scaleY: obj.scaleY,
+              angle: obj.angle,
+              isDiagram: true,
+              lockMovementX: false,
+              lockMovementY: false
+            }
+          });
+        }
+      }
+    };
+    
+    canvas.on('mouse:down', handleMouseDown);
+    
+    return () => {
+      canvas.off('mouse:down', handleMouseDown);
+    };
+  }, [disabled, addElement]);
 
   return (
     <>
