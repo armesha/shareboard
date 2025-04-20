@@ -27,8 +27,6 @@ npm run dev:all
 
 ### Nástroje pro diagramy
 - `Mermaid` - generování vývojových diagramů
-- `PlantUML` - generování UML diagramů
-- `Nomnoml` - generování jednoduchých diagramů
 
 ### Build nástroje
 - `Vite` - build systém a vývojový server
