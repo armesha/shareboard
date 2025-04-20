@@ -15,6 +15,7 @@ export function SharingProvider({ children, workspaceId }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [hasEditAccess, setHasEditAccess] = useState(false);
+  const [workspaceOwner, setWorkspaceOwner] = useState(null);
   
   useEffect(() => {
     let userId = localStorage.getItem('shareboardUserId');
@@ -60,6 +61,10 @@ export function SharingProvider({ children, workspaceId }) {
         setHasEditAccess(true);
       } else if (data.sharingMode === 'read-only') {
         setHasEditAccess(data.isOwner || (data.owner === persistentUserId));
+      }
+
+      if (data.owner) {
+        setWorkspaceOwner(data.owner);
       }
 
       if (data.isOwner !== undefined) {
@@ -123,6 +128,12 @@ export function SharingProvider({ children, workspaceId }) {
       socket.off('edit-token-updated', handleEditTokenUpdate);
     };
   }, [socket, workspaceId, persistentUserId]);
+
+  useEffect(() => {
+    if (workspaceOwner && persistentUserId) {
+      setIsOwner(workspaceOwner === persistentUserId);
+    }
+  }, [workspaceOwner, persistentUserId]);
 
   const changePermission = (mode) => {
     if (!socket || !workspaceId) return;
@@ -190,7 +201,8 @@ export function SharingProvider({ children, workspaceId }) {
       currentUser,
       hasEditAccess,
       changePermission,
-      canWrite
+      canWrite,
+      workspaceOwner
     }}>
       {children}
     </SharingContext.Provider>

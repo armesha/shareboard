@@ -243,7 +243,8 @@ io.on('connection', (socket) => {
       currentUser.userId = userId;
       if (workspace.owner === userId) {
         currentUser.isOwner = true;
-        workspace.owner = userId;
+      } else {
+        currentUser.isOwner = false;
       }
     }
     
@@ -587,8 +588,12 @@ io.on('connection', (socket) => {
     const workspace = workspaces.get(workspaceId);
     if (!workspace) return;
     
-    if (workspace.owner !== currentUser.userId && !currentUser.isOwner) {
+    // Check if the current user is the owner of the workspace
+    const isUserOwner = workspace.owner === currentUser.userId;
+    
+    if (!isUserOwner) {
       console.log(`Permission denied: User ${currentUser.userId} attempted to end session but is not owner`);
+      console.log(`Workspace owner: ${workspace.owner}, Current user: ${currentUser.userId}`);
       socket.emit('error', { message: 'Only the workspace owner can end the session' });
       return;
     }

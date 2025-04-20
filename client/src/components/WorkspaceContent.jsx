@@ -72,6 +72,14 @@ export default function WorkspaceContent({
     setPersistentUserId(userId);
   }, []);
 
+  // Add debugging for isOwner status
+  useEffect(() => {
+    console.log(`WorkspaceContent isOwner status: ${isOwner}`, {
+      persistentUserId,
+      sharingMode
+    });
+  }, [isOwner, persistentUserId, sharingMode]);
+
   const handleAddImageToWhiteboard = useCallback(async () => {
     try {
       console.log('Starting high quality diagram generation for whiteboard');
@@ -603,7 +611,6 @@ export default function WorkspaceContent({
                   
                   {showOptionsMenu && (
                     <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 w-48">
-                      {}
                       <button
                         className="w-full px-4 py-2 hover:bg-gray-100 flex items-center"
                         onClick={() => {
