@@ -63,6 +63,9 @@ export default function WorkspaceContent({
   const [showDiagramAddedNotification, setShowDiagramAddedNotification] = useState(false);
   const diagramRef = useRef(null);
   const [editAccessInitialized, setEditAccessInitialized] = useState(false);
+  const [previousEditAccess, setPreviousEditAccess] = useState(canWrite());
+  const [showAccessNotification, setShowAccessNotification] = useState(false);
+  const [accessNotificationMessage, setAccessNotificationMessage] = useState('');
 
   useEffect(() => {
     let userId = localStorage.getItem('shareboardUserId');
@@ -92,6 +95,24 @@ export default function WorkspaceContent({
       workspace: workspaceId
     });
   }, [isOwner, persistentUserId, sharingMode, canWrite, workspaceId]);
+
+  // Track edit access changes
+  useEffect(() => {
+    const currentEditAccess = canWrite();
+    
+    // Only show notification if access changed after initialization
+    if (editAccessInitialized && currentEditAccess !== previousEditAccess) {
+      if (currentEditAccess) {
+        setAccessNotificationMessage('You’ve been granted edit access');
+      } else {
+        setAccessNotificationMessage('Edit access revoked');
+      }
+      setShowAccessNotification(true);
+      setTimeout(() => setShowAccessNotification(false), 3000);
+    }
+    
+    setPreviousEditAccess(currentEditAccess);
+  }, [canWrite, editAccessInitialized, previousEditAccess]);
 
   const handleAddImageToWhiteboard = useCallback(async () => {
     try {
@@ -813,13 +834,27 @@ export default function WorkspaceContent({
       <div className="flex-1 relative bg-gray-50">
         {renderContent()}
         
-        {}
+        {/* Diagram added notification */}
         {showDiagramAddedNotification && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Diagram added to whiteboard
+          </div>
+        )}
+        
+        {/* Access change notification */}
+        {showAccessNotification && (
+          <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 ${canWrite() ? 'bg-green-500' : 'bg-yellow-500'} text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {canWrite() ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              )}
+            </svg>
+            {accessNotificationMessage}
           </div>
         )}
       </div>

@@ -68,11 +68,17 @@ export function SharingProvider({ children, workspaceId }) {
         setHasEditAccess(true);
       } else if (data.sharingMode === 'read-only') {
         setHasEditAccess(data.isOwner || (data.owner === persistentUserId));
-      } else if (data.sharingMode === 'read-write-selected' && currentAccessToken) {
-        // Check if we have the edit token and should have edit access
-        if (data.editToken && currentAccessToken === data.editToken) {
+      } else if (data.sharingMode === 'read-write-selected') {
+        // In selected mode, only owners or users with the correct token have edit access
+        if (data.isOwner || (data.owner === persistentUserId)) {
+          setHasEditAccess(true);
+        } else if (currentAccessToken && data.editToken && currentAccessToken === data.editToken) {
           setHasEditAccess(true);
           console.log("User has edit access via token match:", currentAccessToken);
+        } else {
+          // If no token or token doesn't match, no edit access
+          setHasEditAccess(false);
+          console.log("User does not have edit access in selected mode");
         }
       }
 
@@ -159,6 +165,24 @@ export function SharingProvider({ children, workspaceId }) {
       setHasEditAccess(true);
     } else if (mode === 'read-only') {
       setHasEditAccess(isOwner);
+    } else if (mode === 'read-write-selected') {
+      // In selected mode, only owners have edit access by default
+      // Other users need the edit token
+      setHasEditAccess(isOwner);
+      
+      // If we're not the owner, we need to check if we have the edit token
+      if (!isOwner) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access') || 
+                           localStorage.getItem(`accessToken_${workspaceId}`);
+        const savedEditToken = localStorage.getItem(`editToken_${workspaceId}`);
+        
+        if (accessToken && savedEditToken && accessToken === savedEditToken) {
+          setHasEditAccess(true);
+        } else {
+          setHasEditAccess(false);
+        }
+      }
     }
     
     socket.emit('change-sharing-mode', {
@@ -207,6 +231,34 @@ export function SharingProvider({ children, workspaceId }) {
         return false;
     }
   };
+
+  useEffect(() => {
+    // When edit access changes, request a full state refresh
+    if (socket && workspaceId) {
+      const canEdit = canWrite();
+      console.log(`Edit access changed: ${canEdit ? 'enabled' : 'disabled'}, refreshing workspace state`);
+      
+      // Request a full state refresh to ensure all elements are in sync
+      socket.emit('request-canvas-state', workspaceId);
+    }
+  }, [socket, workspaceId, hasEditAccess, sharingMode]);
+
+  // Request a workspace state refresh periodically to ensure sync
+  useEffect(() => {
+    if (!socket || !workspaceId) return;
+    
+    const refreshInterval = setInterval(() => {
+      if (socket.connected) {
+        try {
+          socket.emit('request-canvas-state', workspaceId);
+        } catch (error) {
+          console.error('Error requesting canvas state:', error);
+        }
+      }
+    }, 30000); // Refresh every 30 seconds to reduce server load
+    
+    return () => clearInterval(refreshInterval);
+  }, [socket, workspaceId]);
 
   return (
     <SharingContext.Provider value={{

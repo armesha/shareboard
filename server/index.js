@@ -351,12 +351,28 @@ io.on('connection', (socket) => {
       editToken: workspace.editToken || "none"
     });
     
+    // Update all sockets in the room with new sharing info
+    const clients = io.sockets.adapter.rooms.get(workspaceId) || new Set();
+    console.log(`Updating ${clients.size} clients about new sharing mode: ${sharingMode}`);
+    
+    // Notify all users in the workspace about the sharing mode change
     io.to(workspaceId).emit('sharing-info', {
       sharingMode: workspace.sharingMode,
       allowedUsers: workspace.allowedUsers,
       currentUser: null,
       owner: workspace.owner,
       editToken: workspace.editToken
+    });
+    
+    // Send a complete workspace state to ensure all clients have current whiteboard state
+    const connections = activeConnections.get(workspaceId);
+    const activeUsersCount = connections ? connections.size : 0;
+    
+    io.to(workspaceId).emit('workspace-state', {
+      whiteboardElements: workspace.drawings || [],
+      diagrams: Array.from(workspace.diagrams.values()) || [],
+      activeUsers: activeUsersCount,
+      allDrawings: workspace.allDrawings || []
     });
   });
   
@@ -416,8 +432,14 @@ io.on('connection', (socket) => {
         .map(d => d.id)
     );
 
+    // Debug info for tracking the issue
+    const pathElements = elements.filter(e => e.type === 'path').length;
+    const otherElements = elements.filter(e => e.type !== 'path').length;
+    
     console.log(`Processing whiteboard update for workspace ${workspaceId}:`, {
       incomingElements: elements.length,
+      pathElements,
+      otherElements,
       currentDrawings: workspace.drawings.length,
       deletedElements: Array.from(deletedElements)
     });
@@ -447,7 +469,8 @@ io.on('connection', (socket) => {
     workspace.drawings = Array.from(existingDrawings.values())
       .filter(drawing => !deletedElements.has(drawing.id));
     
-    socket.to(workspaceId).emit('whiteboard-update', elements);
+    // Send update to all clients including sender to ensure synchronization
+    io.to(workspaceId).emit('whiteboard-update', elements);
   });
 
   socket.on('whiteboard-clear', ({ workspaceId }) => {
@@ -472,10 +495,13 @@ io.on('connection', (socket) => {
   socket.on('request-canvas-state', (workspaceId) => {
     const workspace = workspaces.get(workspaceId);
     if (workspace) {
+      const connections = activeConnections.get(workspaceId);
+      const activeUsersCount = connections ? connections.size : 0;
+      
       socket.emit('workspace-state', {
         whiteboardElements: workspace.drawings || [],
         diagrams: Array.from(workspace.diagrams.values()) || [],
-        activeUsers: activeConnections.get(workspaceId).size,
+        activeUsers: activeUsersCount,
         allDrawings: workspace.allDrawings || []
       });
     }

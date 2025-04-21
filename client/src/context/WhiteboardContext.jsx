@@ -304,6 +304,26 @@ export function WhiteboardProvider({ children }) {
           return;
         }
         
+        if (element.type === 'path') {
+          console.log('Processing path element update:', element.id);
+          
+          const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
+          if (existingObject) {
+            canvas.remove(existingObject);
+          }
+          
+          const newPath = createFabricObject(element);
+          if (newPath) {
+            canvas.add(newPath);
+            newPath.setCoords();
+          } else {
+            console.warn('Failed to create path object:', element);
+          }
+          
+          elementsMapRef.current.set(element.id, element);
+          return;
+        }
+        
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
@@ -341,7 +361,7 @@ export function WhiteboardProvider({ children }) {
       width: window.innerWidth,
       height: window.innerHeight,
       renderOnAddRemove: false,
-      isDrawingMode: tool === 'pen'
+      isDrawingMode: tool === 'pen' && canWrite()
     });
 
     const brush = new fabric.PencilBrush(canvas);
@@ -352,27 +372,49 @@ export function WhiteboardProvider({ children }) {
     canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
+    
     const handlePathCreated = (e) => {
+      if (!canWrite()) {
+        console.warn('Path creation attempted without permission');
+        return;
+      }
+      
       const path = e.path;
       if (!path.id) {
         path.id = uuidv4();
       }
+      
       const data = path.toObject(FABRIC_OBJECT_PROPS);
       
       data.stroke = data.stroke || color;
       data.strokeWidth = data.strokeWidth || width;
       data.strokeLineCap = 'round';
       data.strokeLineJoin = 'round';
+      data.fill = null;
       
       const element = {
         id: path.id,
         type: 'path',
         data: data
       };
-
-      addElement(element);
+      
+      console.log('Path created:', {
+        id: path.id,
+        hasPath: !!data.path,
+        pathLength: data.path ? data.path.length : 0,
+        stroke: data.stroke,
+        strokeWidth: data.strokeWidth
+      });
       
       elementsMapRef.current.set(path.id, element);
+      
+      const workspaceId = window.location.pathname.split('/')[2];
+      if (workspaceId && socket && !isUpdatingRef.current) {
+        socket.emit('whiteboard-update', {
+          workspaceId,
+          elements: [element]
+        });
+      }
     };
 
     const handleObjectModified = (e) => {
@@ -601,19 +643,26 @@ export function WhiteboardProvider({ children }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas?.freeDrawingBrush) return;
-
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
-  }, [color, width]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const userCanDraw = !isLoading && isConnected && canWrite();
+    const shouldBeDrawingMode = tool === 'pen' && canWrite();
     
-    canvas.selection = userCanDraw && (tool === 'select');  // Enable selection only if user can write
+    if (canvas.isDrawingMode !== shouldBeDrawingMode) {
+      console.log(`Updating drawing mode to: ${shouldBeDrawingMode}`);
+      canvas.isDrawingMode = shouldBeDrawingMode;
+      
+      if (shouldBeDrawingMode && canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.color = color;
+        canvas.freeDrawingBrush.width = width;
+        canvas.freeDrawingBrush.strokeLineCap = 'round';
+        canvas.freeDrawingBrush.strokeLineJoin = 'round';
+      }
+      
+      canvas.requestRenderAll();
+    }
+    
+    const userCanDraw = !isLoading && isConnected && canWrite();
+    canvas.selection = userCanDraw && (tool === 'select');
 
     const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
@@ -624,7 +673,7 @@ export function WhiteboardProvider({ children }) {
         selectable: isSelectable,
         hasControls: isSelectable,
         hasBorders: isSelectable,
-        evented: isSelectable, // Only allow events if selectable
+        evented: isSelectable,
         lockMovementX: !isSelectable,
         lockMovementY: !isSelectable,
         lockRotation: !isSelectable,
@@ -635,7 +684,7 @@ export function WhiteboardProvider({ children }) {
 
     canvas.skipTargetFind = !userCanDraw || (tool !== 'select');
     canvas.requestRenderAll();
-  }, [tool, isLoading, isConnected, elements, canWrite]);
+  }, [tool, isLoading, isConnected, elements, canWrite, color, width]);
 
   const handleColorChange = useCallback((newColor) => {
     const canvas = canvasRef.current;
@@ -667,6 +716,27 @@ export function WhiteboardProvider({ children }) {
       setSelectedShape(null);
     }
   }, [canWrite, tool, selectedShape]);
+
+  // Special handling for pen tool when permissions change
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // Force refresh pen tool status based on permissions
+    if (tool === 'pen') {
+      const hasPermission = canWrite();
+      console.log(`Pen tool permission check: ${hasPermission ? 'allowed' : 'denied'}`);
+      
+      // Update drawing mode based on current permissions
+      canvas.isDrawingMode = hasPermission;
+      
+      if (!hasPermission) {
+        // Reset to select tool if no permission
+        console.log('No permission to use pen tool, resetting to select');
+        setTool('select');
+      }
+    }
+  }, [canWrite, tool, setTool]);
 
   const value = {
     tool,
