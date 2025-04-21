@@ -62,6 +62,7 @@ export default function WorkspaceContent({
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [showDiagramAddedNotification, setShowDiagramAddedNotification] = useState(false);
   const diagramRef = useRef(null);
+  const [editAccessInitialized, setEditAccessInitialized] = useState(false);
 
   useEffect(() => {
     let userId = localStorage.getItem('shareboardUserId');
@@ -72,13 +73,25 @@ export default function WorkspaceContent({
     setPersistentUserId(userId);
   }, []);
 
+  // Set tool to select only when edit permission is initially granted
+  useEffect(() => {
+    if (canWrite() && !editAccessInitialized) {
+      console.log("Edit access granted - tools now available");
+      // When edit access is initially granted, set the flag so we don't reset the tool anymore
+      setEditAccessInitialized(true);
+    }
+  }, [canWrite, editAccessInitialized]);
+
   // Add debugging for isOwner status
   useEffect(() => {
-    console.log(`WorkspaceContent isOwner status: ${isOwner}`, {
+    console.log(`WorkspaceContent status update:`, {
+      isOwner,
       persistentUserId,
-      sharingMode
+      sharingMode,
+      canEdit: canWrite(),
+      workspace: workspaceId
     });
-  }, [isOwner, persistentUserId, sharingMode]);
+  }, [isOwner, persistentUserId, sharingMode, canWrite, workspaceId]);
 
   const handleAddImageToWhiteboard = useCallback(async () => {
     try {

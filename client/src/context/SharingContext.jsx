@@ -31,6 +31,7 @@ export function SharingProvider({ children, workspaceId }) {
     
     if (accessToken) {
       localStorage.setItem(`accessToken_${workspaceId}`, accessToken);
+      console.log(`Stored access token for workspace ${workspaceId}: ${accessToken}`);
     }
     
     console.log("SharingContext using persistent user ID:", userId, 
@@ -40,7 +41,8 @@ export function SharingProvider({ children, workspaceId }) {
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
 
-    const accessToken = localStorage.getItem(`accessToken_${workspaceId}`);
+    const accessToken = localStorage.getItem(`accessToken_${workspaceId}`) || 
+                       new URLSearchParams(window.location.search).get('access');
 
     const handleConnect = () => {
       console.log(`Requesting sharing info with token: ${accessToken}`);
@@ -55,12 +57,23 @@ export function SharingProvider({ children, workspaceId }) {
       setSharingMode(data.sharingMode || 'read-write-all');
       setAllowedUsers(data.allowedUsers || []);
       
+      // Get the current access token from URL or localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentAccessToken = urlParams.get('access') || 
+                                localStorage.getItem(`accessToken_${workspaceId}`);
+      
       if (data.hasEditAccess !== undefined) {
         setHasEditAccess(data.hasEditAccess);
       } else if (data.sharingMode === 'read-write-all') {
         setHasEditAccess(true);
       } else if (data.sharingMode === 'read-only') {
         setHasEditAccess(data.isOwner || (data.owner === persistentUserId));
+      } else if (data.sharingMode === 'read-write-selected' && currentAccessToken) {
+        // Check if we have the edit token and should have edit access
+        if (data.editToken && currentAccessToken === data.editToken) {
+          setHasEditAccess(true);
+          console.log("User has edit access via token match:", currentAccessToken);
+        }
       }
 
       if (data.owner) {
@@ -90,8 +103,10 @@ export function SharingProvider({ children, workspaceId }) {
         owner: data.owner,
         currentUser: data.currentUser || persistentUserId,
         persistentUserId,
-        hasEditAccess: data.hasEditAccess,
-        editToken: data.editToken ? "provided" : "not provided"
+        hasEditAccess: data.hasEditAccess !== undefined ? data.hasEditAccess : canWrite(),
+        editToken: data.editToken ? "provided" : "not provided",
+        accessToken: currentAccessToken ? currentAccessToken.substring(0, 10) + "..." : "none",
+        isTokenMatching: data.editToken && currentAccessToken && data.editToken === currentAccessToken
       });
     };
 

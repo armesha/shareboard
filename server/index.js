@@ -151,10 +151,11 @@ io.on('connection', (socket) => {
     else if (workspace.sharingMode === 'read-write-all') {
       currentUser.hasEditAccess = true;
     }
-    else if (workspace.sharingMode === 'read-write-selected' && 
-             accessToken && workspace.editToken && accessToken === workspace.editToken) {
-      currentUser.hasEditAccess = true;
-      console.log(`User ${currentUser.userId} granted edit access via token`);
+    else if (workspace.sharingMode === 'read-write-selected') {
+      if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
+        currentUser.hasEditAccess = true;
+        console.log(`User ${currentUser.userId} granted edit access via token`);
+      }
     }
     
     if (accessToken && accessToken.startsWith('edit_') && !workspace.editToken) {
@@ -163,6 +164,7 @@ io.on('connection', (socket) => {
       
       if (workspace.sharingMode === 'read-write-selected') {
         currentUser.hasEditAccess = true;
+        console.log(`User ${currentUser.userId} granted edit access via first token`);
       }
     }
 
@@ -226,7 +228,7 @@ io.on('connection', (socket) => {
       currentUser: currentUser.userId,
       owner: workspace.owner,
       hasEditAccess: currentUser.hasEditAccess,
-      editToken: currentUser.isOwner ? workspace.editToken : undefined // Only send token to owner
+      editToken: workspace.editToken // Always send the token to all users
     });
     
     socket.to(workspaceId).emit('user-joined', { 
@@ -260,14 +262,19 @@ io.on('connection', (socket) => {
       if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
         hasEditAccess = true;
         currentUser.hasEditAccess = true;
+        console.log(`User ${currentUser.userId} granted edit access via token in get-sharing-info`);
       }
     }
     
     if (accessToken && accessToken.startsWith('edit_') && !workspace.editToken) {
       workspace.editToken = accessToken;
       console.log(`Stored first edit token for workspace ${workspaceId}: ${accessToken}`);
-      hasEditAccess = true;
-      currentUser.hasEditAccess = true;
+      
+      if (workspace.sharingMode === 'read-write-selected') {
+        hasEditAccess = true;
+        currentUser.hasEditAccess = true;
+        console.log(`User ${currentUser.userId} granted edit access via first token in get-sharing-info`);
+      }
     }
     
     const isOwner = workspace.owner === currentUser.userId;
@@ -279,7 +286,8 @@ io.on('connection', (socket) => {
       isOwner: isOwner,
       currentUser: currentUser.userId,
       owner: workspace.owner,
-      hasEditAccess: hasEditAccess
+      hasEditAccess: hasEditAccess,
+      editToken: workspace.editToken // Send edit token to all users who need to know if they have edit access
     });
     
     console.log("Sent sharing info for workspace", workspaceId, {

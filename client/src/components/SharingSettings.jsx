@@ -49,12 +49,12 @@ export default function SharingSettings({ workspaceId, onClose }) {
       socket.emit('get-edit-token', { workspaceId }, (response) => {
         if (response && response.editToken) {
           const baseUrl = window.location.origin;
-          const path = window.location.pathname;
+          const path = `/w/${workspaceId}`;
           setEditLink(`${baseUrl}${path}?access=${response.editToken}`);
           console.log("Retrieved existing edit token from server");
         } else {
           const baseUrl = window.location.origin;
-          const path = window.location.pathname;
+          const path = `/w/${workspaceId}`;
           const editToken = `edit_${Math.random().toString(36).substring(2, 10)}`;
           setEditLink(`${baseUrl}${path}?access=${editToken}`);
           

@@ -94,9 +94,16 @@ function WorkspaceLayout() {
   useEffect(() => {
     if (!socket || !persistentUserId) return;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access');
+
     const handleConnect = () => {
       setIsConnected(true);
-      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+      socket.emit('join-workspace', { 
+        workspaceId, 
+        userId: persistentUserId,
+        accessToken 
+      });
     };
 
     const handleDisconnect = () => {
@@ -109,7 +116,11 @@ function WorkspaceLayout() {
     socket.on('disconnect', handleDisconnect);
 
     if (socket.connected) {
-      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+      socket.emit('join-workspace', { 
+        workspaceId, 
+        userId: persistentUserId,
+        accessToken 
+      });
     }
 
     return () => {
@@ -121,11 +132,30 @@ function WorkspaceLayout() {
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
     
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access');
+    
     socket.on('connect', () => {
       setStatus('connected');
-      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId);
-      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
-      socket.emit('request-canvas-state', workspaceId);
+      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId, 
+                 accessToken ? `with access token: ${accessToken}` : 'without access token');
+      
+      // First join the workspace
+      socket.emit('join-workspace', { 
+        workspaceId, 
+        userId: persistentUserId,
+        accessToken 
+      });
+      
+      // Then request latest sharing info to ensure permissions are correct
+      setTimeout(() => {
+        socket.emit('get-sharing-info', { 
+          workspaceId, 
+          userId: persistentUserId,
+          accessToken 
+        });
+        socket.emit('request-canvas-state', workspaceId);
+      }, 500);
     });
 
     socket.on('disconnect', () => {
@@ -153,7 +183,11 @@ function WorkspaceLayout() {
     });
 
     if (socket.connected) {
-      socket.emit('join-workspace', { workspaceId, userId: persistentUserId });
+      socket.emit('join-workspace', { 
+        workspaceId, 
+        userId: persistentUserId,
+        accessToken 
+      });
       socket.emit('request-canvas-state', workspaceId);
     }
 
