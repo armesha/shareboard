@@ -177,7 +177,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
 
     workspace.drawings = Array.from(existingDrawings.values()).filter(d => !deletedIds.has(d.id));
-    io.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, elements);
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, elements);
   });
 
   socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, ({ workspaceId }) => {
@@ -211,8 +211,8 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       workspace.drawingHistory = workspace.drawingHistory.filter(el => el.id !== elementId);
     }
 
-    io.to(workspaceId).emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId });
-    io.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, workspace.drawings);
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId });
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, workspace.drawings);
   });
 
   socket.on(SOCKET_EVENTS.DELETE_DIAGRAM, ({ workspaceId, diagramId }) => {

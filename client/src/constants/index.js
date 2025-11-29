@@ -7,6 +7,39 @@ export const TOOLS = {
   ARROW: 'arrow',
 };
 
+export const GRID = {
+  SIZE: 20,
+  COLOR: 'rgba(200, 200, 200, 0.3)',
+};
+
+export const ZOOM = {
+  WHEEL_OUT_MULTIPLIER: 0.95,
+  WHEEL_IN_MULTIPLIER: 1.05,
+  BUTTON_INCREMENT: 0.1,
+  MIN: 0.1,
+  MAX: 3,
+};
+
+export const COLOR_PICKER = {
+  BASIC_COLORS: ['#000000', '#FF0000', '#0000FF', '#00FF00'],
+  RECENT_COLORS_KEY: 'whiteboard_recent_colors',
+  MAX_RECENT_COLORS: 4,
+};
+
+export const KEYBOARD = {
+  PAN: 'Space',
+  DELETE: 'Delete',
+};
+
+export const KEYBOARD_SHORTCUTS = [
+  { key: 'Right-click', action: 'Pan canvas' },
+  { key: 'Scroll', action: 'Zoom in/out' },
+  { key: 'V', action: 'Select tool' },
+  { key: 'P', action: 'Pen tool' },
+  { key: 'T', action: 'Text tool' },
+  { key: 'Delete', action: 'Delete selected' },
+];
+
 export const SHAPES = {
   RECTANGLE: 'rectangle',
   CIRCLE: 'circle',
@@ -81,8 +114,9 @@ export const COLORS = {
 };
 
 export const BRUSH_COLORS = [
-  '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
-  '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#808080'
+  '#000000', '#FFFFFF', '#FF0000', '#00FF00',
+  '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
+  '#FFA500', '#808080', '#8B4513', '#800080'
 ];
 
 export const MERMAID_THEME = {
@@ -113,13 +147,15 @@ export const TIMING = {
 };
 
 export const CANVAS = {
-  EDGE_BUFFER: 20,
-  EDGE_BUFFER_LARGE: 30,
+  EDGE_BUFFER: 40,
   DEFAULT_FONT_SIZE: 20,
   DEFAULT_FONT_FAMILY: 'Arial',
   DEFAULT_BRUSH_WIDTH: 2,
   MAX_BRUSH_WIDTH: 20,
   MIN_BRUSH_WIDTH: 1,
+  AUTO_PAN_EDGE: 40,
+  AUTO_PAN_SPEED: 10,
+  AUTO_PAN_INTERVAL: 16,
 };
 
 export const STORAGE_KEYS = {

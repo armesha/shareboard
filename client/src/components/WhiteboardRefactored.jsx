@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { fabric } from 'fabric';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import TextInputModal from './TextInputModal';
-import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS } from '../constants';
+import { ZoomControls } from './ui';
+import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, KEYBOARD, SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
 import { useLineDrawing } from '../hooks/useLineDrawing';
@@ -11,6 +13,11 @@ import { useTextEditing } from '../hooks/useTextEditing';
 const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   const canvasRef = useRef(null);
   const isUpdatingRef = useRef(false);
+  const lastEmitTimeRef = useRef(0);
+  const [zoom, setZoom] = useState(1);
+  const isPanningRef = useRef(false);
+  const lastPanPointRef = useRef(null);
+  const isSpacePressedRef = useRef(false);
   const { socket } = useSocket();
   const {
     tool,
@@ -80,7 +87,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       if (disabled) {
         if (e.target?.originalState) {
           e.target.set(e.target.originalState);
-          canvas.renderAll();
+          canvas.requestRenderAll();
         }
         return;
       }
@@ -145,11 +152,15 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
         obj.lockMovementX = false;
         obj.lockMovementY = false;
       }
+    };
 
-      const needsUpdate = constrainObjectToBounds(obj, canvas, CANVAS.EDGE_BUFFER);
-      if (needsUpdate) {
-        canvas.renderAll();
-      }
+    const handleObjectMoved = (e) => {
+      if (disabled || tool !== TOOLS.SELECT) return;
+
+      const obj = e.target;
+      if (!obj) return;
+
+      constrainObjectToBounds(obj, canvas, CANVAS.EDGE_BUFFER);
     };
 
     const handleMouseDown = (e) => {
@@ -163,10 +174,12 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     };
 
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
+    canvas.on(FABRIC_EVENTS.OBJECT_MOVED, handleObjectMoved);
     canvas.on(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
 
     return () => {
       canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
+      canvas.off(FABRIC_EVENTS.OBJECT_MOVED, handleObjectMoved);
       canvas.off(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
     };
   }, [canvas, tool, disabled]);
@@ -184,12 +197,12 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       activeObjects.forEach(obj => {
         if (obj.id) {
           canvas.remove(obj);
-          socket?.emit('delete-element', { workspaceId, elementId: obj.id });
+          socket?.emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId: obj.id });
         }
       });
 
       canvas.discardActiveObject();
-      canvas.renderAll();
+      canvas.requestRenderAll();
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -280,7 +293,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
 
       const rect = container.getBoundingClientRect();
       canvas.setDimensions({ width: rect.width, height: rect.height });
-      canvas.renderAll();
+      canvas.requestRenderAll();
     };
 
     window.addEventListener('resize', handleResize);
@@ -294,21 +307,128 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       const obj = e.target;
       if (!obj || !obj.id) return;
 
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current < TIMING.MOVEMENT_TIMEOUT) {
+        return;
+      }
+      lastEmitTimeRef.current = now;
+
       const workspaceId = getWorkspaceId();
       const elementData = obj.type === 'image' && obj.data?.isDiagram
         ? { id: obj.id, type: 'diagram', data: { ...obj.data, left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle } }
         : { id: obj.id, type: obj.type, data: obj.toObject(['id']) };
 
-      socket.emit('whiteboard-update', { workspaceId, elements: [elementData] });
+      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, { workspaceId, elements: [elementData] });
     };
 
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleSocketEmit);
     return () => canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleSocketEmit);
   }, [canvas, socket]);
 
+  useEffect(() => {
+    if (!canvas) return;
+
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        isSpacePressedRef.current = true;
+        canvas.defaultCursor = 'grab';
+        canvas.hoverCursor = 'grab';
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.code === 'Space') {
+        isSpacePressedRef.current = false;
+        isPanningRef.current = false;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+      }
+    };
+
+    const handleMouseDown = (opt) => {
+      if (isSpacePressedRef.current || opt.e.button === 1 || opt.e.button === 2) {
+        isPanningRef.current = true;
+        canvas.defaultCursor = 'grabbing';
+        lastPanPointRef.current = { x: opt.e.clientX, y: opt.e.clientY };
+        canvas.selection = false;
+        if (opt.e.button === 2) {
+          opt.e.preventDefault();
+        }
+      }
+    };
+
+    const handleMouseMove = (opt) => {
+      if (!isPanningRef.current || !lastPanPointRef.current) return;
+
+      const deltaX = opt.e.clientX - lastPanPointRef.current.x;
+      const deltaY = opt.e.clientY - lastPanPointRef.current.y;
+
+      const vpt = canvas.viewportTransform;
+      vpt[4] += deltaX;
+      vpt[5] += deltaY;
+
+      canvas.requestRenderAll();
+      lastPanPointRef.current = { x: opt.e.clientX, y: opt.e.clientY };
+    };
+
+    const handleMouseUp = () => {
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        canvas.defaultCursor = isSpacePressedRef.current ? 'grab' : 'default';
+        canvas.selection = true;
+      }
+    };
+
+    const handleWheel = (opt) => {
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+
+      const delta = opt.e.deltaY;
+      const multiplier = delta > 0 ? ZOOM.WHEEL_OUT_MULTIPLIER : ZOOM.WHEEL_IN_MULTIPLIER;
+      let newZoom = canvas.getZoom() * multiplier;
+      newZoom = Math.min(Math.max(newZoom, ZOOM.MIN), ZOOM.MAX);
+
+      const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
+      canvas.zoomToPoint(point, newZoom);
+      canvas.requestRenderAll();
+      setZoom(newZoom);
+    };
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    canvas.on('mouse:down', handleMouseDown);
+    canvas.on('mouse:move', handleMouseMove);
+    canvas.on('mouse:up', handleMouseUp);
+    canvas.on('mouse:wheel', handleWheel);
+    canvas.upperCanvasEl?.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      canvas.off('mouse:down', handleMouseDown);
+      canvas.off('mouse:move', handleMouseMove);
+      canvas.off('mouse:up', handleMouseUp);
+      canvas.off('mouse:wheel', handleWheel);
+      canvas.upperCanvasEl?.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [canvas]);
+
+  const handleZoomChange = useCallback((newZoom) => {
+    setZoom(newZoom);
+    if (canvas) {
+      const center = canvas.getCenter();
+      canvas.zoomToPoint({ x: center.left, y: center.top }, newZoom);
+      canvas.requestRenderAll();
+    }
+  }, [canvas]);
+
   return (
     <>
-      <div className={`relative w-full h-full ${disabled ? 'cursor-not-allowed' : ''}`}>
+      <div className={`relative w-full h-full canvas-grid ${disabled ? 'cursor-not-allowed' : ''}`}>
         <canvas
           ref={canvasRef}
           style={{
@@ -324,7 +444,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
               aria-hidden="true"
             />
             <div
-              className="absolute bottom-4 right-4 z-20 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-md shadow-md border border-yellow-200 flex items-center opacity-70"
+              className="absolute bottom-4 left-4 z-20 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-md shadow-md border border-yellow-200 flex items-center opacity-70"
               role="status"
               aria-live="polite"
             >
@@ -336,6 +456,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
             </div>
           </>
         )}
+        <ZoomControls zoom={zoom} onZoomChange={handleZoomChange} />
       </div>
       <TextInputModal
         isOpen={isTextModalOpen}

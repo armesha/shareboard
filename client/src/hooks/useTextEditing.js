@@ -41,7 +41,7 @@ export function useTextEditing({ canvas, color, addElement, setTool }) {
       const obj = canvas.getObjects().find(o => o.id === editingText.id);
       if (obj) {
         obj.set('text', text);
-        canvas.renderAll();
+        canvas.requestRenderAll();
 
         addElement({
           id: editingText.id,
@@ -68,7 +68,7 @@ export function useTextEditing({ canvas, color, addElement, setTool }) {
 
       canvas.add(textObj);
       canvas.setActiveObject(textObj);
-      canvas.renderAll();
+      canvas.requestRenderAll();
 
       addElement({
         id: textId,

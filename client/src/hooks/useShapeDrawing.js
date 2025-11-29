@@ -140,7 +140,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     }
 
     shape.setCoords();
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, selectedShape, disabled]);
 
   const finishShape = useCallback(() => {
@@ -164,13 +164,13 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     }
 
     startPoint.current = null;
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, addElement, disabled]);
 
   const cancelShape = useCallback(() => {
     if (currentShape.current && canvas) {
       canvas.remove(currentShape.current);
-      canvas.renderAll();
+      canvas.requestRenderAll();
     }
     isDrawing.current = false;
     currentShape.current = null;

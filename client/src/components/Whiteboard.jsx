@@ -65,7 +65,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       if (disabled) {
         if (e.target?.originalState) {
           e.target.set(e.target.originalState);
-          canvas.renderAll();
+          canvas.requestRenderAll();
         }
         return;
       }
@@ -133,7 +133,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
 
       const needsUpdate = constrainObjectToBounds(obj, canvas, CANVAS.EDGE_BUFFER);
       if (needsUpdate) {
-        canvas.renderAll();
+        canvas.requestRenderAll();
       }
     };
 
@@ -174,7 +174,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       });
 
       canvas.discardActiveObject();
-      canvas.renderAll();
+      canvas.requestRenderAll();
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -242,7 +242,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
 
       const rect = container.getBoundingClientRect();
       canvas.setDimensions({ width: rect.width, height: rect.height });
-      canvas.renderAll();
+      canvas.requestRenderAll();
     };
 
     window.addEventListener('resize', handleResize);

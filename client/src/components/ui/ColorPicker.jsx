@@ -1,74 +1,151 @@
-import React, { useState } from 'react';
-import { BRUSH_COLORS } from '../../constants';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BRUSH_COLORS, COLOR_PICKER } from '../../constants';
 
-const VISIBLE_COLORS = 4;
+const { RECENT_COLORS_KEY, MAX_RECENT_COLORS, BASIC_COLORS } = COLOR_PICKER;
+
+const getRecentColors = () => {
+  try {
+    const stored = localStorage.getItem(RECENT_COLORS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, MAX_RECENT_COLORS);
+      }
+    }
+  } catch (e) {}
+  return [];
+};
+
+const saveRecentColor = (color, recentColors) => {
+  const normalizedColor = color.toUpperCase();
+  if (BASIC_COLORS.map(c => c.toUpperCase()).includes(normalizedColor)) return recentColors;
+
+  const filtered = recentColors.filter(c => c.toUpperCase() !== normalizedColor);
+  const updated = [color, ...filtered].slice(0, MAX_RECENT_COLORS);
+  try {
+    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(updated));
+  } catch (e) {}
+  return updated;
+};
 
 const ColorPicker = React.memo(function ColorPicker({
   currentColor,
   onColorChange,
   disabled = false
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [recentColors, setRecentColors] = useState(getRecentColors);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  const handleColorSelect = useCallback((color, fromPanel = false) => {
+    onColorChange(color);
+    setRecentColors(prev => saveRecentColor(color, prev));
+    if (fromPanel) {
+      setIsOpen(false);
+    }
+  }, [onColorChange]);
 
   if (disabled) return null;
 
-  const visibleColors = isExpanded ? BRUSH_COLORS : BRUSH_COLORS.slice(0, VISIBLE_COLORS);
-  const hasMoreColors = BRUSH_COLORS.length > VISIBLE_COLORS;
+  const isCurrentInBasic = BASIC_COLORS.some(c => c.toLowerCase() === currentColor.toLowerCase());
+  const isCurrentInRecent = recentColors.some(c => c.toLowerCase() === currentColor.toLowerCase());
 
   return (
-    <div className="flex items-center space-x-1 border-r pr-3">
-      <div
-        className="flex gap-1"
-        role="radiogroup"
-        aria-label="Color selection"
-      >
-        {visibleColors.map((color) => (
+    <div className="relative" ref={menuRef}>
+      <div className="flex items-center gap-1 border-r pr-2">
+        {BASIC_COLORS.map((color) => (
           <button
             key={color}
             type="button"
             className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md border transition-all flex-shrink-0 ${
-              currentColor === color
+              currentColor.toLowerCase() === color.toLowerCase()
                 ? 'ring-2 ring-blue-500 ring-offset-1'
-                : color === '#FFFFFF'
-                  ? 'border-gray-300 hover:border-gray-400'
-                  : 'border-transparent hover:scale-110'
+                : 'border-transparent hover:scale-110'
             }`}
             style={{ backgroundColor: color }}
-            onClick={() => onColorChange(color)}
-            aria-label={`Select color ${color}`}
-            aria-pressed={currentColor === color}
+            onClick={() => handleColorSelect(color)}
             title={color}
           />
         ))}
-      </div>
 
-      {hasMoreColors && (
         <button
           type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-6 h-6 sm:w-7 sm:h-7 rounded-md border border-gray-300 hover:bg-gray-100 transition-all flex items-center justify-center flex-shrink-0"
-          aria-label={isExpanded ? 'Show less colors' : 'Show more colors'}
-          title={isExpanded ? 'Less colors' : 'More colors'}
-        >
-          <svg
-            className={`w-3 h-3 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md border transition-all flex-shrink-0 flex items-center justify-center ${
+            isOpen || (!isCurrentInBasic && !isCurrentInRecent)
+              ? 'ring-2 ring-blue-500 ring-offset-1'
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+          style={{
+            backgroundColor: (!isCurrentInBasic && !isCurrentInRecent) ? currentColor : 'white',
+            backgroundImage: (isCurrentInBasic || isCurrentInRecent) ? 'linear-gradient(135deg, #ff6b6b 25%, #4ecdc4 25%, #4ecdc4 50%, #ffe66d 50%, #ffe66d 75%, #95e1d3 75%)' : 'none'
+          }}
+          aria-label="More colors"
+          aria-expanded={isOpen}
+          title="More colors"
+        />
+      </div>
 
-      <input
-        type="color"
-        value={currentColor}
-        onChange={(e) => onColorChange(e.target.value)}
-        className="w-6 h-6 sm:w-7 sm:h-7 cursor-pointer rounded border-0 flex-shrink-0"
-        aria-label="Custom color picker"
-        title="Custom color"
-      />
+      {isOpen && (
+        <div
+          className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-3 z-50 animate-fadeIn"
+          role="menu"
+          aria-label="Color palette"
+        >
+          <div className="grid grid-cols-4 gap-1 mb-2">
+            {BRUSH_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                className={`w-6 h-6 rounded border transition-all ${
+                  currentColor.toLowerCase() === color.toLowerCase()
+                    ? 'ring-2 ring-blue-500 ring-offset-1'
+                    : color === '#FFFFFF'
+                      ? 'border-gray-300 hover:border-gray-400'
+                      : 'border-transparent hover:scale-110'
+                }`}
+                style={{ backgroundColor: color }}
+                onClick={() => handleColorSelect(color, true)}
+                title={color}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+            <span className="text-xs text-gray-500">Custom</span>
+            <input
+              type="color"
+              value={currentColor}
+              onChange={(e) => handleColorSelect(e.target.value, true)}
+              className="w-6 h-6 cursor-pointer rounded border-0"
+              title="Custom color"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 });

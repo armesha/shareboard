@@ -80,7 +80,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     });
 
     line.setCoords();
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, disabled]);
 
   const finishLine = useCallback(() => {
@@ -116,13 +116,13 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     }
 
     startPoint.current = null;
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, addElement, disabled]);
 
   const cancelLine = useCallback(() => {
     if (currentLine.current && canvas) {
       canvas.remove(currentLine.current);
-      canvas.renderAll();
+      canvas.requestRenderAll();
     }
     isDrawing.current = false;
     currentLine.current = null;

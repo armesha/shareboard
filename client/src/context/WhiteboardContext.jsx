@@ -8,7 +8,8 @@ import {
   COLORS,
   SOCKET_EVENTS,
   INTERACTIVE_TYPES,
-  FABRIC_OBJECT_PROPS
+  FABRIC_OBJECT_PROPS,
+  TIMING
 } from '../constants';
 import { getWorkspaceId } from '../utils';
 import '../utils/fabricArrow';
@@ -34,6 +35,7 @@ export function WhiteboardProvider({ children }) {
   const canvasRef = useRef(null);
   const elementsMapRef = useRef(new Map());
   const isUpdatingRef = useRef(false);
+  const lastEmitTimeRef = useRef(0);
 
   const { canWrite } = useSharing() || { canWrite: () => true };
 
@@ -219,22 +221,35 @@ export function WhiteboardProvider({ children }) {
     }, 0);
   }, [socket, createFabricObject]);
 
-  const updateElement = useCallback((id, element) => {
+  const updateElement = useCallback((id, element, isMoving = false) => {
     if (!id || !elementsMapRef.current.has(id)) return;
 
     const elementWithId = { ...element, id };
 
     elementsMapRef.current.set(id, elementWithId);
 
-    const updatedElements = Array.from(elementsMapRef.current.values());
-    setElements(updatedElements);
+    if (!isMoving) {
+      const updatedElements = Array.from(elementsMapRef.current.values());
+      setElements(updatedElements);
+    }
 
     const workspaceId = getWorkspaceId();
     if (workspaceId && socket && !isUpdatingRef.current) {
-      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
-        workspaceId,
-        elements: [elementWithId]
-      });
+      if (isMoving) {
+        const now = Date.now();
+        if (now - lastEmitTimeRef.current >= TIMING.MOVEMENT_TIMEOUT) {
+          lastEmitTimeRef.current = now;
+          socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+            workspaceId,
+            elements: [elementWithId]
+          });
+        }
+      } else {
+        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+          workspaceId,
+          elements: [elementWithId]
+        });
+      }
     }
   }, [socket]);
 
@@ -322,7 +337,13 @@ export function WhiteboardProvider({ children }) {
       width: window.innerWidth,
       height: window.innerHeight,
       renderOnAddRemove: false,
-      isDrawingMode: false
+      isDrawingMode: false,
+      fireRightClick: true,
+      fireMiddleClick: true,
+      stopContextMenu: true,
+      objectCaching: true,
+      skipOffscreen: true,
+      preserveObjectStacking: true
     });
 
     const brush = new fabric.PencilBrush(canvas);
@@ -378,13 +399,26 @@ export function WhiteboardProvider({ children }) {
         data: data
       };
 
-      updateElement(obj.id, element);
-      elementsMapRef.current.set(obj.id, element);
+      updateElement(obj.id, element, false);
+    };
+
+    const handleObjectMoving = (e) => {
+      const obj = e.target;
+      if (!obj || !obj.id || isUpdatingRef.current) return;
+
+      const data = obj.toObject(FABRIC_OBJECT_PROPS);
+      const element = {
+        id: obj.id,
+        type: obj.type,
+        data: data
+      };
+
+      updateElement(obj.id, element, true);
     };
 
     canvas.on('path:created', handlePathCreated);
     canvas.on('object:modified', handleObjectModified);
-    canvas.on('object:moving', handleObjectModified);
+    canvas.on('object:moving', handleObjectMoving);
     canvas.on('text:changed', handleObjectModified);
 
     const handleResize = () => {
@@ -401,7 +435,7 @@ export function WhiteboardProvider({ children }) {
       window.removeEventListener('resize', handleResize);
       canvas.off('path:created', handlePathCreated);
       canvas.off('object:modified', handleObjectModified);
-      canvas.off('object:moving', handleObjectModified);
+      canvas.off('object:moving', handleObjectMoving);
       canvas.off('text:changed', handleObjectModified);
       canvas.dispose();
     };

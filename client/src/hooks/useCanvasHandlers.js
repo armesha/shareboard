@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { FABRIC_EVENTS, TOOLS, INTERACTIVE_TYPES, CANVAS, TIMING } from '../constants';
-import { constrainObjectToBounds, getWorkspaceId } from '../utils';
+import { FABRIC_EVENTS, TOOLS, INTERACTIVE_TYPES, TIMING, SOCKET_EVENTS, CANVAS } from '../constants';
+import { getWorkspaceId } from '../utils';
 
 export function useCanvasObjectHandlers({
   canvas,
@@ -11,6 +11,8 @@ export function useCanvasObjectHandlers({
   socket
 }) {
   const isUpdatingRef = useRef(false);
+  const lastPanTimeRef = useRef(0);
+  const panAnimationRef = useRef(null);
 
   const handleObjectModification = useCallback((e) => {
     if (disabled) {
@@ -103,13 +105,56 @@ export function useCanvasObjectHandlers({
       obj.evented = true;
     }
 
-    const needsUpdate = constrainObjectToBounds(obj, canvas, CANVAS.EDGE_BUFFER);
-
     obj.selectable = true;
     obj.evented = true;
 
-    if (needsUpdate) {
-      canvas.renderAll();
+    const now = Date.now();
+    if (now - lastPanTimeRef.current < CANVAS.AUTO_PAN_INTERVAL) {
+      return;
+    }
+
+    const pointer = canvas.getPointer(e.e, true);
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const edge = CANVAS.AUTO_PAN_EDGE;
+    const speed = CANVAS.AUTO_PAN_SPEED;
+
+    let panX = 0;
+    let panY = 0;
+
+    if (pointer.x < edge) {
+      panX = speed;
+    } else if (pointer.x > canvasWidth - edge) {
+      panX = -speed;
+    }
+
+    if (pointer.y < edge) {
+      panY = speed;
+    } else if (pointer.y > canvasHeight - edge) {
+      panY = -speed;
+    }
+
+    if (panX !== 0 || panY !== 0) {
+      lastPanTimeRef.current = now;
+
+      if (panAnimationRef.current) {
+        cancelAnimationFrame(panAnimationRef.current);
+      }
+
+      panAnimationRef.current = requestAnimationFrame(() => {
+        if (!canvas) return;
+
+        const vpt = canvas.viewportTransform.slice();
+        vpt[4] += panX;
+        vpt[5] += panY;
+
+        canvas.setViewportTransform(vpt);
+
+        obj.left -= panX / canvas.getZoom();
+        obj.top -= panY / canvas.getZoom();
+        obj.setCoords();
+        canvas.calcOffset();
+      });
     }
   }, [canvas, tool, disabled]);
 
@@ -157,7 +202,7 @@ export function useCanvasObjectHandlers({
       data: obj.toObject(['id'])
     };
 
-    socket.emit('whiteboard-update', {
+    socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
       workspaceId,
       elements: [elementData]
     });
@@ -188,7 +233,7 @@ export function useCanvasKeyboardHandlers({ canvas, tool, socket, disabled }) {
             if (obj.id) {
               canvas.remove(obj);
               if (socket) {
-                socket.emit('delete-element', {
+                socket.emit(SOCKET_EVENTS.DELETE_ELEMENT, {
                   workspaceId,
                   elementId: obj.id
                 });
@@ -197,7 +242,7 @@ export function useCanvasKeyboardHandlers({ canvas, tool, socket, disabled }) {
           });
 
           canvas.discardActiveObject();
-          canvas.renderAll();
+          canvas.requestRenderAll();
         }
       }
     };
@@ -220,7 +265,7 @@ export function useCanvasResize(canvas) {
         width: rect.width,
         height: rect.height
       });
-      canvas.renderAll();
+      canvas.requestRenderAll();
     };
 
     window.addEventListener('resize', handleResize);

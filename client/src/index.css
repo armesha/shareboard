@@ -143,6 +143,13 @@
 }
 
 @layer utilities {
+  .canvas-grid {
+    background-image:
+      linear-gradient(to right, rgba(200, 200, 200, 0.25) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(200, 200, 200, 0.25) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
   }
@@ -208,4 +215,33 @@
   .animate-slideUp {
     animation: none;
   }
+}
+
+.diagram-container svg .node rect,
+.diagram-container svg .node circle,
+.diagram-container svg .node ellipse,
+.diagram-container svg .node polygon,
+.diagram-container svg .node path,
+.diagram-container svg .cluster rect,
+.diagram-container svg .label-container,
+.diagram-container svg .nodeLabel,
+.diagram-container svg .edgeLabel rect,
+.diagram-container svg .label foreignObject div {
+  fill: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.diagram-container svg .node rect,
+.diagram-container svg .node circle,
+.diagram-container svg .node ellipse,
+.diagram-container svg .node polygon {
+  stroke: #333 !important;
+  stroke-width: 1px !important;
+}
+
+.diagram-container svg .nodeLabel,
+.diagram-container svg .edgeLabel,
+.diagram-container svg text {
+  fill: #333 !important;
 }

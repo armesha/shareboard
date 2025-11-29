@@ -10,11 +10,26 @@ export default function DiagramRenderer({ workspaceId }) {
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: true,
-      theme: 'default',
+      theme: 'base',
       logLevel: 'error',
       securityLevel: 'loose',
       flowchart: { curve: 'basis' },
-      fontFamily: 'sans-serif'
+      fontFamily: 'sans-serif',
+      themeVariables: {
+        primaryColor: 'transparent',
+        primaryBorderColor: '#333',
+        primaryTextColor: '#333',
+        secondaryColor: 'transparent',
+        tertiaryColor: 'transparent',
+        lineColor: '#333',
+        textColor: '#333',
+        nodeBorder: '#333',
+        clusterBkg: 'transparent',
+        clusterBorder: '#333',
+        defaultLinkColor: '#333',
+        titleColor: '#333',
+        edgeLabelBackground: 'transparent'
+      }
     });
   }, []);
 
@@ -38,10 +53,28 @@ export default function DiagramRenderer({ workspaceId }) {
               svgElement.id = 'diagram';
               svgElement.classList.add('mermaid-diagram');
             }
-            
+
             svgElement.setAttribute('data-exportable', 'true');
             svgElement.setAttribute('data-name', 'diagram');
             svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+            const edgeLabelSpans = svgElement.querySelectorAll('.edgeLabel span, .edgeLabel div, foreignObject span, foreignObject div');
+            edgeLabelSpans.forEach(el => {
+              el.style.backgroundColor = 'transparent';
+              el.style.background = 'transparent';
+            });
+
+            const labelContainers = svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container');
+            labelContainers.forEach(el => {
+              el.setAttribute('fill', 'transparent');
+              el.style.fill = 'transparent';
+            });
+
+            const nodeRects = svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse');
+            nodeRects.forEach(el => {
+              el.setAttribute('fill', 'transparent');
+              el.style.fill = 'transparent';
+            });
           }
           
           setError(null);
