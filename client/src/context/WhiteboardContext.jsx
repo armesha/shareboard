@@ -1,19 +1,18 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { useSharing } from './SharingContext';
+import {
+  TOOLS,
+  COLORS,
+  SOCKET_EVENTS,
+  INTERACTIVE_TYPES,
+  FABRIC_OBJECT_PROPS
+} from '../constants';
+import { getWorkspaceId } from '../utils';
 
 const WhiteboardContext = createContext(null);
-const WHITEBOARD_BG_COLOR = 'rgb(249, 250, 251)'; // Tailwind's bg-gray-50
-
-const FABRIC_OBJECT_PROPS = [
-  'id', 'left', 'top', 'width', 'height', 'scaleX', 'scaleY', 'angle',
-  'stroke', 'strokeWidth', 'fill', 'opacity', 'path',
-  'strokeLineCap', 'strokeLineJoin', 'strokeMiterLimit',
-  'text', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
-  'textAlign', 'charSpacing', 'lineHeight'
-];
 
 export function useWhiteboard() {
   return useContext(WhiteboardContext);
@@ -24,7 +23,7 @@ export function WhiteboardProvider({ children }) {
   const socket = socketContext?.socket;
   const [elements, setElements] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
-  const [tool, setTool] = useState('select');
+  const [tool, setTool] = useState(TOOLS.SELECT);
   const [selectedShape, setSelectedShape] = useState(null);
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
@@ -37,80 +36,6 @@ export function WhiteboardProvider({ children }) {
 
   const { canWrite } = useSharing() || { canWrite: () => true };
 
-  const addElement = useCallback((element) => {
-    if (!element.id) {
-      element.id = uuidv4();
-    }
-
-    const elementWithProps = {
-      ...element,
-      selectable: tool === 'select',
-      evented: tool === 'select'
-    };
-
-    elementsMapRef.current.set(element.id, elementWithProps);
-    
-    const updatedElements = Array.from(elementsMapRef.current.values());
-    setElements(updatedElements);
-    
-    const workspaceId = window.location.pathname.split('/')[2];
-    if (workspaceId && socket && !isUpdatingRef.current) {
-      console.log('Sending new element to server:', elementWithProps);
-      socket.emit('whiteboard-update', {
-        workspaceId,
-        elements: [elementWithProps]  // Send only the new/updated element
-      });
-    }
-
-    if (elementWithProps.type === 'diagram') {
-      const canvas = canvasRef.current;
-      if (canvas && !canvas.getObjects().some(o => o.id === elementWithProps.id)) {
-        const obj = createFabricObject(elementWithProps);
-        if (obj) {
-          canvas.add(obj);
-          obj.bringToFront();
-          canvas.requestRenderAll();
-        }
-      }
-    }
-
-    setTimeout(() => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
-        if (fabricObj) {
-          fabricObj.bringToFront();
-          canvas.requestRenderAll();
-        }
-      }
-    }, 0);
-  }, [socket, tool]);
-
-  const updateElement = useCallback((id, element) => {
-    if (!id || !elementsMapRef.current.has(id)) return;
-
-    const elementWithProps = {
-      ...element,
-      id,
-      selectable: tool === 'select',
-      evented: tool === 'select'
-    };
-
-    elementsMapRef.current.set(id, elementWithProps);
-    
-    const updatedElements = Array.from(elementsMapRef.current.values());
-    setElements(updatedElements);
-
-    const workspaceId = window.location.pathname.split('/')[2];
-    if (workspaceId && socket && !isUpdatingRef.current) {
-      console.log('Sending updated element to server:', elementWithProps);
-      socket.emit('whiteboard-update', {
-        workspaceId,
-        elements: [elementWithProps]  // Send only the updated element
-      });
-    }
-  }, [socket, tool]);
-
   const createFabricObject = useCallback((element) => {
     let obj;
 
@@ -118,8 +43,8 @@ export function WhiteboardProvider({ children }) {
       case 'path':
         obj = new fabric.Path(element.data.path, {
           ...element.data,
-          stroke: element.data.stroke || color,
-          strokeWidth: element.data.strokeWidth || width,
+          stroke: element.data.stroke || '#000000',
+          strokeWidth: element.data.strokeWidth || 2,
           fill: null,
           strokeLineCap: 'round',
           strokeLineJoin: 'round',
@@ -134,7 +59,7 @@ export function WhiteboardProvider({ children }) {
           left: element.data.left,
           top: element.data.top,
           fontSize: element.data.fontSize || 20,
-          fill: element.data.fill || color,
+          fill: element.data.fill || '#000000',
           fontFamily: element.data.fontFamily || 'Arial',
           selectable: true,
           hasControls: true,
@@ -157,9 +82,7 @@ export function WhiteboardProvider({ children }) {
           console.warn('Diagram element has no src');
           return null;
         }
-        
-        console.log('Creating diagram object from source:', element.data.src.substring(0, 30) + '...');
-        
+
         obj = new fabric.Rect({
           ...element.data,
           fill: 'rgba(240, 240, 240, 0.5)',
@@ -169,13 +92,11 @@ export function WhiteboardProvider({ children }) {
           width: 200,
           height: 150
         });
-        
+
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        
+
         img.onload = () => {
-          console.log('Diagram image loaded successfully:', img.width, 'x', img.height);
-          
           const fabricImage = new fabric.Image(img, {
             ...element.data,
             id: element.id,
@@ -196,57 +117,35 @@ export function WhiteboardProvider({ children }) {
             lockRotation: false,
             lockScalingX: false,
             lockScalingY: false,
-            data: {
-              ...element.data,
-              isDiagram: true
-            }
+            data: { ...element.data, isDiagram: true }
           });
-          
-          if (!fabricImage) {
-            console.error('Failed to create fabric.Image object');
-            return;
-          }
-          
+
           const canvas = canvasRef.current;
-          if (!canvas) {
-            console.error('Canvas not available when adding diagram');
-            return;
+          if (!canvas) return;
+
+          const placeholderObj = canvas.getObjects().find(o => o.id === element.id);
+          if (placeholderObj) {
+            canvas.remove(placeholderObj);
           }
-          
-          try {
-            const placeholderObj = canvas.getObjects().find(o => o.id === element.id);
-            if (placeholderObj) {
-              canvas.remove(placeholderObj);
-            }
-            
-            canvas.add(fabricImage);
-            fabricImage.bringToFront();
-            canvas.requestRenderAll();
-            console.log('Diagram successfully added to canvas with ID:', element.id);
-            
-            elementsMapRef.current.set(element.id, {
-              ...element,
-              type: 'diagram',
-              data: {
-                ...element.data,
-                isDiagram: true,
-                width: img.width,
-                height: img.height
-              }
-            });
-          } catch (renderError) {
-            console.error('Error rendering diagram to canvas:', renderError);
-          }
+
+          canvas.add(fabricImage);
+          fabricImage.bringToFront();
+          canvas.requestRenderAll();
+
+          elementsMapRef.current.set(element.id, {
+            ...element,
+            type: 'diagram',
+            data: { ...element.data, isDiagram: true, width: img.width, height: img.height }
+          });
         };
-        
+
         img.onerror = (error) => {
-          console.error('Error loading diagram image:', error, element.data.src.substring(0, 30) + '...');
+          console.error('Error loading diagram image:', error);
         };
-        
+
         img.src = element.data.src;
         break;
       default:
-        console.warn('Unknown shape type:', element.type);
         return null;
     }
 
@@ -255,7 +154,68 @@ export function WhiteboardProvider({ children }) {
     }
 
     return obj;
-  }, [color, width]);
+  }, []);
+
+  const addElement = useCallback((element) => {
+    if (!element.id) {
+      element.id = uuidv4();
+    }
+
+    elementsMapRef.current.set(element.id, element);
+
+    const updatedElements = Array.from(elementsMapRef.current.values());
+    setElements(updatedElements);
+
+    const workspaceId = getWorkspaceId();
+    if (workspaceId && socket && !isUpdatingRef.current) {
+      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+        workspaceId,
+        elements: [element]
+      });
+    }
+
+    if (element.type === 'diagram') {
+      const canvas = canvasRef.current;
+      if (canvas && !canvas.getObjects().some(o => o.id === element.id)) {
+        const obj = createFabricObject(element);
+        if (obj) {
+          canvas.add(obj);
+          obj.bringToFront();
+          canvas.requestRenderAll();
+        }
+      }
+    }
+
+    setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
+        if (fabricObj) {
+          fabricObj.bringToFront();
+          canvas.requestRenderAll();
+        }
+      }
+    }, 0);
+  }, [socket, createFabricObject]);
+
+  const updateElement = useCallback((id, element) => {
+    if (!id || !elementsMapRef.current.has(id)) return;
+
+    const elementWithId = { ...element, id };
+
+    elementsMapRef.current.set(id, elementWithId);
+
+    const updatedElements = Array.from(elementsMapRef.current.values());
+    setElements(updatedElements);
+
+    const workspaceId = getWorkspaceId();
+    if (workspaceId && socket && !isUpdatingRef.current) {
+      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+        workspaceId,
+        elements: [elementWithId]
+      });
+    }
+  }, [socket]);
 
   const handleWhiteboardUpdate = useCallback((serverElements) => {
     console.log('Received whiteboard update from server:', serverElements);
@@ -337,60 +297,49 @@ export function WhiteboardProvider({ children }) {
 
   const initCanvas = useCallback((canvasElement) => {
     const canvas = new fabric.Canvas(canvasElement, {
-      backgroundColor: WHITEBOARD_BG_COLOR,
+      backgroundColor: COLORS.BG_WHITEBOARD,
       width: window.innerWidth,
       height: window.innerHeight,
       renderOnAddRemove: false,
-      isDrawingMode: tool === 'pen' && canWrite()
+      isDrawingMode: false
     });
 
     const brush = new fabric.PencilBrush(canvas);
-    brush.color = color;
-    brush.width = width;
+    brush.color = '#000000';
+    brush.width = 2;
     brush.strokeLineCap = 'round';
     brush.strokeLineJoin = 'round';
     canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
-    
+
     const handlePathCreated = (e) => {
       if (!canWrite()) {
         console.warn('Path creation attempted without permission');
         return;
       }
-      
+
       const path = e.path;
       if (!path.id) {
         path.id = uuidv4();
       }
-      
+
       const data = path.toObject(FABRIC_OBJECT_PROPS);
-      
-      data.stroke = data.stroke || color;
-      data.strokeWidth = data.strokeWidth || width;
       data.strokeLineCap = 'round';
       data.strokeLineJoin = 'round';
       data.fill = null;
-      
+
       const element = {
         id: path.id,
         type: 'path',
         data: data
       };
-      
-      console.log('Path created:', {
-        id: path.id,
-        hasPath: !!data.path,
-        pathLength: data.path ? data.path.length : 0,
-        stroke: data.stroke,
-        strokeWidth: data.strokeWidth
-      });
-      
+
       elementsMapRef.current.set(path.id, element);
-      
-      const workspaceId = window.location.pathname.split('/')[2];
+
+      const workspaceId = getWorkspaceId();
       if (workspaceId && socket && !isUpdatingRef.current) {
-        socket.emit('whiteboard-update', {
+        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
           workspaceId,
           elements: [element]
         });
@@ -409,7 +358,6 @@ export function WhiteboardProvider({ children }) {
       };
 
       updateElement(obj.id, element);
-      
       elementsMapRef.current.set(obj.id, element);
     };
 
@@ -436,7 +384,7 @@ export function WhiteboardProvider({ children }) {
       canvas.off('text:changed', handleObjectModified);
       canvas.dispose();
     };
-  }, [tool, color, width, addElement, updateElement]);
+  }, [socket, updateElement]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -456,9 +404,9 @@ export function WhiteboardProvider({ children }) {
     elementsMapRef.current.clear();
     setElements([]);
 
-    const workspaceId = window.location.pathname.split('/')[2];
+    const workspaceId = getWorkspaceId();
     if (workspaceId && socket) {
-      socket.emit('whiteboard-clear', { workspaceId });
+      socket.emit(SOCKET_EVENTS.WHITEBOARD_CLEAR, { workspaceId });
     }
   }, [socket]);
 
@@ -468,9 +416,9 @@ export function WhiteboardProvider({ children }) {
     const handleConnect = () => {
       setIsConnected(true);
       setConnectionStatus('connected');
-      const workspaceId = window.location.pathname.split('/')[2];
+      const workspaceId = getWorkspaceId();
       if (workspaceId) {
-        socket.emit('join-workspace', { workspaceId, userId: socket.id });
+        socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, { workspaceId, userId: socket.id });
       }
     };
 
@@ -525,8 +473,8 @@ export function WhiteboardProvider({ children }) {
           });
 
           canvas.getObjects().forEach(obj => {
-            const isSelectable = tool === 'select' && canWrite();
-            
+            const isSelectable = tool === TOOLS.SELECT && canWrite();
+
             obj.set({
               selectable: isSelectable,
               hasControls: isSelectable,
@@ -557,8 +505,8 @@ export function WhiteboardProvider({ children }) {
 
     const handleDeleteElement = ({ workspaceId, elementId }) => {
       console.log(`Received delete-element event for workspace ${workspaceId}, element ${elementId}`);
-      
-      const currentWorkspace = window.location.pathname.split('/')[2];
+
+      const currentWorkspace = getWorkspaceId();
       if (currentWorkspace !== workspaceId) {
         console.log('Ignoring delete event for different workspace');
         return;
@@ -595,29 +543,29 @@ export function WhiteboardProvider({ children }) {
       }
     };
 
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('workspace-state', handleWhiteboardState);
-    socket.on('whiteboard-update', handleWhiteboardUpdate);
-    socket.on('whiteboard-clear', handleWhiteboardClear);
-    socket.on('delete-element', handleDeleteElement);
+    socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
+    socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWhiteboardState);
+    socket.on(SOCKET_EVENTS.WHITEBOARD_UPDATE, handleWhiteboardUpdate);
+    socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, handleWhiteboardClear);
+    socket.on(SOCKET_EVENTS.DELETE_ELEMENT, handleDeleteElement);
 
     if (socket.connected) {
       setIsConnected(true);
       setConnectionStatus('connected');
-      const workspaceId = window.location.pathname.split('/')[2];
+      const workspaceId = getWorkspaceId();
       if (workspaceId) {
-        socket.emit('join-workspace', { workspaceId, userId: socket.id });
+        socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, { workspaceId, userId: socket.id });
       }
     }
 
     return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('workspace-state', handleWhiteboardState);
-      socket.off('whiteboard-update', handleWhiteboardUpdate);
-      socket.off('whiteboard-clear', handleWhiteboardClear);
-      socket.off('delete-element', handleDeleteElement);
+      socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
+      socket.off(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWhiteboardState);
+      socket.off(SOCKET_EVENTS.WHITEBOARD_UPDATE, handleWhiteboardUpdate);
+      socket.off(SOCKET_EVENTS.WHITEBOARD_CLEAR, handleWhiteboardClear);
+      socket.off(SOCKET_EVENTS.DELETE_ELEMENT, handleDeleteElement);
     };
   }, [socket, handleWhiteboardUpdate]);
 
@@ -625,8 +573,8 @@ export function WhiteboardProvider({ children }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const shouldBeDrawingMode = tool === 'pen' && canWrite();
-    
+    const shouldBeDrawingMode = tool === TOOLS.PEN && canWrite();
+
     if (canvas.isDrawingMode !== shouldBeDrawingMode) {
       console.log(`Updating drawing mode to: ${shouldBeDrawingMode}`);
       canvas.isDrawingMode = shouldBeDrawingMode;
@@ -642,12 +590,11 @@ export function WhiteboardProvider({ children }) {
     }
     
     const userCanDraw = !isLoading && isConnected && canWrite();
-    canvas.selection = userCanDraw && (tool === 'select');
+    canvas.selection = userCanDraw && (tool === TOOLS.SELECT);
 
-    const interactiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
     canvas.getObjects().forEach(obj => {
-      const isInteractive = interactiveTypes.includes(obj.type);
-      const isSelectable = userCanDraw && (tool === 'select' || tool === 'text' || tool === 'shapes') && isInteractive;
+      const isInteractive = INTERACTIVE_TYPES.includes(obj.type);
+      const isSelectable = userCanDraw && (tool === TOOLS.SELECT || tool === TOOLS.TEXT || tool === TOOLS.SHAPES) && isInteractive;
 
       obj.set({
         selectable: isSelectable,
@@ -662,9 +609,9 @@ export function WhiteboardProvider({ children }) {
       });
     });
 
-    canvas.skipTargetFind = !userCanDraw || (tool !== 'select');
+    canvas.skipTargetFind = !userCanDraw || (tool !== TOOLS.SELECT);
     canvas.requestRenderAll();
-  }, [tool, isLoading, isConnected, canWrite, color, width]);
+  }, [tool, isLoading, isConnected, canWrite]);
 
   const handleColorChange = useCallback((newColor) => {
     setColor(newColor);
@@ -674,36 +621,32 @@ export function WhiteboardProvider({ children }) {
       canvas.freeDrawingBrush.color = newColor;
     }
 
-    if (tool !== 'shapes') {
-      setTool('pen');
+    if (tool !== TOOLS.SHAPES) {
+      setTool(TOOLS.PEN);
     }
   }, [tool, setTool]);
 
   useEffect(() => {
-    if (!canWrite() && (tool !== 'select' || selectedShape !== null)) {
+    if (!canWrite() && (tool !== TOOLS.SELECT || selectedShape !== null)) {
       console.log('Permission changed to read-only, resetting to select tool');
-      setTool('select');
+      setTool(TOOLS.SELECT);
       setSelectedShape(null);
     }
   }, [canWrite, tool, selectedShape]);
 
-  // Special handling for pen tool when permissions change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
-    // Force refresh pen tool status based on permissions
-    if (tool === 'pen') {
+
+    if (tool === TOOLS.PEN) {
       const hasPermission = canWrite();
       console.log(`Pen tool permission check: ${hasPermission ? 'allowed' : 'denied'}`);
-      
-      // Update drawing mode based on current permissions
+
       canvas.isDrawingMode = hasPermission;
-      
+
       if (!hasPermission) {
-        // Reset to select tool if no permission
         console.log('No permission to use pen tool, resetting to select');
-        setTool('select');
+        setTool(TOOLS.SELECT);
       }
     }
   }, [canWrite, tool, setTool]);
@@ -712,7 +655,7 @@ export function WhiteboardProvider({ children }) {
     tool,
     color,
     width,
-    WHITEBOARD_BG_COLOR,
+    WHITEBOARD_BG_COLOR: COLORS.BG_WHITEBOARD,
     selectedShape,
     activeUsers,
     elements,

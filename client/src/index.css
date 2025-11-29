@@ -3,25 +3,209 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: theme('colors.blue.500');
+    --color-primary-dark: theme('colors.blue.600');
+    --color-success: theme('colors.green.500');
+    --color-warning: theme('colors.yellow.500');
+    --color-danger: theme('colors.red.500');
+    --color-text: theme('colors.gray.700');
+    --color-text-light: theme('colors.gray.500');
+    --color-border: theme('colors.gray.200');
+    --color-bg: theme('colors.gray.50');
+  }
+
   body {
-    @apply bg-gray-50;
+    @apply bg-gray-50 text-gray-700 antialiased;
+  }
+
+  *:focus-visible {
+    @apply outline-2 outline-blue-500 outline-offset-2;
   }
 }
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors;
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  
+
   .btn-primary {
-    @apply bg-blue-500 text-white hover:bg-blue-600;
+    @apply btn bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-400;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+    @apply btn bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400;
   }
-  
+
+  .btn-success {
+    @apply btn bg-green-500 text-white hover:bg-green-600 focus:ring-green-400;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400;
+  }
+
+  .btn-icon {
+    @apply p-2 rounded-full transition-all duration-200 hover:bg-gray-100
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400;
+  }
+
+  .btn-icon-active {
+    @apply btn-icon bg-blue-500 hover:bg-blue-600 text-white;
+  }
+
   .input {
-    @apply px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply px-4 py-2 border border-gray-300 rounded-md
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           disabled:bg-gray-100 disabled:cursor-not-allowed
+           transition-colors duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-md border border-gray-200 p-4;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50
+           animate-fadeIn;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg shadow-xl max-w-lg w-full mx-4
+           animate-slideUp;
+  }
+
+  .toolbar {
+    @apply flex items-center gap-1 sm:gap-2 bg-white rounded-full shadow-lg
+           border border-gray-200 py-2 px-2 sm:px-3
+           overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300;
+  }
+
+  .toolbar-divider {
+    @apply h-6 w-px bg-gray-200 mx-1 flex-shrink-0;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-1 rounded-md text-xs font-medium;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  .notification {
+    @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50
+           px-4 py-2 rounded-md shadow-lg flex items-center
+           animate-slideUp;
+  }
+
+  .notification-success {
+    @apply notification bg-green-500 text-white;
+  }
+
+  .notification-warning {
+    @apply notification bg-yellow-500 text-white;
+  }
+
+  .notification-error {
+    @apply notification bg-red-500 text-white;
+  }
+
+  .notification-info {
+    @apply notification bg-blue-500 text-white;
+  }
+
+  .dropdown-menu {
+    @apply absolute top-full mt-1 bg-white rounded-lg shadow-lg
+           border border-gray-200 py-2 z-50 min-w-[12rem]
+           animate-fadeIn;
+  }
+
+  .dropdown-item {
+    @apply w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center
+           transition-colors duration-150;
+  }
+
+  .resize-handle {
+    @apply absolute h-full cursor-col-resize z-20
+           hover:bg-blue-100 transition-colors duration-200;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thumb-gray-300::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  .scrollbar-thumb-gray-300::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-slideUp {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    @apply py-1.5 px-1.5 gap-0.5;
+  }
+
+  .btn-icon {
+    @apply p-1.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .animate-slideUp {
+    animation: none;
   }
 }

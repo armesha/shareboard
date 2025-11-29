@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
+import { SOCKET_EVENTS, STORAGE_KEYS, CONNECTION_STATUS, TIMING } from '../constants';
 
 const SocketContext = createContext(null);
 
@@ -12,15 +13,15 @@ export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.DISCONNECTED);
   const [userId, setUserId] = useState(null);
   const maxReconnectAttempts = 5;
 
   useEffect(() => {
-    let persistentUserId = localStorage.getItem('shareboardUserId');
+    let persistentUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
     if (!persistentUserId) {
       persistentUserId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem('shareboardUserId', persistentUserId);
+      localStorage.setItem(STORAGE_KEYS.USER_ID, persistentUserId);
     }
     setUserId(persistentUserId);
   }, []);
@@ -31,14 +32,14 @@ export function SocketProvider({ children }) {
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
-        reconnectionDelay: 2000,
-        reconnectionDelayMax: 10000,
+        reconnectionDelay: TIMING.RECONNECT_DELAY,
+        reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
         timeout: 20000,
         transports: ['websocket', 'polling']
       });
 
       console.log('Initializing socket connection...');
-      setConnectionStatus('connecting');
+      setConnectionStatus(CONNECTION_STATUS.CONNECTING);
 
       socketInstance.on('connect', () => {
         console.log('Connected to Socket.IO server with ID:', socketInstance.id);
@@ -50,7 +51,7 @@ export function SocketProvider({ children }) {
         
         setConnectionAttempts(0);
         setConnectionError(null);
-        setConnectionStatus('connected');
+        setConnectionStatus(CONNECTION_STATUS.CONNECTED);
         setSocket(socketInstance);
         
         toast.success('Connected to server successfully!', {
@@ -68,7 +69,7 @@ export function SocketProvider({ children }) {
           error: error
         });
         
-        setConnectionStatus('error');
+        setConnectionStatus(CONNECTION_STATUS.ERROR);
         setConnectionError(error.message);
         
         setConnectionAttempts(prev => {
@@ -93,9 +94,9 @@ export function SocketProvider({ children }) {
         });
       });
 
-      socketInstance.on('disconnect', (reason) => {
+      socketInstance.on(SOCKET_EVENTS.DISCONNECT, (reason) => {
         console.log('Disconnected from server:', reason);
-        setConnectionStatus('disconnected');
+        setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
         setSocket(null);
         
         toast.info('Disconnected from server. Attempting to reconnect...', {
@@ -104,7 +105,7 @@ export function SocketProvider({ children }) {
         });
       });
 
-      socketInstance.on('session-ended', (data) => {
+      socketInstance.on(SOCKET_EVENTS.SESSION_ENDED, (data) => {
         console.log('Session ended by owner:', data);
         
         toast.warning(data.message || 'The session has been ended by the owner', {
@@ -119,10 +120,10 @@ export function SocketProvider({ children }) {
         }, 3000);
       });
 
-      socketInstance.on('error', (error) => {
+      socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
         console.error('Socket error:', error);
         setConnectionError(error.message || 'Unknown socket error');
-        
+
         toast.error(`Socket error: ${error.message || 'Unknown error'}`, {
           position: 'bottom-right',
           autoClose: 5000
@@ -130,7 +131,7 @@ export function SocketProvider({ children }) {
       });
 
       setSocket(socketInstance);
-    }, 2000);
+    }, TIMING.RECONNECT_DELAY);
   }, [maxReconnectAttempts]);
 
   useEffect(() => {
@@ -138,11 +139,11 @@ export function SocketProvider({ children }) {
     return () => {
       if (socket) {
         socket.disconnect();
-        socket.off('connect');
+        socket.off(SOCKET_EVENTS.CONNECT);
         socket.off('connect_error');
-        socket.off('disconnect');
-        socket.off('error');
-        socket.off('session-ended');
+        socket.off(SOCKET_EVENTS.DISCONNECT);
+        socket.off(SOCKET_EVENTS.ERROR);
+        socket.off(SOCKET_EVENTS.SESSION_ENDED);
       }
     };
   }, [initializeSocket]);
