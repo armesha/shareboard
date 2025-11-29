@@ -2,15 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
+import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import { SHAPES, TOOLS } from '../../constants';
 
-const SHAPE_ICONS = {
-  [SHAPES.RECTANGLE]: CropSquareIcon,
-  [SHAPES.TRIANGLE]: ChangeHistoryIcon,
-  [SHAPES.CIRCLE]: CircleOutlinedIcon,
-};
+const SHAPE_ITEMS = [
+  { id: SHAPES.RECTANGLE, icon: CropSquareIcon, tool: TOOLS.SHAPES },
+  { id: SHAPES.CIRCLE, icon: CircleOutlinedIcon, tool: TOOLS.SHAPES },
+  { id: SHAPES.TRIANGLE, icon: ChangeHistoryIcon, tool: TOOLS.SHAPES },
+  { id: 'line', icon: HorizontalRuleIcon, tool: TOOLS.LINE },
+  { id: 'arrow', icon: ArrowRightAltIcon, tool: TOOLS.ARROW },
+];
+
+const GroupedShapesIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <circle cx="17" cy="7" r="4" />
+    <path d="M7 14 L3 21 L11 21 Z" />
+    <line x1="14" y1="17" x2="21" y2="17" strokeWidth="2" />
+  </svg>
+);
 
 const ShapesMenu = React.memo(function ShapesMenu({
+  tool,
   selectedShape,
   onSelectShape,
   setTool,
@@ -18,6 +32,8 @@ const ShapesMenu = React.memo(function ShapesMenu({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
+
+  const isActive = tool === TOOLS.SHAPES || tool === TOOLS.LINE || tool === TOOLS.ARROW;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -44,62 +60,73 @@ const ShapesMenu = React.memo(function ShapesMenu({
 
   if (disabled) return null;
 
-  const CurrentIcon = selectedShape ? SHAPE_ICONS[selectedShape] : CropSquareIcon;
-
-  const handleShapeSelect = (shape) => {
-    onSelectShape(shape);
-    setTool(TOOLS.SHAPES);
+  const handleItemSelect = (item) => {
+    if (item.tool === TOOLS.SHAPES) {
+      onSelectShape(item.id);
+      setTool(TOOLS.SHAPES);
+    } else {
+      onSelectShape(null);
+      setTool(item.tool);
+    }
     setIsOpen(false);
   };
 
-  const handleToggle = () => {
-    if (isOpen) {
-      setIsOpen(false);
-      onSelectShape(null);
-    } else {
-      setIsOpen(true);
-    }
+  const getActiveItemId = () => {
+    if (tool === TOOLS.LINE) return 'line';
+    if (tool === TOOLS.ARROW) return 'arrow';
+    if (tool === TOOLS.SHAPES && selectedShape) return selectedShape;
+    return null;
   };
+
+  const activeItemId = getActiveItemId();
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         type="button"
         className={`p-2 rounded-full transition-all duration-200 ${
-          selectedShape ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
+          isActive ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
         }`}
-        onClick={handleToggle}
+        onClick={() => setIsOpen(!isOpen)}
         aria-label="Shapes menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        title="Shapes"
+        title="Shapes & Lines"
       >
-        <CurrentIcon className={selectedShape ? 'text-white' : 'text-gray-700'} />
+        <div className={isActive ? 'text-white' : 'text-gray-700'}>
+          <GroupedShapesIcon />
+        </div>
       </button>
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 animate-fadeIn"
           role="menu"
           aria-label="Shape options"
         >
-          {Object.entries(SHAPES).map(([key, shape]) => {
-            const Icon = SHAPE_ICONS[shape];
-            return (
-              <button
-                key={shape}
-                type="button"
-                className={`w-full px-4 py-2 hover:bg-gray-100 flex items-center justify-center ${
-                  selectedShape === shape ? 'bg-blue-50' : ''
-                }`}
-                onClick={() => handleShapeSelect(shape)}
-                role="menuitem"
-                aria-label={`Select ${shape}`}
-              >
-                <Icon className="text-gray-700" />
-              </button>
-            );
-          })}
+          <div className="flex gap-1">
+            {SHAPE_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isSelected = activeItemId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                    isSelected
+                      ? 'bg-blue-500 text-white'
+                      : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                  onClick={() => handleItemSelect(item)}
+                  role="menuitem"
+                  aria-label={`Select ${item.id}`}
+                  title={item.id.charAt(0).toUpperCase() + item.id.slice(1)}
+                >
+                  <Icon sx={{ fontSize: 20 }} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

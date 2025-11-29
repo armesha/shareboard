@@ -83,6 +83,7 @@ const Toolbar = React.memo(function Toolbar({
             />
 
             <ShapesMenu
+              tool={tool}
               selectedShape={selectedShape}
               onSelectShape={setSelectedShape}
               setTool={setTool}

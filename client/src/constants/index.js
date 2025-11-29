@@ -3,6 +3,8 @@ export const TOOLS = {
   PEN: 'pen',
   TEXT: 'text',
   SHAPES: 'shapes',
+  LINE: 'line',
+  ARROW: 'arrow',
 };
 
 export const SHAPES = {
@@ -61,7 +63,7 @@ export const FABRIC_EVENTS = {
 };
 
 export const INTERACTIVE_TYPES = [
-  'image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'
+  'image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line', 'arrow', 'group'
 ];
 
 export const COLORS = {

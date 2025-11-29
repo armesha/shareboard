@@ -46,11 +46,16 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         });
         break;
       case SHAPES.TRIANGLE:
-        shapeObj = new fabric.Triangle({
-          ...commonProps,
-          width: 0,
-          height: 0
-        });
+        shapeObj = new fabric.Polygon(
+          [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'triangle';
         break;
       default:
         return;
@@ -100,24 +105,37 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
 
       case SHAPES.TRIANGLE:
         const isUpsideDown = deltaHeight < 0;
+        const absWidth = Math.abs(deltaWidth) || 1;
+        const absHeight = Math.abs(deltaHeight) || 1;
+
+        let triWidth = absWidth;
+        let triHeight = absHeight;
+
         if (isCtrlPressed) {
-          const size = Math.max(Math.abs(deltaWidth), Math.abs(deltaHeight));
-          shape.set({
-            width: size,
-            height: isUpsideDown ? -size : size,
-            left: startX - (size / 2),
-            top: startY,
-            originY: 'top'
-          });
-        } else {
-          shape.set({
-            width: Math.abs(deltaWidth),
-            height: isUpsideDown ? -Math.abs(deltaHeight) : Math.abs(deltaHeight),
-            left: startX - (Math.abs(deltaWidth) / 2),
-            top: startY,
-            originY: 'top'
-          });
+          const size = Math.max(absWidth, absHeight);
+          triWidth = size;
+          triHeight = size;
         }
+
+        const halfWidth = triWidth / 2;
+        let points;
+
+        if (isUpsideDown) {
+          points = [
+            { x: startX, y: startY },
+            { x: startX - halfWidth, y: startY - triHeight },
+            { x: startX + halfWidth, y: startY - triHeight }
+          ];
+        } else {
+          points = [
+            { x: startX, y: startY },
+            { x: startX - halfWidth, y: startY + triHeight },
+            { x: startX + halfWidth, y: startY + triHeight }
+          ];
+        }
+
+        shape.set({ points: points });
+        shape._setPositionDimensions({});
         break;
     }
 

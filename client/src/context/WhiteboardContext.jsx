@@ -11,6 +11,7 @@ import {
   FABRIC_OBJECT_PROPS
 } from '../constants';
 import { getWorkspaceId } from '../utils';
+import '../utils/fabricArrow';
 
 const WhiteboardContext = createContext(null);
 
@@ -75,8 +76,28 @@ export function WhiteboardProvider({ children }) {
         obj = new fabric.Circle(element.data);
         break;
       case 'triangle':
-        obj = new fabric.Triangle(element.data);
+        if (element.data.points) {
+          obj = new fabric.Polygon(element.data.points, {
+            ...element.data,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          });
+          obj.type = 'triangle';
+        } else {
+          obj = new fabric.Triangle(element.data);
+        }
         break;
+      case 'line': {
+        const { left, top, ...lineOptions } = element.data;
+        obj = new fabric.Line([element.data.x1, element.data.y1, element.data.x2, element.data.y2], lineOptions);
+        break;
+      }
+      case 'arrow': {
+        const { left, top, ...arrowOptions } = element.data;
+        obj = new fabric.Arrow([element.data.x1, element.data.y1, element.data.x2, element.data.y2], arrowOptions);
+        break;
+      }
       case 'diagram':
         if (!element.data.src) {
           console.warn('Diagram element has no src');

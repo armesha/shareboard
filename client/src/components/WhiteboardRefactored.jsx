@@ -5,6 +5,7 @@ import TextInputModal from './TextInputModal';
 import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
+import { useLineDrawing } from '../hooks/useLineDrawing';
 import { useTextEditing } from '../hooks/useTextEditing';
 
 const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
@@ -33,6 +34,20 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   } = useShapeDrawing({
     canvas,
     selectedShape,
+    color,
+    width,
+    addElement,
+    disabled
+  });
+
+  const {
+    isDrawingLine,
+    startLine,
+    updateLine,
+    finishLine
+  } = useLineDrawing({
+    canvas,
+    tool,
     color,
     width,
     addElement,
@@ -206,19 +221,42 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     if (tool === TOOLS.SHAPES && selectedShape && !e.target) {
       const pointer = canvas.getPointer(e.e);
       startShape(pointer);
+      return;
     }
-  }, [canvas, tool, selectedShape, disabled, openTextModal, startShape]);
+
+    if ((tool === TOOLS.LINE || tool === TOOLS.ARROW) && !e.target) {
+      const pointer = canvas.getPointer(e.e);
+      startLine(pointer);
+    }
+  }, [canvas, tool, selectedShape, disabled, openTextModal, startShape, startLine]);
 
   const handleMouseMove = useCallback((e) => {
-    if (disabled || !canvas || !isDrawing.current) return;
+    if (disabled || !canvas) return;
+
     const pointer = canvas.getPointer(e.e);
-    updateShape(pointer, e.e.ctrlKey);
-  }, [canvas, disabled, isDrawing, updateShape]);
+
+    if (isDrawing.current) {
+      updateShape(pointer, e.e.ctrlKey);
+      return;
+    }
+
+    if (isDrawingLine.current) {
+      updateLine(pointer, e.e.shiftKey);
+    }
+  }, [canvas, disabled, isDrawing, isDrawingLine, updateShape, updateLine]);
 
   const handleMouseUp = useCallback(() => {
     if (disabled || !canvas) return;
-    finishShape();
-  }, [canvas, disabled, finishShape]);
+
+    if (isDrawing.current) {
+      finishShape();
+      return;
+    }
+
+    if (isDrawingLine.current) {
+      finishLine();
+    }
+  }, [canvas, disabled, isDrawing, isDrawingLine, finishShape, finishLine]);
 
   useEffect(() => {
     if (!canvas) return;
