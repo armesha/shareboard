@@ -6,10 +6,38 @@ import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import { SHAPES, TOOLS } from '../../constants';
 
+const StarIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2 L14.5 9 L22 9 L16 14 L18.5 22 L12 17 L5.5 22 L8 14 L2 9 L9.5 9 Z" />
+  </svg>
+);
+
+const DiamondIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2 L22 12 L12 22 L2 12 Z" />
+  </svg>
+);
+
+const PentagonIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2 L22 9 L18 21 L6 21 L2 9 Z" />
+  </svg>
+);
+
+const HexagonIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z" />
+  </svg>
+);
+
 const SHAPE_ITEMS = [
   { id: SHAPES.RECTANGLE, icon: CropSquareIcon, tool: TOOLS.SHAPES },
   { id: SHAPES.CIRCLE, icon: CircleOutlinedIcon, tool: TOOLS.SHAPES },
   { id: SHAPES.TRIANGLE, icon: ChangeHistoryIcon, tool: TOOLS.SHAPES },
+  { id: SHAPES.STAR, icon: StarIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.DIAMOND, icon: DiamondIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.PENTAGON, icon: PentagonIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.HEXAGON, icon: HexagonIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
   { id: 'line', icon: HorizontalRuleIcon, tool: TOOLS.LINE },
   { id: 'arrow', icon: ArrowRightAltIcon, tool: TOOLS.ARROW },
 ];
@@ -104,7 +132,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
           role="menu"
           aria-label="Shape options"
         >
-          <div className="flex gap-1">
+          <div className="grid grid-cols-3 gap-1" style={{ minWidth: '126px' }}>
             {SHAPE_ITEMS.map((item) => {
               const Icon = item.icon;
               const isSelected = activeItemId === item.id;
@@ -122,7 +150,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
                   aria-label={`Select ${item.id}`}
                   title={item.id.charAt(0).toUpperCase() + item.id.slice(1)}
                 >
-                  <Icon sx={{ fontSize: 20 }} />
+                  {item.isCustomIcon ? <Icon /> : <Icon sx={{ fontSize: 20 }} />}
                 </button>
               );
             })}

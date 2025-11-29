@@ -90,6 +90,42 @@ export function WhiteboardProvider({ children }) {
           obj = new fabric.Triangle(element.data);
         }
         break;
+      case 'star':
+        obj = new fabric.Polygon(element.data.points, {
+          ...element.data,
+          strokeLineJoin: 'round',
+          strokeLineCap: 'round',
+          strokeUniform: true
+        });
+        obj.type = 'star';
+        break;
+      case 'diamond':
+        obj = new fabric.Polygon(element.data.points, {
+          ...element.data,
+          strokeLineJoin: 'round',
+          strokeLineCap: 'round',
+          strokeUniform: true
+        });
+        obj.type = 'diamond';
+        break;
+      case 'pentagon':
+        obj = new fabric.Polygon(element.data.points, {
+          ...element.data,
+          strokeLineJoin: 'round',
+          strokeLineCap: 'round',
+          strokeUniform: true
+        });
+        obj.type = 'pentagon';
+        break;
+      case 'hexagon':
+        obj = new fabric.Polygon(element.data.points, {
+          ...element.data,
+          strokeLineJoin: 'round',
+          strokeLineCap: 'round',
+          strokeUniform: true
+        });
+        obj.type = 'hexagon';
+        break;
       case 'line': {
         const { left, top, ...lineOptions } = element.data;
         obj = new fabric.Line([element.data.x1, element.data.y1, element.data.x2, element.data.y2], lineOptions);

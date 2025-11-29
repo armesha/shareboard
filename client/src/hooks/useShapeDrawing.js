@@ -57,6 +57,54 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         );
         shapeObj.type = 'triangle';
         break;
+      case SHAPES.STAR:
+        shapeObj = new fabric.Polygon(
+          Array(10).fill({ x: 0, y: 0 }),
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'star';
+        break;
+      case SHAPES.DIAMOND:
+        shapeObj = new fabric.Polygon(
+          [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'diamond';
+        break;
+      case SHAPES.PENTAGON:
+        shapeObj = new fabric.Polygon(
+          Array(5).fill({ x: 0, y: 0 }),
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'pentagon';
+        break;
+      case SHAPES.HEXAGON:
+        shapeObj = new fabric.Polygon(
+          Array(6).fill({ x: 0, y: 0 }),
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'hexagon';
+        break;
       default:
         return;
     }
@@ -137,6 +185,70 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         shape.set({ points: points });
         shape._setPositionDimensions({});
         break;
+
+      case SHAPES.STAR: {
+        const outerRadius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+        const innerRadius = outerRadius * 0.4;
+
+        const starPoints = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = (Math.PI / 2) + (i * Math.PI / 5);
+          const r = i % 2 === 0 ? outerRadius : innerRadius;
+          starPoints.push({
+            x: startX + r * Math.cos(angle),
+            y: startY - r * Math.sin(angle)
+          });
+        }
+        shape.set({ points: starPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
+
+      case SHAPES.DIAMOND: {
+        const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+
+        const diamondPoints = [
+          { x: startX, y: startY - radius },
+          { x: startX + radius, y: startY },
+          { x: startX, y: startY + radius },
+          { x: startX - radius, y: startY }
+        ];
+        shape.set({ points: diamondPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
+
+      case SHAPES.PENTAGON: {
+        const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+
+        const pentPoints = [];
+        for (let i = 0; i < 5; i++) {
+          const angle = (Math.PI / 2) + (i * 2 * Math.PI / 5);
+          pentPoints.push({
+            x: startX + radius * Math.cos(angle),
+            y: startY - radius * Math.sin(angle)
+          });
+        }
+        shape.set({ points: pentPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
+
+      case SHAPES.HEXAGON: {
+        const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+
+        const hexPoints = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 2) + (i * Math.PI / 3);
+          hexPoints.push({
+            x: startX + radius * Math.cos(angle),
+            y: startY - radius * Math.sin(angle)
+          });
+        }
+        shape.set({ points: hexPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
     }
 
     shape.setCoords();

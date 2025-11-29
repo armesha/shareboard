@@ -44,6 +44,10 @@ export const SHAPES = {
   RECTANGLE: 'rectangle',
   CIRCLE: 'circle',
   TRIANGLE: 'triangle',
+  STAR: 'star',
+  DIAMOND: 'diamond',
+  PENTAGON: 'pentagon',
+  HEXAGON: 'hexagon',
 };
 
 export const SHARING_MODES = {
@@ -96,7 +100,7 @@ export const FABRIC_EVENTS = {
 };
 
 export const INTERACTIVE_TYPES = [
-  'image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line', 'arrow', 'group'
+  'image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'path', 'line', 'arrow', 'group'
 ];
 
 export const COLORS = {

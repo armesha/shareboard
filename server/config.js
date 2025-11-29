@@ -6,6 +6,13 @@ export const config = {
       ? false
       : ['http://localhost:5173', 'http://localhost:3000']
   },
+  socketIO: {
+    transports: ['websocket', 'polling'],
+    perMessageDeflate: false,
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    maxHttpBufferSize: 1e6,
+  },
   cleanup: {
     intervalMs: 60 * 60 * 1000,
     inactiveThresholdMs: 24 * 60 * 60 * 1000
