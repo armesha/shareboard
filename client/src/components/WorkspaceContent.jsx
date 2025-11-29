@@ -468,14 +468,8 @@ export default function WorkspaceContent({
                 <div className="flex items-center space-x-2 border-r pr-3">
                   <div className="flex flex-wrap gap-1 max-w-40">
                     {[
-                      "#000000", // Black
-                      "#FFFFFF", // White
-                      "#FF0000", // Red
-                      "#00FF00", // Green
-                      "#0000FF", // Blue
-                      "#FFFF00", // Yellow
-                      "#FF00FF", // Magenta
-                      "#00FFFF"  // Cyan
+                      "#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF",
+                      "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#808080"
                     ].map((predefinedColor) => (
                       <button
                         key={predefinedColor}

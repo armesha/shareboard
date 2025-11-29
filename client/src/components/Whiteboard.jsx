@@ -78,7 +78,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
       }
 
       canvas.getObjects().forEach(obj => {
-        const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path'];
+        const isInteractiveTypes = ['image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'path', 'line'];
         const isInteractive = isInteractiveTypes.includes(obj.type);
         const shouldBeSelectable = shouldBeSelection && isInteractive && !disabled;
         const shouldBeEvented = (shouldBeSelection || (isTextMode && (obj.type === 'text' || obj.type === 'i-text'))) && !disabled;
@@ -118,7 +118,7 @@ const Whiteboard = React.memo(({ disabled = false }) => {
         canvas.requestRenderAll();
       }
     }
-  }, [tool, color, width, elements, disabled]);
+  }, [tool, color, width, disabled]);
 
   useEffect(() => {
     const canvas = fabricCanvasRef.current;

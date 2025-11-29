@@ -304,26 +304,6 @@ export function WhiteboardProvider({ children }) {
           return;
         }
         
-        if (element.type === 'path') {
-          console.log('Processing path element update:', element.id);
-          
-          const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
-          if (existingObject) {
-            canvas.remove(existingObject);
-          }
-          
-          const newPath = createFabricObject(element);
-          if (newPath) {
-            canvas.add(newPath);
-            newPath.setCoords();
-          } else {
-            console.warn('Failed to create path object:', element);
-          }
-          
-          elementsMapRef.current.set(element.id, element);
-          return;
-        }
-        
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
         
         if (existingObject) {
@@ -684,30 +664,20 @@ export function WhiteboardProvider({ children }) {
 
     canvas.skipTargetFind = !userCanDraw || (tool !== 'select');
     canvas.requestRenderAll();
-  }, [tool, isLoading, isConnected, elements, canWrite, color, width]);
+  }, [tool, isLoading, isConnected, canWrite, color, width]);
 
   const handleColorChange = useCallback((newColor) => {
-    const canvas = canvasRef.current;
-    let canvasState = null;
-    
-    if (canvas) {
-      canvasState = JSON.stringify(canvas);
-    }
-    
     setColor(newColor);
-    
+
+    const canvas = canvasRef.current;
     if (canvas && canvas.freeDrawingBrush) {
       canvas.freeDrawingBrush.color = newColor;
-      
-      if (canvasState) {
-        setTimeout(() => {
-          canvas.loadFromJSON(canvasState, () => {
-            canvas.renderAll();
-          });
-        }, 0);
-      }
     }
-  }, []);
+
+    if (tool !== 'shapes') {
+      setTool('pen');
+    }
+  }, [tool, setTool]);
 
   useEffect(() => {
     if (!canWrite() && (tool !== 'select' || selectedShape !== null)) {
