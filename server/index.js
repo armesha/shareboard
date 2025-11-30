@@ -95,8 +95,6 @@ app.get('/api/workspace/:workspaceId', (req, res) => {
 });
 
 io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
-  console.log('User connected:', socket.id);
-
   let currentWorkspace = null;
   const currentUser = { id: socket.id, joinedAt: Date.now() };
   workspaceService.setUserSession(socket.id, currentUser);
@@ -128,12 +126,14 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       const prevWorkspaceId = workspaceService.findWorkspaceIdByRef(currentWorkspace);
       if (prevWorkspaceId) {
         socket.leave(prevWorkspaceId);
-        const remaining = workspaceService.removeConnection(prevWorkspaceId, socket.id);
-        io.to(prevWorkspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers: remaining });
+        workspaceService.removeConnection(prevWorkspaceId, socket.id);
+        const activeUsers = workspaceService.getActiveUserCount(prevWorkspaceId);
+        io.to(prevWorkspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
       }
     }
 
-    const activeUsers = workspaceService.addConnection(workspaceId, socket.id);
+    workspaceService.addConnection(workspaceId, socket.id);
+    const activeUsers = workspaceService.getActiveUserCount(workspaceId);
     socket.join(workspaceId);
     currentWorkspace = workspace;
     workspaceService.updateLastActivity(workspaceId);
@@ -330,6 +330,33 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     callback?.({ userId });
   });
 
+  socket.on(SOCKET_EVENTS.CHANGE_SHARING_MODE, ({ workspaceId, sharingMode }) => {
+    const workspace = workspaceService.getWorkspace(workspaceId);
+    if (!workspace) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Workspace not found' });
+      return;
+    }
+
+    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Only the workspace owner can change sharing mode' });
+      return;
+    }
+
+    const validModes = Object.values(SHARING_MODES);
+    if (!validModes.includes(sharingMode)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid sharing mode' });
+      return;
+    }
+
+    const success = workspaceService.updateSharingMode(workspaceId, sharingMode);
+    if (success) {
+      io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
+        sharingMode,
+        editToken: workspace.editToken
+      });
+    }
+  });
+
   socket.on(SOCKET_EVENTS.END_SESSION, ({ workspaceId }) => {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) return;
@@ -351,13 +378,12 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.DISCONNECT, () => {
-    console.log('User disconnected:', socket.id);
-
     if (currentWorkspace) {
       const workspaceId = workspaceService.findWorkspaceIdByRef(currentWorkspace);
       if (workspaceId) {
-        const remaining = workspaceService.removeConnection(workspaceId, socket.id);
-        io.to(workspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers: remaining });
+        workspaceService.removeConnection(workspaceId, socket.id);
+        const activeUsers = workspaceService.getActiveUserCount(workspaceId);
+        io.to(workspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
       }
     }
 

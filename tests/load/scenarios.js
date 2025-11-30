@@ -5,6 +5,7 @@ import { TIMING, TEST_PROFILES } from './config.js';
 export async function runScenario(profile, metrics, options = {}) {
   const workspaceId = options.workspaceId || `load-test-${uuidv4().slice(0, 8)}`;
   const users = [];
+  let sharedEditToken = null;
 
   console.log();
   console.log(`🚀 Starting: ${profile.name}`);
@@ -18,10 +19,14 @@ export async function runScenario(profile, metrics, options = {}) {
 
   for (let i = 0; i < profile.users; i++) {
     const userId = `load-user-${i + 1}-${uuidv4().slice(0, 6)}`;
-    const user = new SimulatedUser(userId, workspaceId, metrics);
+    const user = new SimulatedUser(userId, workspaceId, metrics, null, sharedEditToken);
 
     try {
       await user.connect();
+      if (i === 0 && user.editToken) {
+        sharedEditToken = user.editToken;
+        console.log(`   Edit token obtained from first user`);
+      }
       user.startActivity();
       users.push(user);
 
@@ -76,6 +81,7 @@ export async function runRampUpScenario(metrics, options = {}) {
   ];
 
   const users = [];
+  let sharedEditToken = null;
 
   console.log();
   console.log('🚀 Starting: Progressive Ramp-Up Test');
@@ -102,10 +108,14 @@ export async function runRampUpScenario(metrics, options = {}) {
 
       for (let j = 0; j < toAdd; j++) {
         const userId = `ramp-user-${users.length + 1}-${uuidv4().slice(0, 6)}`;
-        const user = new SimulatedUser(userId, workspaceId, metrics);
+        const user = new SimulatedUser(userId, workspaceId, metrics, null, sharedEditToken);
 
         try {
           await user.connect();
+          if (!sharedEditToken && user.editToken) {
+            sharedEditToken = user.editToken;
+            console.log(`   Edit token obtained from first user`);
+          }
           user.startActivity();
           users.push(user);
         } catch (error) {
@@ -150,6 +160,7 @@ export async function runBurstScenario(metrics, options = {}) {
   const burstInterval = options.burstInterval || 30000;
 
   const users = [];
+  let sharedEditToken = null;
 
   console.log();
   console.log('🚀 Starting: Burst Test');
@@ -157,6 +168,18 @@ export async function runBurstScenario(metrics, options = {}) {
   console.log(`   Burst size: ${burstSize} users`);
   console.log(`   Bursts: ${burstCount}`);
   console.log();
+
+  const firstUserId = `burst-user-first-${uuidv4().slice(0, 6)}`;
+  const firstUser = new SimulatedUser(firstUserId, workspaceId, metrics);
+  try {
+    await firstUser.connect();
+    sharedEditToken = firstUser.editToken;
+    console.log(`   Edit token obtained from first user`);
+    firstUser.startActivity();
+    users.push(firstUser);
+  } catch (error) {
+    console.error(`   Failed to connect first user: ${error.message}`);
+  }
 
   const liveStatsInterval = setInterval(() => {
     metrics.calculateThroughput();
@@ -170,7 +193,7 @@ export async function runBurstScenario(metrics, options = {}) {
     const connectPromises = [];
     for (let i = 0; i < burstSize; i++) {
       const userId = `burst-user-${burst}-${i}-${uuidv4().slice(0, 6)}`;
-      const user = new SimulatedUser(userId, workspaceId, metrics);
+      const user = new SimulatedUser(userId, workspaceId, metrics, null, sharedEditToken);
       users.push(user);
 
       connectPromises.push(

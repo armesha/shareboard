@@ -16,7 +16,8 @@ import {
   getWorkspaceUsers,
   cleanupInactiveWorkspaces,
   getWorkspaceState,
-  findWorkspaceIdByRef
+  findWorkspaceIdByRef,
+  updateSharingMode
 } from '../../server/services/workspaceService.js';
 import { SHARING_MODES } from '../../server/config.js';
 
@@ -204,9 +205,14 @@ describe('workspaceService', () => {
   });
 
   describe('deleteWorkspace', () => {
+    afterEach(() => {
+      removeUserSession('socket-1');
+    });
+
     it('removes workspace and connections', () => {
       createWorkspace('test-delete', 'owner-1');
       addConnection('test-delete', 'socket-1');
+      setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-delete' });
 
       expect(workspaceExists('test-delete')).toBe(true);
       expect(getActiveUserCount('test-delete')).toBe(1);
@@ -315,15 +321,22 @@ describe('workspaceService', () => {
     });
 
     describe('getActiveUserCount', () => {
+      afterEach(() => {
+        removeUserSession('socket-1');
+        removeUserSession('socket-2');
+      });
+
       it('returns correct count of active users', () => {
         createWorkspace('test-conn', 'owner-1');
 
         expect(getActiveUserCount('test-conn')).toBe(0);
 
         addConnection('test-conn', 'socket-1');
+        setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-conn' });
         expect(getActiveUserCount('test-conn')).toBe(1);
 
         addConnection('test-conn', 'socket-2');
+        setUserSession('socket-2', { userId: 'user-2', workspaceId: 'test-conn' });
         expect(getActiveUserCount('test-conn')).toBe(2);
 
         removeConnection('test-conn', 'socket-1');
@@ -512,6 +525,8 @@ describe('workspaceService', () => {
   describe('getWorkspaceState', () => {
     afterEach(() => {
       deleteWorkspace('test-state');
+      removeUserSession('socket-1');
+      removeUserSession('socket-2');
     });
 
     it('returns complete workspace state', () => {
@@ -525,7 +540,9 @@ describe('workspaceService', () => {
       workspace.diagrams.set('diagram-1', { id: 'diagram-1', content: 'test' });
 
       addConnection('test-state', 'socket-1');
+      setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-state' });
       addConnection('test-state', 'socket-2');
+      setUserSession('socket-2', { userId: 'user-2', workspaceId: 'test-state' });
 
       const state = getWorkspaceState('test-state');
 
@@ -583,6 +600,145 @@ describe('workspaceService', () => {
       const fakeWorkspace = { id: 'fake', owner: 'fake-owner' };
       const foundId = findWorkspaceIdByRef(fakeWorkspace);
       expect(foundId).toBe(null);
+    });
+  });
+
+  describe('updateSharingMode', () => {
+    afterEach(() => {
+      deleteWorkspace('test-sharing-mode');
+    });
+
+    it('should update sharing mode for existing workspace', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(result).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+    });
+
+    it('should return false for non-existent workspace', () => {
+      const result = updateSharingMode('non-existent', SHARING_MODES.READ_ONLY);
+      expect(result).toBe(false);
+    });
+
+    it('should return false for invalid mode', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      const originalMode = workspace.sharingMode;
+
+      const result = updateSharingMode('test-sharing-mode', 'invalid-mode');
+      expect(result).toBe(false);
+      expect(workspace.sharingMode).toBe(originalMode);
+    });
+
+    it('should update lastActivity when changing mode', () => {
+      const initialTime = 1000000;
+      vi.setSystemTime(initialTime);
+
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      expect(workspace.lastActivity).toBe(initialTime);
+
+      const newTime = 2000000;
+      vi.setSystemTime(newTime);
+
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(workspace.lastActivity).toBe(newTime);
+    });
+
+    it('should update from READ_WRITE_SELECTED to READ_WRITE_ALL', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL);
+      expect(result).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
+    });
+
+    it('should update from READ_WRITE_ALL to READ_ONLY', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
+
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(result).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+    });
+
+    it('should update from READ_ONLY to READ_WRITE_SELECTED', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_SELECTED);
+      expect(result).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+    });
+
+    it('should handle setting same mode twice', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+
+      const result1 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(result1).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+
+      const result2 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      expect(result2).toBe(true);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+    });
+
+    it('should not modify other workspace properties', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      const originalOwner = workspace.owner;
+      const originalEditToken = workspace.editToken;
+      const originalId = workspace.id;
+
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+
+      expect(workspace.owner).toBe(originalOwner);
+      expect(workspace.editToken).toBe(originalEditToken);
+      expect(workspace.id).toBe(originalId);
+    });
+
+    it('should reject null as sharing mode', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      const originalMode = workspace.sharingMode;
+
+      const result = updateSharingMode('test-sharing-mode', null);
+      expect(result).toBe(false);
+      expect(workspace.sharingMode).toBe(originalMode);
+    });
+
+    it('should reject undefined as sharing mode', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      const originalMode = workspace.sharingMode;
+
+      const result = updateSharingMode('test-sharing-mode', undefined);
+      expect(result).toBe(false);
+      expect(workspace.sharingMode).toBe(originalMode);
+    });
+
+    it('should reject empty string as sharing mode', () => {
+      createWorkspace('test-sharing-mode', 'owner-1');
+      const workspace = getWorkspace('test-sharing-mode');
+      const originalMode = workspace.sharingMode;
+
+      const result = updateSharingMode('test-sharing-mode', '');
+      expect(result).toBe(false);
+      expect(workspace.sharingMode).toBe(originalMode);
     });
   });
 });

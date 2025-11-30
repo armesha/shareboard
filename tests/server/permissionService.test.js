@@ -77,6 +77,111 @@ describe('permissionService', () => {
     });
   });
 
+  describe('checkWritePermission with sharing modes', () => {
+    let workspace;
+    let ownerUser;
+    let regularUser;
+    let userWithAccess;
+
+    beforeEach(() => {
+      workspace = {
+        owner: 'owner-123',
+        sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
+        editToken: 'edit_token123'
+      };
+
+      ownerUser = {
+        userId: 'owner-123',
+        hasEditAccess: true
+      };
+
+      regularUser = {
+        userId: 'user-456',
+        hasEditAccess: false
+      };
+
+      userWithAccess = {
+        userId: 'user-789',
+        hasEditAccess: true
+      };
+    });
+
+    it('should allow owner in READ_ONLY mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+    });
+
+    it('should deny non-owner in READ_ONLY mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      expect(checkWritePermission(workspace, regularUser)).toBe(false);
+    });
+
+    it('should deny user with token in READ_ONLY mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      expect(checkWritePermission(workspace, userWithAccess)).toBe(false);
+    });
+
+    it('should allow everyone in READ_WRITE_ALL mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      expect(checkWritePermission(workspace, regularUser)).toBe(true);
+    });
+
+    it('should allow user without token in READ_WRITE_ALL mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      regularUser.hasEditAccess = false;
+      expect(checkWritePermission(workspace, regularUser)).toBe(true);
+    });
+
+    it('should allow owner in READ_WRITE_ALL mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+    });
+
+    it('should allow user with token in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      expect(checkWritePermission(workspace, userWithAccess)).toBe(true);
+    });
+
+    it('should deny user without token in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      expect(checkWritePermission(workspace, regularUser)).toBe(false);
+    });
+
+    it('should allow owner in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+    });
+
+    it('should default to READ_WRITE_SELECTED when mode is undefined', () => {
+      workspace.sharingMode = undefined;
+      expect(checkWritePermission(workspace, regularUser)).toBe(false);
+      expect(checkWritePermission(workspace, userWithAccess)).toBe(true);
+    });
+
+    it('should default to READ_WRITE_SELECTED when mode is null', () => {
+      workspace.sharingMode = null;
+      expect(checkWritePermission(workspace, regularUser)).toBe(false);
+      expect(checkWritePermission(workspace, userWithAccess)).toBe(true);
+    });
+
+    it('should handle invalid sharing mode by denying access', () => {
+      workspace.sharingMode = 'invalid-mode';
+      expect(checkWritePermission(workspace, regularUser)).toBe(false);
+      expect(checkWritePermission(workspace, userWithAccess)).toBe(false);
+    });
+
+    it('should always allow owner regardless of mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      expect(checkWritePermission(workspace, ownerUser)).toBe(true);
+    });
+  });
+
   describe('checkOwnership', () => {
     let workspace;
 
@@ -454,6 +559,166 @@ describe('permissionService', () => {
       validateAndSetToken(workspace, 'edit_token', user);
       expect(workspace.otherProp).toBe('value');
       expect(workspace.owner).toBe('owner-123');
+    });
+  });
+
+  describe('calculateEditAccess with sharing modes', () => {
+    let workspace;
+    let ownerUser;
+    let regularUser;
+
+    beforeEach(() => {
+      workspace = {
+        owner: 'owner-123',
+        sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
+        editToken: 'edit_secret123'
+      };
+
+      ownerUser = {
+        userId: 'owner-123'
+      };
+
+      regularUser = {
+        userId: 'user-456'
+      };
+    });
+
+    it('should grant access to owner in READ_ONLY mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      const result = calculateEditAccess(workspace, ownerUser, null);
+      expect(result).toEqual({
+        hasEditAccess: true,
+        isOwner: true
+      });
+    });
+
+    it('should deny access to non-owner in READ_ONLY mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      const result = calculateEditAccess(workspace, regularUser, 'edit_secret123');
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should deny access to non-owner in READ_ONLY mode without token', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      const result = calculateEditAccess(workspace, regularUser, null);
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should grant access to anyone in READ_WRITE_ALL mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      const result = calculateEditAccess(workspace, regularUser, null);
+      expect(result).toEqual({
+        hasEditAccess: true,
+        isOwner: false
+      });
+    });
+
+    it('should grant access to owner in READ_WRITE_ALL mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      const result = calculateEditAccess(workspace, ownerUser, null);
+      expect(result).toEqual({
+        hasEditAccess: true,
+        isOwner: true
+      });
+    });
+
+    it('should grant access with valid token in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      const result = calculateEditAccess(workspace, regularUser, 'edit_secret123');
+      expect(result).toEqual({
+        hasEditAccess: true,
+        isOwner: false
+      });
+    });
+
+    it('should deny access with invalid token in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      const result = calculateEditAccess(workspace, regularUser, 'edit_wrongtoken');
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should deny access without token in READ_WRITE_SELECTED mode', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      const result = calculateEditAccess(workspace, regularUser, null);
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should grant access to owner in READ_WRITE_SELECTED mode without token', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      const result = calculateEditAccess(workspace, ownerUser, null);
+      expect(result).toEqual({
+        hasEditAccess: true,
+        isOwner: true
+      });
+    });
+
+    it('should default to READ_WRITE_SELECTED when mode is undefined', () => {
+      workspace.sharingMode = undefined;
+      const resultWithToken = calculateEditAccess(workspace, regularUser, 'edit_secret123');
+      expect(resultWithToken.hasEditAccess).toBe(true);
+
+      const resultWithoutToken = calculateEditAccess(workspace, regularUser, null);
+      expect(resultWithoutToken.hasEditAccess).toBe(false);
+    });
+
+    it('should default to READ_WRITE_SELECTED when mode is null', () => {
+      workspace.sharingMode = null;
+      const resultWithToken = calculateEditAccess(workspace, regularUser, 'edit_secret123');
+      expect(resultWithToken.hasEditAccess).toBe(true);
+
+      const resultWithoutToken = calculateEditAccess(workspace, regularUser, null);
+      expect(resultWithoutToken.hasEditAccess).toBe(false);
+    });
+
+    it('should handle missing editToken in workspace', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      workspace.editToken = null;
+      const result = calculateEditAccess(workspace, regularUser, 'edit_anytoken');
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should handle empty string token', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_SELECTED;
+      const result = calculateEditAccess(workspace, regularUser, '');
+      expect(result).toEqual({
+        hasEditAccess: false,
+        isOwner: false
+      });
+    });
+
+    it('should handle mode change from READ_WRITE_ALL to READ_ONLY', () => {
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      let result = calculateEditAccess(workspace, regularUser, null);
+      expect(result.hasEditAccess).toBe(true);
+
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      result = calculateEditAccess(workspace, regularUser, null);
+      expect(result.hasEditAccess).toBe(false);
+    });
+
+    it('should handle mode change from READ_ONLY to READ_WRITE_ALL', () => {
+      workspace.sharingMode = SHARING_MODES.READ_ONLY;
+      let result = calculateEditAccess(workspace, regularUser, null);
+      expect(result.hasEditAccess).toBe(false);
+
+      workspace.sharingMode = SHARING_MODES.READ_WRITE_ALL;
+      result = calculateEditAccess(workspace, regularUser, null);
+      expect(result.hasEditAccess).toBe(true);
     });
   });
 });

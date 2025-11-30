@@ -33,7 +33,6 @@ export default function CodeEditor() {
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
-    console.log(`CodeEditor: Setting read-only mode to ${readOnly}`);
   }, [canWrite]);
 
   const handleEditorDidMount = (editor) => {

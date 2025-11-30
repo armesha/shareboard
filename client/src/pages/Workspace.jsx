@@ -29,7 +29,7 @@ function WorkspaceLayout() {
   const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
   const navigate = useNavigate();
-  
+
   // Get persistent userId from localStorage
   useEffect(() => {
     let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
@@ -38,7 +38,6 @@ function WorkspaceLayout() {
       localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
     }
     setPersistentUserId(userId);
-    console.log("Using persistent user ID:", userId);
   }, []);
 
   // Use the most restrictive connection status between socket and whiteboard
@@ -60,11 +59,11 @@ function WorkspaceLayout() {
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging || !containerRef.current) return;
-      
+
       const container = containerRef.current.getBoundingClientRect();
       const mousePositionRelative = e.clientX - container.left;
       const newPositionPercent = (mousePositionRelative / container.width) * 100;
-      
+
       setSplitPosition(Math.min(Math.max(100 - newPositionPercent, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT));
     };
 
@@ -148,8 +147,6 @@ function WorkspaceLayout() {
 
     socket.on('connect', () => {
       setStatus('connected');
-      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId,
-                 accessToken ? `with access token: ${accessToken}` : 'without access token');
 
       socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
         workspaceId,
@@ -168,12 +165,10 @@ function WorkspaceLayout() {
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from workspace');
       setStatus('disconnected');
     });
 
-    socket.on('error', (error) => {
-      console.error('Workspace error:', error);
+    socket.on('error', () => {
       setStatus('error');
     });
 
@@ -273,13 +268,13 @@ function WorkspaceLayout() {
           setStatus={setStatus}
         />
       </div>
-      
+
       {/* Sharing settings modal */}
       {showSharingSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <SharingSettings 
-            workspaceId={workspaceId} 
-            onClose={toggleSharingSettings} 
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <SharingSettings
+            workspaceId={workspaceId}
+            onClose={toggleSharingSettings}
           />
         </div>
       )}
@@ -289,7 +284,7 @@ function WorkspaceLayout() {
 
 export default function Workspace() {
   const { workspaceId } = useParams();
-  
+
   return (
     <SharingProvider workspaceId={workspaceId}>
       <WhiteboardProvider>

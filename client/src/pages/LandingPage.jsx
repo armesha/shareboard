@@ -30,9 +30,8 @@ export default function LandingPage() {
       
       const data = await response.json();
       navigate(`/w/${data.workspaceId}`);
-    } catch (error) {
+    } catch {
       setError('Failed to create workspace. Please try again.');
-      console.error('Error creating workspace:', error);
     }
   };
 
@@ -59,7 +58,7 @@ export default function LandingPage() {
           <button
             onClick={createWorkspace}
             disabled={isLoading}
-            className={`w-full btn btn-primary ${
+            className={`w-full btn-primary ${
               isLoading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -94,7 +93,7 @@ export default function LandingPage() {
             />
             <button
               type="submit"
-              className="w-full btn btn-secondary"
+              className="w-full btn-secondary"
             >
               Join Workspace
             </button>

@@ -49,6 +49,8 @@ export const SOCKET_EVENTS = {
   EDIT_TOKEN_UPDATED: 'edit-token-updated',
   END_SESSION: 'end-session',
   SESSION_ENDED: 'session-ended',
+  CHANGE_SHARING_MODE: 'change-sharing-mode',
+  SHARING_MODE_CHANGED: 'sharing-mode-changed',
   ERROR: 'error'
 };
 

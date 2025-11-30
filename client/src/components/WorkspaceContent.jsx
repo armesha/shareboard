@@ -3,7 +3,7 @@ import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
-import { Header } from './layout';
+import { Header, Toolbar } from './layout';
 import { Notification } from './ui';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
@@ -36,7 +36,8 @@ export default function WorkspaceContent({
     width,
     setWidth,
     color,
-    setColor
+    setColor,
+    activeUsers
   } = useWhiteboard();
 
   const { canWrite, sharingMode, isOwner } = useSharing();
@@ -165,8 +166,7 @@ export default function WorkspaceContent({
       };
 
       img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    } catch (error) {
-      console.error('Error adding diagram:', error);
+    } catch {
       setNotification({ visible: true, message: 'Failed to add diagram', type: 'error' });
     }
   }, [addElement, setTool, diagramContent, socket, workspaceId]);
@@ -199,18 +199,16 @@ export default function WorkspaceContent({
           )}
           <button
             onClick={() => setActiveTab('code')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              activeTab === 'code' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'code' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             aria-pressed={activeTab === 'code'}
           >
             Code
           </button>
           <button
             onClick={() => setActiveTab('diagram')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              activeTab === 'diagram' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'diagram' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             aria-pressed={activeTab === 'diagram'}
           >
             Diagram
@@ -225,26 +223,37 @@ export default function WorkspaceContent({
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <Header
         workspaceId={workspaceId}
-        tool={tool}
-        setTool={setTool}
-        selectedShape={selectedShape}
-        setSelectedShape={setSelectedShape}
-        color={color}
-        setColor={setColor}
-        width={width}
-        setWidth={setWidth}
         canWrite={canWrite}
-        isOwner={isOwner}
-        viewMode={viewMode}
-        cycleViewMode={cycleViewMode}
-        onShareClick={onShareClick}
         connectionStatus={connectionStatus}
         connectionError={connectionError}
-        clearCanvas={clearCanvas}
-        socket={socket}
+        activeUsers={activeUsers}
       />
 
       <main className="flex-1 relative bg-gray-50" ref={containerRef}>
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
+          <div className="pointer-events-auto">
+            <Toolbar
+              tool={tool}
+              setTool={setTool}
+              selectedShape={selectedShape}
+              setSelectedShape={setSelectedShape}
+              color={color}
+              setColor={setColor}
+              width={width}
+              setWidth={setWidth}
+              canWrite={canWrite}
+              isOwner={isOwner}
+              viewMode={viewMode}
+              cycleViewMode={cycleViewMode}
+              onShareClick={onShareClick}
+              connectionStatus={connectionStatus}
+              connectionError={connectionError}
+              clearCanvas={clearCanvas}
+              socket={socket}
+              workspaceId={workspaceId}
+            />
+          </div>
+        </div>
         <div className="h-full w-full whiteboard-container">
           <Whiteboard disabled={!canWrite()} />
         </div>

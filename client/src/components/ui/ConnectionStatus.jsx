@@ -26,7 +26,8 @@ const STATUS_CONFIG = {
 
 const ConnectionStatus = React.memo(function ConnectionStatus({
   status = CONNECTION_STATUS.CONNECTING,
-  error = null
+  error = null,
+  activeUsers = 0
 }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG[CONNECTION_STATUS.CONNECTING];
 
@@ -43,6 +44,11 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
       />
       <span className="text-sm font-medium">
         {config.text}
+        {status === CONNECTION_STATUS.CONNECTED && (
+          <span className="ml-1 text-xs text-gray-500 font-normal">
+            ({Math.max(activeUsers, 1)} {Math.max(activeUsers, 1) === 1 ? 'user' : 'users'})
+          </span>
+        )}
       </span>
     </div>
   );

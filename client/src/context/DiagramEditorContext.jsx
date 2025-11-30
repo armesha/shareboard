@@ -27,7 +27,6 @@ export function DiagramEditorProvider({ children }) {
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
-    console.log(`DiagramEditor: Setting read-only mode to ${readOnly}`);
   }, [canWrite]);
 
   const emitDiagramChange = useCallback((workspaceId, newContent) => {

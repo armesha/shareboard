@@ -3,7 +3,22 @@ import { SHARING_MODES } from '../config.js';
 export function checkWritePermission(workspace, user) {
   if (!workspace || !user) return false;
   if (workspace.owner === user.userId) return true;
-  return user.hasEditAccess === true;
+
+  const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
+
+  if (mode === SHARING_MODES.READ_ONLY) {
+    return false;
+  }
+
+  if (mode === SHARING_MODES.READ_WRITE_ALL) {
+    return true;
+  }
+
+  if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
+    return user.hasEditAccess === true;
+  }
+
+  return false;
 }
 
 export function checkOwnership(workspace, userId) {
@@ -20,8 +35,18 @@ export function calculateEditAccess(workspace, user, accessToken) {
 
   if (isOwner) {
     hasEditAccess = true;
-  } else if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
-    hasEditAccess = true;
+  } else {
+    const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
+
+    if (mode === SHARING_MODES.READ_ONLY) {
+      hasEditAccess = false;
+    } else if (mode === SHARING_MODES.READ_WRITE_ALL) {
+      hasEditAccess = true;
+    } else if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
+      if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
+        hasEditAccess = true;
+      }
+    }
   }
 
   return { hasEditAccess, isOwner };

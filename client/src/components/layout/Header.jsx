@@ -3,82 +3,50 @@ import { useNavigate } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
 import LockIcon from '@mui/icons-material/Lock';
 import { ConnectionStatus } from '../ui';
-import Toolbar from './Toolbar';
 
 const Header = React.memo(function Header({
   workspaceId,
-  tool,
-  setTool,
-  selectedShape,
-  setSelectedShape,
-  color,
-  setColor,
-  width,
-  setWidth,
   canWrite,
-  isOwner,
-  viewMode,
-  cycleViewMode,
-  onShareClick,
   connectionStatus,
   connectionError,
-  clearCanvas,
-  socket
+  activeUsers
 }) {
   const navigate = useNavigate();
 
   return (
-    <header className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 bg-white border-b border-gray-200">
-      <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+    <header className="absolute top-0 left-0 w-full z-20 flex justify-between p-4 pointer-events-none">
+      <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 pointer-events-auto bg-white rounded-lg shadow-md p-2 border border-gray-200">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 flex-shrink-0"
+          className="p-2 rounded-md hover:bg-gray-100 transition-all duration-200 flex-shrink-0"
           aria-label="Return to Home"
           title="Return to Home"
         >
           <HomeIcon className="text-gray-700" />
         </button>
 
-        <h1 className="text-base sm:text-xl font-semibold truncate">
-          <span className="hidden sm:inline">Workspace: </span>
+        <h1 className="text-base sm:text-lg font-semibold truncate pr-2">
+          <span className="hidden sm:inline text-gray-500 font-normal">Workspace / </span>
           {workspaceId}
         </h1>
 
         {!canWrite() && (
-          <div className="hidden md:flex items-center text-sm text-yellow-600 bg-yellow-50 px-2 py-1 rounded whitespace-nowrap">
-            <LockIcon className="h-4 w-4 mr-1" />
-            Read-Only Mode
+          <div className="hidden md:flex items-center text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 whitespace-nowrap">
+            <LockIcon className="h-3 w-3 mr-1" />
+            Read-Only
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        <Toolbar
-          tool={tool}
-          setTool={setTool}
-          selectedShape={selectedShape}
-          setSelectedShape={setSelectedShape}
-          color={color}
-          setColor={setColor}
-          width={width}
-          setWidth={setWidth}
-          canWrite={canWrite}
-          isOwner={isOwner}
-          viewMode={viewMode}
-          cycleViewMode={cycleViewMode}
-          onShareClick={onShareClick}
-          connectionStatus={connectionStatus}
-          connectionError={connectionError}
-          clearCanvas={clearCanvas}
-          socket={socket}
-          workspaceId={workspaceId}
-        />
-
-        <ConnectionStatus
-          status={connectionStatus}
-          error={connectionError}
-        />
+      <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+        <div className="bg-white rounded-lg shadow-md p-2 border border-gray-200">
+          <ConnectionStatus
+            status={connectionStatus}
+            error={connectionError}
+            activeUsers={activeUsers}
+          />
+        </div>
       </div>
     </header>
   );

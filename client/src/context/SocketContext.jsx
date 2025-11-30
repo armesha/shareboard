@@ -38,22 +38,13 @@ export function SocketProvider({ children }) {
         transports: ['websocket', 'polling']
       });
 
-      console.log('Initializing socket connection...');
       setConnectionStatus(CONNECTION_STATUS.CONNECTING);
 
       socketInstance.on('connect', () => {
-        console.log('Connected to Socket.IO server with ID:', socketInstance.id);
-        console.log('Connection details:', {
-          connected: socketInstance.connected,
-          disconnected: socketInstance.disconnected,
-          id: socketInstance.id
-        });
-        
         setConnectionAttempts(0);
         setConnectionError(null);
         setConnectionStatus(CONNECTION_STATUS.CONNECTED);
-        setSocket(socketInstance);
-        
+
         toast.success('Connected to server successfully!', {
           position: 'bottom-right',
           autoClose: 3000
@@ -61,21 +52,12 @@ export function SocketProvider({ children }) {
       });
 
       socketInstance.on('connect_error', (error) => {
-        console.error('Connection error:', error.message);
-        console.error('Connection error details:', {
-          connected: socketInstance.connected,
-          disconnected: socketInstance.disconnected,
-          id: socketInstance.id,
-          error: error
-        });
-        
         setConnectionStatus(CONNECTION_STATUS.ERROR);
         setConnectionError(error.message);
-        
+
         setConnectionAttempts(prev => {
           const newAttempts = prev + 1;
           if (newAttempts >= maxReconnectAttempts) {
-            console.error('Max reconnection attempts reached. Please check server status.');
             socketInstance.disconnect();
             
             toast.error(`Failed to connect to server after ${maxReconnectAttempts} attempts. Please check your internet connection or try again later.`, {
@@ -94,11 +76,10 @@ export function SocketProvider({ children }) {
         });
       });
 
-      socketInstance.on(SOCKET_EVENTS.DISCONNECT, (reason) => {
-        console.log('Disconnected from server:', reason);
+      socketInstance.on(SOCKET_EVENTS.DISCONNECT, () => {
         setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
         setSocket(null);
-        
+
         toast.info('Disconnected from server. Attempting to reconnect...', {
           position: 'bottom-right',
           autoClose: 5000
@@ -106,8 +87,6 @@ export function SocketProvider({ children }) {
       });
 
       socketInstance.on(SOCKET_EVENTS.SESSION_ENDED, (data) => {
-        console.log('Session ended by owner:', data);
-        
         toast.warning(data.message || 'The session has been ended by the owner', {
           position: 'bottom-right',
           autoClose: false,
@@ -121,7 +100,6 @@ export function SocketProvider({ children }) {
       });
 
       socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
-        console.error('Socket error:', error);
         setConnectionError(error.message || 'Unknown socket error');
 
         toast.error(`Socket error: ${error.message || 'Unknown error'}`, {
@@ -150,7 +128,6 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     if (connectionAttempts >= maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
       setConnectionError('Max reconnection attempts reached. Please refresh the page or check server status.');
     }
   }, [connectionAttempts, maxReconnectAttempts]);

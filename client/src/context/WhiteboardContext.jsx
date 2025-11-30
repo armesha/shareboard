@@ -290,9 +290,7 @@ export function WhiteboardProvider({ children }) {
   }, [socket]);
 
   const handleWhiteboardUpdate = useCallback((serverElements) => {
-    console.log('Received whiteboard update from server:', serverElements);
     if (!serverElements || !Array.isArray(serverElements) || serverElements.length === 0) {
-      console.warn('Received invalid whiteboard update:', serverElements);
       return;
     }
 
@@ -309,12 +307,9 @@ export function WhiteboardProvider({ children }) {
         if (!element || !element.id) return;
 
         if (element.type === 'diagram') {
-          console.log('Processing diagram element update:', element.id);
-          
           const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
-          
+
           if (existingObject) {
-            console.log('Updating existing diagram', element.id);
             existingObject.set({
               left: element.data.left || existingObject.left,
               top: element.data.top || existingObject.top,
@@ -324,20 +319,19 @@ export function WhiteboardProvider({ children }) {
             });
             existingObject.setCoords();
           } else {
-            console.log('Creating new diagram object', element.id);
             const newObject = createFabricObject(element);
             if (newObject) {
               canvas.add(newObject);
               newObject.setCoords();
             }
           }
-          
+
           elementsMapRef.current.set(element.id, element);
           return;
         }
-        
+
         const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
-        
+
         if (existingObject) {
           const data = element.data || {};
           Object.keys(data).forEach(key => {
@@ -358,8 +352,6 @@ export function WhiteboardProvider({ children }) {
       });
       const updatedElements = Array.from(elementsMapRef.current.values());
       setElements(updatedElements);
-      
-      console.log('Updated whiteboard with server elements:', updatedElements.length);
     } finally {
       canvas.suspendDrawing = false;
       canvas.requestRenderAll();
@@ -393,7 +385,6 @@ export function WhiteboardProvider({ children }) {
 
     const handlePathCreated = (e) => {
       if (!canWrite()) {
-        console.warn('Path creation attempted without permission');
         return;
       }
 
@@ -507,10 +498,6 @@ export function WhiteboardProvider({ children }) {
     const handleConnect = () => {
       setIsConnected(true);
       setConnectionStatus('connected');
-      const workspaceId = getWorkspaceId();
-      if (workspaceId) {
-        socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, { workspaceId, userId: socket.id });
-      }
     };
 
     const handleDisconnect = () => {
@@ -520,13 +507,6 @@ export function WhiteboardProvider({ children }) {
     };
 
     const handleWhiteboardState = (state) => {
-      console.log('Received workspace state:', {
-        whiteboardElements: state.whiteboardElements?.length || 0,
-        diagrams: state.diagrams?.length || 0,
-        allDrawings: state.allDrawings?.length || 0,
-        activeUsers: state.activeUsers
-      });
-
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -534,14 +514,11 @@ export function WhiteboardProvider({ children }) {
       elementsMapRef.current.clear();
 
       if (state.whiteboardElements && state.whiteboardElements.length > 0) {
-        console.log('Adding whiteboardElements to canvas:', state.whiteboardElements.length);
         isUpdatingRef.current = true;
         try {
           const regularElements = state.whiteboardElements.filter(el => el.type !== 'diagram');
           const diagramElements = state.whiteboardElements.filter(el => el.type === 'diagram');
-          
-          console.log(`Processing ${regularElements.length} regular elements and ${diagramElements.length} diagrams`);
-          
+
           regularElements.forEach(element => {
             if (element && element.id) {
               const obj = createFabricObject(element);
@@ -551,10 +528,9 @@ export function WhiteboardProvider({ children }) {
               }
             }
           });
-          
+
           diagramElements.forEach(element => {
             if (element && element.id) {
-              console.log('Processing diagram from state:', element.id);
               const obj = createFabricObject(element);
               if (obj) {
                 canvas.add(obj);
@@ -595,43 +571,35 @@ export function WhiteboardProvider({ children }) {
     };
 
     const handleDeleteElement = ({ workspaceId, elementId }) => {
-      console.log(`Received delete-element event for workspace ${workspaceId}, element ${elementId}`);
-
       const currentWorkspace = getWorkspaceId();
       if (currentWorkspace !== workspaceId) {
-        console.log('Ignoring delete event for different workspace');
         return;
       }
 
       const canvas = canvasRef.current;
       if (!canvas) {
-        console.warn('Canvas not available for delete operation');
         return;
       }
-
-      console.log('Current elements before deletion:', Array.from(elementsMapRef.current.values()));
 
       elementsMapRef.current.delete(elementId);
 
       const obj = canvas.getObjects().find(o => o.id === elementId);
       if (obj) {
         canvas.remove(obj);
-        console.log(`Removed object ${elementId} from canvas`);
-      } else {
-        console.warn(`Object ${elementId} not found on canvas`);
       }
 
       const updatedElements = Array.from(elementsMapRef.current.values());
       setElements(updatedElements);
-      
-      console.log('Elements after deletion:', updatedElements);
 
       canvas.requestRenderAll();
+    };
 
-      const stillExists = canvas.getObjects().some(o => o.id === elementId);
-      if (stillExists) {
-        console.warn(`Warning: Object ${elementId} still exists on canvas after deletion!`);
-      }
+    const handleUserJoined = ({ activeUsers }) => {
+      setActiveUsers(activeUsers);
+    };
+
+    const handleUserLeft = ({ activeUsers }) => {
+      setActiveUsers(activeUsers);
     };
 
     socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
@@ -640,14 +608,12 @@ export function WhiteboardProvider({ children }) {
     socket.on(SOCKET_EVENTS.WHITEBOARD_UPDATE, handleWhiteboardUpdate);
     socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, handleWhiteboardClear);
     socket.on(SOCKET_EVENTS.DELETE_ELEMENT, handleDeleteElement);
+    socket.on(SOCKET_EVENTS.USER_JOINED, handleUserJoined);
+    socket.on(SOCKET_EVENTS.USER_LEFT, handleUserLeft);
 
     if (socket.connected) {
       setIsConnected(true);
       setConnectionStatus('connected');
-      const workspaceId = getWorkspaceId();
-      if (workspaceId) {
-        socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, { workspaceId, userId: socket.id });
-      }
     }
 
     return () => {
@@ -657,6 +623,8 @@ export function WhiteboardProvider({ children }) {
       socket.off(SOCKET_EVENTS.WHITEBOARD_UPDATE, handleWhiteboardUpdate);
       socket.off(SOCKET_EVENTS.WHITEBOARD_CLEAR, handleWhiteboardClear);
       socket.off(SOCKET_EVENTS.DELETE_ELEMENT, handleDeleteElement);
+      socket.off(SOCKET_EVENTS.USER_JOINED, handleUserJoined);
+      socket.off(SOCKET_EVENTS.USER_LEFT, handleUserLeft);
     };
   }, [socket, handleWhiteboardUpdate]);
 
@@ -667,19 +635,18 @@ export function WhiteboardProvider({ children }) {
     const shouldBeDrawingMode = tool === TOOLS.PEN && canWrite();
 
     if (canvas.isDrawingMode !== shouldBeDrawingMode) {
-      console.log(`Updating drawing mode to: ${shouldBeDrawingMode}`);
       canvas.isDrawingMode = shouldBeDrawingMode;
-      
+
       if (shouldBeDrawingMode && canvas.freeDrawingBrush) {
         canvas.freeDrawingBrush.color = color;
         canvas.freeDrawingBrush.width = width;
         canvas.freeDrawingBrush.strokeLineCap = 'round';
         canvas.freeDrawingBrush.strokeLineJoin = 'round';
       }
-      
+
       canvas.requestRenderAll();
     }
-    
+
     const userCanDraw = !isLoading && isConnected && canWrite();
     canvas.selection = userCanDraw && (tool === TOOLS.SELECT);
 
@@ -719,7 +686,6 @@ export function WhiteboardProvider({ children }) {
 
   useEffect(() => {
     if (!canWrite() && (tool !== TOOLS.SELECT || selectedShape !== null)) {
-      console.log('Permission changed to read-only, resetting to select tool');
       setTool(TOOLS.SELECT);
       setSelectedShape(null);
     }
@@ -731,12 +697,9 @@ export function WhiteboardProvider({ children }) {
 
     if (tool === TOOLS.PEN) {
       const hasPermission = canWrite();
-      console.log(`Pen tool permission check: ${hasPermission ? 'allowed' : 'denied'}`);
-
       canvas.isDrawingMode = hasPermission;
 
       if (!hasPermission) {
-        console.log('No permission to use pen tool, resetting to select');
         setTool(TOOLS.SELECT);
       }
     }

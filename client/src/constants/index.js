@@ -81,6 +81,8 @@ export const SOCKET_EVENTS = {
   SESSION_ENDED: 'session-ended',
   REQUEST_CANVAS_STATE: 'request-canvas-state',
   CANVAS_STATE: 'canvas-state',
+  CHANGE_SHARING_MODE: 'change-sharing-mode',
+  SHARING_MODE_CHANGED: 'sharing-mode-changed',
 };
 
 export const FABRIC_EVENTS = {

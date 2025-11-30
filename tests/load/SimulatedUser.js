@@ -11,7 +11,7 @@ import {
 } from './config.js';
 
 export class SimulatedUser {
-  constructor(userId, workspaceId, metrics, behaviorType = null) {
+  constructor(userId, workspaceId, metrics, behaviorType = null, editToken = null) {
     this.userId = userId;
     this.workspaceId = workspaceId;
     this.metrics = metrics;
@@ -21,6 +21,8 @@ export class SimulatedUser {
     this.intervals = [];
     this.behavior = this.selectBehavior(behaviorType);
     this.lastActivity = Date.now();
+    this.editToken = editToken;
+    this.hasEditAccess = false;
   }
 
   selectBehavior(type) {
@@ -63,12 +65,27 @@ export class SimulatedUser {
         this.socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
           workspaceId: this.workspaceId,
           userId: this.userId,
+          accessToken: this.editToken,
         });
       });
 
       this.socket.on(SOCKET_EVENTS.WORKSPACE_STATE, (state) => {
         if (state?.drawings) {
           this.elements = state.drawings.map(d => d.id);
+        }
+      });
+
+      this.socket.on('sharing-info', (info) => {
+        this.hasEditAccess = info.hasEditAccess;
+        if (info.editToken && !this.editToken) {
+          this.editToken = info.editToken;
+        }
+        if (!this.hasEditAccess && this.editToken) {
+          this.socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+            workspaceId: this.workspaceId,
+            userId: this.userId,
+            accessToken: this.editToken,
+          });
         }
         resolve();
       });

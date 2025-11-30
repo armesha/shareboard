@@ -85,7 +85,16 @@ export function removeConnection(workspaceId, socketId) {
 
 export function getActiveUserCount(workspaceId) {
   const connections = activeConnections.get(workspaceId);
-  return connections ? connections.size : 0;
+  if (!connections) return 0;
+
+  const uniqueUsers = new Set();
+  for (const socketId of connections) {
+    const session = userSessions.get(socketId);
+    if (session && session.userId) {
+      uniqueUsers.add(session.userId);
+    }
+  }
+  return uniqueUsers.size;
 }
 
 export function setUserSession(socketId, userInfo) {
@@ -163,4 +172,16 @@ export function findWorkspaceIdByRef(workspaceRef) {
     if (workspace === workspaceRef) return id;
   }
   return null;
+}
+
+export function updateSharingMode(workspaceId, newMode) {
+  const workspace = workspaces.get(workspaceId);
+  if (!workspace) return false;
+
+  const validModes = Object.values(SHARING_MODES);
+  if (!validModes.includes(newMode)) return false;
+
+  workspace.sharingMode = newMode;
+  updateLastActivity(workspaceId);
+  return true;
 }
