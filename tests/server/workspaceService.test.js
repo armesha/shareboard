@@ -109,9 +109,9 @@ describe('workspaceService', () => {
       expect(workspace.drawingHistory).toEqual([]);
       expect(workspace.diagramContent).toBe('');
       expect(workspace.codeSnippets).toEqual({ language: 'javascript', content: '' });
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
       expect(workspace.allowedUsers).toEqual([]);
-      expect(workspace.editToken).toBe(null);
+      expect(workspace.editToken).toMatch(/^edit_[a-f0-9]{16}$/);
     });
 
     it('sets owner correctly', () => {
@@ -139,6 +139,20 @@ describe('workspaceService', () => {
       expect(workspace.created).toBe(now);
       expect(workspace.lastActivity).toBe(now);
       deleteWorkspace('ws-3');
+    });
+
+    it('should generate unique editToken for each workspace', () => {
+      const workspace1 = createWorkspace('ws-unique-1', 'owner-1');
+      const workspace2 = createWorkspace('ws-unique-2', 'owner-2');
+      const workspace3 = createWorkspace('ws-unique-3', 'owner-3');
+
+      expect(workspace1.editToken).not.toBe(workspace2.editToken);
+      expect(workspace1.editToken).not.toBe(workspace3.editToken);
+      expect(workspace2.editToken).not.toBe(workspace3.editToken);
+
+      deleteWorkspace('ws-unique-1');
+      deleteWorkspace('ws-unique-2');
+      deleteWorkspace('ws-unique-3');
     });
   });
 

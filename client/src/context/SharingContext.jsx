@@ -10,7 +10,7 @@ export function useSharing() {
 
 export function SharingProvider({ children, workspaceId }) {
   const { socket } = useSocket();
-  const [sharingMode, setSharingMode] = useState(SHARING_MODES.READ_WRITE_ALL);
+  const [sharingMode, setSharingMode] = useState(SHARING_MODES.READ_WRITE_SELECTED);
   const [allowedUsers, setAllowedUsers] = useState([]);
   const [isOwner, setIsOwner] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -55,7 +55,7 @@ export function SharingProvider({ children, workspaceId }) {
     };
 
     const handleSharingUpdate = (data) => {
-      setSharingMode(data.sharingMode || SHARING_MODES.READ_WRITE_ALL);
+      setSharingMode(data.sharingMode || SHARING_MODES.READ_WRITE_SELECTED);
       setAllowedUsers(data.allowedUsers || []);
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -64,20 +64,14 @@ export function SharingProvider({ children, workspaceId }) {
 
       if (data.hasEditAccess !== undefined) {
         setHasEditAccess(data.hasEditAccess);
-      } else if (data.sharingMode === SHARING_MODES.READ_WRITE_ALL) {
+      } else if (data.isOwner || (data.owner === persistentUserId)) {
         setHasEditAccess(true);
-      } else if (data.sharingMode === SHARING_MODES.READ_ONLY) {
-        setHasEditAccess(data.isOwner || (data.owner === persistentUserId));
-      } else if (data.sharingMode === SHARING_MODES.READ_WRITE_SELECTED) {
-        if (data.isOwner || (data.owner === persistentUserId)) {
-          setHasEditAccess(true);
-        } else if (currentAccessToken && data.editToken && currentAccessToken === data.editToken) {
-          setHasEditAccess(true);
-          console.log("User has edit access via token match:", currentAccessToken);
-        } else {
-          setHasEditAccess(false);
-          console.log("User does not have edit access in selected mode");
-        }
+      } else if (currentAccessToken && data.editToken && currentAccessToken === data.editToken) {
+        setHasEditAccess(true);
+        console.log("User has edit access via token match:", currentAccessToken);
+      } else {
+        setHasEditAccess(false);
+        console.log("User does not have edit access");
       }
 
       if (data.owner) {
@@ -89,17 +83,17 @@ export function SharingProvider({ children, workspaceId }) {
       } else if (data.owner && persistentUserId) {
         setIsOwner(data.owner === persistentUserId);
       }
-      
+
       if (data.currentUser) {
         setCurrentUser(data.currentUser);
       } else if (persistentUserId) {
         setCurrentUser(persistentUserId);
       }
-      
+
       if (data.editToken) {
         localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
-      
+
       console.log("Sharing info update:", {
         sharingMode: data.sharingMode,
         allowedUsers: data.allowedUsers,
@@ -107,7 +101,7 @@ export function SharingProvider({ children, workspaceId }) {
         owner: data.owner,
         currentUser: data.currentUser || persistentUserId,
         persistentUserId,
-        hasEditAccess: data.hasEditAccess !== undefined ? data.hasEditAccess : canWrite(),
+        hasEditAccess: data.hasEditAccess !== undefined ? data.hasEditAccess : hasEditAccess,
         editToken: data.editToken ? "provided" : "not provided",
         accessToken: currentAccessToken ? currentAccessToken.substring(0, 10) + "..." : "none",
         isTokenMatching: data.editToken && currentAccessToken && data.editToken === currentAccessToken
@@ -154,77 +148,9 @@ export function SharingProvider({ children, workspaceId }) {
     }
   }, [workspaceOwner, persistentUserId]);
 
-  const changePermission = (mode) => {
-    if (!socket || !workspaceId) return;
-
-    setSharingMode(mode);
-
-    if (mode === SHARING_MODES.READ_WRITE_ALL) {
-      setHasEditAccess(true);
-    } else if (mode === SHARING_MODES.READ_ONLY) {
-      setHasEditAccess(isOwner);
-    } else if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
-      setHasEditAccess(isOwner);
-
-      if (!isOwner) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const accessToken = urlParams.get('access') ||
-                           localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId));
-        const savedEditToken = localStorage.getItem(STORAGE_KEYS.editToken(workspaceId));
-
-        if (accessToken && savedEditToken && accessToken === savedEditToken) {
-          setHasEditAccess(true);
-        } else {
-          setHasEditAccess(false);
-        }
-      }
-    }
-
-    socket.emit(SOCKET_EVENTS.CHANGE_SHARING_MODE, {
-      workspaceId,
-      sharingMode: mode
-    });
-  };
-
-  const addAllowedUser = (userId) => {
-    if (!socket || !workspaceId) return;
-
-    const newAllowedUsers = [...allowedUsers, userId];
-    setAllowedUsers(newAllowedUsers);
-
-    socket.emit(SOCKET_EVENTS.CHANGE_SHARING_MODE, {
-      workspaceId,
-      sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
-      allowedUsers: newAllowedUsers
-    });
-  };
-
-  const removeAllowedUser = (userId) => {
-    if (!socket || !workspaceId) return;
-
-    const newAllowedUsers = allowedUsers.filter(id => id !== userId);
-    setAllowedUsers(newAllowedUsers);
-
-    socket.emit(SOCKET_EVENTS.CHANGE_SHARING_MODE, {
-      workspaceId,
-      sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
-      allowedUsers: newAllowedUsers
-    });
-  };
-
   const canWrite = () => {
     if (isOwner) return true;
-
-    switch (sharingMode) {
-      case SHARING_MODES.READ_WRITE_ALL:
-        return true;
-      case SHARING_MODES.READ_ONLY:
-        return false;
-      case SHARING_MODES.READ_WRITE_SELECTED:
-        return hasEditAccess;
-      default:
-        return false;
-    }
+    return hasEditAccess;
   };
 
   useEffect(() => {
@@ -258,7 +184,6 @@ export function SharingProvider({ children, workspaceId }) {
       isOwner,
       currentUser,
       hasEditAccess,
-      changePermission,
       canWrite,
       workspaceOwner
     }}>

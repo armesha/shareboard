@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants';
 
 export default function LandingPage() {
   const [workspaceKey, setWorkspaceKey] = useState('');
@@ -9,10 +10,10 @@ export default function LandingPage() {
 
   const createWorkspace = async () => {
     try {
-      let userId = localStorage.getItem('shareboardUserId');
+      let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
       if (!userId) {
         userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        localStorage.setItem('shareboardUserId', userId);
+        localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
       }
       
       const response = await fetch('/api/workspaces', {

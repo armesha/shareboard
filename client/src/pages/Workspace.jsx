@@ -4,15 +4,17 @@ import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
 import { DiagramEditorProvider } from '../context/DiagramEditorContext';
-import { SharingProvider } from '../context/SharingContext';
+import { SharingProvider, useSharing } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
+import { SOCKET_EVENTS, STORAGE_KEYS } from '../constants';
 import { toast } from 'react-toastify';
 
 function WorkspaceLayout() {
   const { workspaceId } = useParams();
   const { socket, connectionStatus: socketConnectionStatus } = useSocket();
   const { isLoading, connectionStatus: whiteboardConnectionStatus } = useWhiteboard();
+  const { isOwner } = useSharing();
   const [viewMode, setViewMode] = useState('whiteboard');
   const [splitPosition, setSplitPosition] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
@@ -22,6 +24,7 @@ function WorkspaceLayout() {
   const [status, setStatus] = useState('connecting');
   const [isConnected, setIsConnected] = useState(false);
   const [persistentUserId, setPersistentUserId] = useState(null);
+  const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
   const MIN_WIDTH_PERCENT = 20;
   const MAX_WIDTH_PERCENT = 80;
@@ -29,10 +32,10 @@ function WorkspaceLayout() {
   
   // Get persistent userId from localStorage
   useEffect(() => {
-    let userId = localStorage.getItem('shareboardUserId');
+    let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
     if (!userId) {
       userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem('shareboardUserId', userId);
+      localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
     }
     setPersistentUserId(userId);
     console.log("Using persistent user ID:", userId);
@@ -99,10 +102,10 @@ function WorkspaceLayout() {
 
     const handleConnect = () => {
       setIsConnected(true);
-      socket.emit('join-workspace', { 
-        workspaceId, 
+      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+        workspaceId,
         userId: persistentUserId,
-        accessToken 
+        accessToken
       });
     };
 
@@ -116,10 +119,10 @@ function WorkspaceLayout() {
     socket.on('disconnect', handleDisconnect);
 
     if (socket.connected) {
-      socket.emit('join-workspace', { 
-        workspaceId, 
+      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+        workspaceId,
         userId: persistentUserId,
-        accessToken 
+        accessToken
       });
     }
 
@@ -131,30 +134,36 @@ function WorkspaceLayout() {
 
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const accessToken = urlParams.get('access');
-    
+
+    const handleWorkspaceState = (data) => {
+      if (data.isNewWorkspace) {
+        setIsNewWorkspace(true);
+      }
+    };
+
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
+
     socket.on('connect', () => {
       setStatus('connected');
-      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId, 
+      console.log('Joining workspace:', workspaceId, 'as user:', persistentUserId,
                  accessToken ? `with access token: ${accessToken}` : 'without access token');
-      
-      // First join the workspace
-      socket.emit('join-workspace', { 
-        workspaceId, 
+
+      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+        workspaceId,
         userId: persistentUserId,
-        accessToken 
+        accessToken
       });
-      
-      // Then request latest sharing info to ensure permissions are correct
+
       setTimeout(() => {
-        socket.emit('get-sharing-info', { 
-          workspaceId, 
+        socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
+          workspaceId,
           userId: persistentUserId,
-          accessToken 
+          accessToken
         });
-        socket.emit('request-canvas-state', workspaceId);
+        socket.emit(SOCKET_EVENTS.REQUEST_CANVAS_STATE, workspaceId);
       }, 500);
     });
 
@@ -162,13 +171,13 @@ function WorkspaceLayout() {
       console.log('Disconnected from workspace');
       setStatus('disconnected');
     });
-    
+
     socket.on('error', (error) => {
       console.error('Workspace error:', error);
       setStatus('error');
     });
-    
-    socket.on('session-ended', (data) => {
+
+    socket.on(SOCKET_EVENTS.SESSION_ENDED, (data) => {
       toast.info(data.message, {
         position: 'top-center',
         autoClose: 5000,
@@ -176,28 +185,35 @@ function WorkspaceLayout() {
         pauseOnHover: true,
         draggable: true
       });
-      
+
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 2000);
     });
 
     if (socket.connected) {
-      socket.emit('join-workspace', { 
-        workspaceId, 
+      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+        workspaceId,
         userId: persistentUserId,
-        accessToken 
+        accessToken
       });
-      socket.emit('request-canvas-state', workspaceId);
+      socket.emit(SOCKET_EVENTS.REQUEST_CANVAS_STATE, workspaceId);
     }
 
     return () => {
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
       socket.off('connect');
       socket.off('disconnect');
       socket.off('error');
-      socket.off('session-ended');
+      socket.off(SOCKET_EVENTS.SESSION_ENDED);
     };
   }, [socket, workspaceId, persistentUserId, setStatus, navigate]);
+
+  useEffect(() => {
+    if (isOwner && isNewWorkspace && !showSharingSettings) {
+      setShowSharingSettings(true);
+    }
+  }, [isOwner, isNewWorkspace, showSharingSettings]);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100">

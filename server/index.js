@@ -138,7 +138,10 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     currentWorkspace = workspace;
     workspaceService.updateLastActivity(workspaceId);
 
-    socket.emit(SOCKET_EVENTS.WORKSPACE_STATE, workspaceService.getWorkspaceState(workspaceId));
+    socket.emit(SOCKET_EVENTS.WORKSPACE_STATE, {
+      ...workspaceService.getWorkspaceState(workspaceId),
+      isNewWorkspace
+    });
     socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
     socket.to(workspaceId).emit(SOCKET_EVENTS.USER_JOINED, { userId: socket.id, activeUsers });
   });
@@ -155,31 +158,6 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
     permissionService.validateAndSetToken(workspace, accessToken, currentUser);
     socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
-  });
-
-  socket.on(SOCKET_EVENTS.CHANGE_SHARING_MODE, ({ workspaceId, sharingMode }) => {
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) return;
-
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Only the workspace owner can change sharing settings' });
-      return;
-    }
-
-    workspace.sharingMode = sharingMode;
-
-    if (sharingMode === SHARING_MODES.READ_WRITE_SELECTED && !workspace.editToken) {
-      workspace.editToken = workspaceService.generateEditToken();
-    }
-
-    io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_INFO, {
-      sharingMode: workspace.sharingMode,
-      allowedUsers: workspace.allowedUsers,
-      owner: workspace.owner,
-      editToken: workspace.editToken
-    });
-
-    io.to(workspaceId).emit(SOCKET_EVENTS.WORKSPACE_STATE, workspaceService.getWorkspaceState(workspaceId));
   });
 
   socket.on(SOCKET_EVENTS.GET_ACTIVE_USERS, ({ workspaceId }) => {

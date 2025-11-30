@@ -32,9 +32,9 @@ export function createWorkspace(workspaceId, ownerId) {
     diagramContent: '',
     codeSnippets: { language: 'javascript', content: '' },
     owner: ownerId,
-    sharingMode: SHARING_MODES.READ_WRITE_ALL,
+    sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
     allowedUsers: [],
-    editToken: null
+    editToken: generateEditToken()
   };
 
   workspaces.set(workspaceId, workspace);

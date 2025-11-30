@@ -33,5 +33,26 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './client/src')
     }
+  },
+  optimizeDeps: {
+    include: [
+      '@mui/icons-material/Delete',
+      '@mui/icons-material/Create',
+      '@mui/icons-material/TextFields',
+      '@mui/icons-material/Mouse',
+      '@mui/icons-material/Computer',
+      '@mui/icons-material/Lock',
+      '@mui/icons-material/Home',
+      '@mui/icons-material/CropSquare',
+      '@mui/icons-material/ChangeHistory',
+      '@mui/icons-material/CircleOutlined',
+      '@mui/icons-material/HorizontalRule',
+      '@mui/icons-material/ArrowRightAlt',
+      '@mui/icons-material/Add',
+      '@mui/icons-material/Remove',
+      '@mui/icons-material/HelpOutline',
+      '@mui/icons-material/Share'
+    ],
+    force: true
   }
 });

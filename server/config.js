@@ -37,7 +37,6 @@ export const SOCKET_EVENTS = {
   CODE_UPDATE: 'code-update',
   DIAGRAM_UPDATE: 'diagram-update',
   GET_SHARING_INFO: 'get-sharing-info',
-  CHANGE_SHARING_MODE: 'change-sharing-mode',
   SHARING_INFO: 'sharing-info',
   GET_ACTIVE_USERS: 'get-active-users',
   ACTIVE_USERS_UPDATE: 'active-users-update',
