@@ -13,7 +13,50 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: config.cors });
+const io = new Server(httpServer, {
+  cors: config.cors,
+  ...config.socketIO,
+});
+
+const updateQueues = new Map();
+const BATCH_INTERVAL = 50;
+
+function queueUpdate(workspaceId, elements, senderSocketId) {
+  if (!updateQueues.has(workspaceId)) {
+    updateQueues.set(workspaceId, { elements: new Map(), senders: new Set() });
+  }
+  const queue = updateQueues.get(workspaceId);
+  queue.senders.add(senderSocketId);
+  elements.forEach(el => {
+    if (el?.id) queue.elements.set(el.id, el);
+  });
+}
+
+setInterval(() => {
+  for (const [workspaceId, queue] of updateQueues.entries()) {
+    if (queue.elements.size > 0) {
+      const batchedElements = Array.from(queue.elements.values());
+      const senders = new Set(queue.senders);
+      const roomSockets = io.sockets.adapter.rooms.get(workspaceId);
+
+      queue.elements.clear();
+      queue.senders.clear();
+
+      if (roomSockets) {
+        setImmediate(() => {
+          for (const socketId of roomSockets) {
+            if (!senders.has(socketId)) {
+              const socket = io.sockets.sockets.get(socketId);
+              if (socket) {
+                socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, batchedElements);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+}, BATCH_INTERVAL);
 
 setInterval(workspaceService.cleanupInactiveWorkspaces, config.cleanup.intervalMs);
 
@@ -155,29 +198,30 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
     workspaceService.updateLastActivity(workspaceId);
 
-    const existingDrawings = new Map(workspace.drawings.map(d => [d.id, d]));
-    const deletedIds = new Set(
-      workspace.allDrawings
-        .filter(d => !workspace.drawings.some(c => c.id === d.id))
-        .map(d => d.id)
-    );
+    const drawingsMap = workspace.drawingsMap;
+    const allDrawingsMap = workspace.allDrawingsMap;
+    const drawingOrder = workspace.drawingOrder;
+
+    const MAX_DRAWINGS = 5000;
 
     elements.forEach(element => {
-      if (element?.id && !deletedIds.has(element.id)) {
+      if (element?.id) {
         const newElement = { ...element, timestamp: Date.now() };
-        existingDrawings.set(element.id, newElement);
-
-        const existingIdx = workspace.allDrawings.findIndex(e => e.id === element.id);
-        if (existingIdx === -1) {
-          workspace.allDrawings.push(newElement);
-        } else {
-          workspace.allDrawings[existingIdx] = newElement;
+        const isNew = !drawingsMap.has(element.id);
+        drawingsMap.set(element.id, newElement);
+        allDrawingsMap.set(element.id, newElement);
+        if (isNew) {
+          drawingOrder.push(element.id);
         }
       }
     });
 
-    workspace.drawings = Array.from(existingDrawings.values()).filter(d => !deletedIds.has(d.id));
-    io.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, elements);
+    while (allDrawingsMap.size > MAX_DRAWINGS && drawingOrder.length > 0) {
+      const oldestId = drawingOrder.shift();
+      allDrawingsMap.delete(oldestId);
+    }
+
+    queueUpdate(workspaceId, elements, socket.id);
   });
 
   socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, ({ workspaceId }) => {
@@ -192,7 +236,10 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     workspaceService.updateLastActivity(workspaceId);
     workspace.drawings = [];
     workspace.allDrawings = [];
-    io.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_CLEAR);
+    workspace.drawingsMap.clear();
+    workspace.allDrawingsMap.clear();
+    workspace.drawingOrder.length = 0;
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_CLEAR);
   });
 
   socket.on(SOCKET_EVENTS.REQUEST_CANVAS_STATE, (workspaceId) => {
@@ -204,42 +251,60 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace || !elementId) return;
 
-    workspaceService.updateLastActivity(workspaceId);
-    workspace.drawings = workspace.drawings.filter(el => el.id !== elementId);
-    workspace.allDrawings = workspace.allDrawings.filter(el => el.id !== elementId);
-    if (workspace.drawingHistory) {
-      workspace.drawingHistory = workspace.drawingHistory.filter(el => el.id !== elementId);
+    if (!permissionService.checkWritePermission(workspace, currentUser)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to delete' });
+      return;
     }
 
-    io.to(workspaceId).emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId });
-    io.to(workspaceId).emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, workspace.drawings);
+    workspaceService.updateLastActivity(workspaceId);
+
+    workspace.drawingsMap.delete(elementId);
+    workspace.allDrawingsMap.delete(elementId);
+
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId });
   });
 
   socket.on(SOCKET_EVENTS.DELETE_DIAGRAM, ({ workspaceId, diagramId }) => {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) return;
 
+    if (!permissionService.checkWritePermission(workspace, currentUser)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to delete diagram' });
+      return;
+    }
+
     workspaceService.updateLastActivity(workspaceId);
     workspace.diagrams.delete(diagramId);
     workspace.drawings = workspace.drawings.filter(el => el.id !== diagramId);
-    io.to(workspaceId).emit('diagram-deleted', { diagramId });
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_DIAGRAM, { diagramId });
   });
 
   socket.on(SOCKET_EVENTS.CODE_UPDATE, ({ workspaceId, language, content }) => {
     const workspace = workspaceService.getWorkspace(workspaceId);
-    if (workspace) {
-      workspace.codeSnippets = { language, content };
-      io.to(workspaceId).emit(SOCKET_EVENTS.CODE_UPDATE, { language, content });
+    if (!workspace) return;
+
+    if (!permissionService.checkWritePermission(workspace, currentUser)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to edit code' });
+      return;
     }
+
+    workspaceService.updateLastActivity(workspaceId);
+    workspace.codeSnippets = { language, content };
+    socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.CODE_UPDATE, { language, content });
   });
 
   socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, ({ workspaceId, content }) => {
     const workspace = workspaceService.getWorkspace(workspaceId);
-    if (workspace) {
-      workspaceService.updateLastActivity(workspaceId);
-      workspace.diagramContent = content;
-      socket.to(workspaceId).emit(SOCKET_EVENTS.DIAGRAM_UPDATE, { content });
+    if (!workspace) return;
+
+    if (!permissionService.checkWritePermission(workspace, currentUser)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to edit diagram' });
+      return;
     }
+
+    workspaceService.updateLastActivity(workspaceId);
+    workspace.diagramContent = content;
+    socket.to(workspaceId).emit(SOCKET_EVENTS.DIAGRAM_UPDATE, { content });
   });
 
   socket.on(SOCKET_EVENTS.CURSOR_POSITION, ({ workspaceId, position }) => {

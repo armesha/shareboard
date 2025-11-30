@@ -5,7 +5,7 @@ import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { Header } from './layout';
 import { Notification } from './ui';
-import Whiteboard from './WhiteboardRefactored';
+import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
 import { v4 as uuidv4 } from 'uuid';

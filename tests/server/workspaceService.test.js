@@ -504,8 +504,8 @@ describe('workspaceService', () => {
       createWorkspace('test-state', 'owner-1');
       const workspace = getWorkspace('test-state');
 
-      workspace.drawings = [{ type: 'rect', x: 10, y: 20 }];
-      workspace.allDrawings = [{ type: 'circle', x: 30, y: 40 }];
+      workspace.drawingsMap.set('rect-1', { type: 'rect', x: 10, y: 20 });
+      workspace.allDrawingsMap.set('circle-1', { type: 'circle', x: 30, y: 40 });
       workspace.codeSnippets = { language: 'python', content: 'print("hello")' };
       workspace.diagramContent = 'graph TD; A-->B';
       workspace.diagrams.set('diagram-1', { id: 'diagram-1', content: 'test' });

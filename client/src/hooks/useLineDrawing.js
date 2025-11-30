@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { TOOLS } from '../constants';
-import '../utils/fabricArrow';
 
 export function useLineDrawing({ canvas, tool, color, width, addElement, disabled }) {
   const isDrawing = useRef(false);
