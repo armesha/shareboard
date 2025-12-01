@@ -28,7 +28,8 @@ export function SocketProvider({ children }) {
 
   const initializeSocket = useCallback(() => {
     setTimeout(() => {
-      const socketInstance = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3000', {
+      const serverUrl = import.meta.env.DEV ? 'http://localhost:3000' : undefined;
+      const socketInstance = io(serverUrl, {
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
