@@ -62,14 +62,18 @@ setInterval(workspaceService.cleanupInactiveWorkspaces, config.cleanup.intervalM
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(join(__dirname, '../client')));
 
 if (config.isProduction) {
   app.use(express.static(join(__dirname, '../dist')));
+} else {
+  app.use(express.static(join(__dirname, '../client')));
 }
 
 app.get('/', (req, res) => {
-  res.sendFile(join(__dirname, '../client/index.html'));
+  const indexPath = config.isProduction
+    ? join(__dirname, '../dist/index.html')
+    : join(__dirname, '../client/index.html');
+  res.sendFile(indexPath);
 });
 
 app.post('/api/workspaces', (req, res) => {
