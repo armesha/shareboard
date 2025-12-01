@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import MouseIcon from '@mui/icons-material/Mouse';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import ShareIcon from '@mui/icons-material/Share';
@@ -27,6 +28,7 @@ const Toolbar = React.memo(function Toolbar({
   socket,
   workspaceId
 }) {
+  const { t } = useTranslation(['toolbar', 'common']);
   const hasWriteAccess = canWrite();
 
   return (
@@ -38,7 +40,7 @@ const Toolbar = React.memo(function Toolbar({
           setTool(TOOLS.SELECT);
           setSelectedShape(null);
         }}
-        title={hasWriteAccess ? 'Select' : 'Select (Read-Only View)'}
+        title={hasWriteAccess ? t('tools.select') : t('tools.selectReadOnly')}
         disabled={false}
       />
 
@@ -71,7 +73,7 @@ const Toolbar = React.memo(function Toolbar({
               setTool(tool === TOOLS.TEXT ? TOOLS.SELECT : TOOLS.TEXT);
               setSelectedShape(null);
             }}
-            title="Text"
+            title={t('tools.text')}
           />
         </>
       )}
@@ -88,8 +90,8 @@ const Toolbar = React.memo(function Toolbar({
         type="button"
         className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200"
         onClick={onShareClick}
-        aria-label="Share Settings"
-        title="Share Settings"
+        aria-label={t('common:accessibility.shareSettings')}
+        title={t('common:accessibility.shareSettings')}
       >
         <ShareIcon className={`text-${isOwner ? 'blue' : 'gray'}-500`} />
       </button>

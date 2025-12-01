@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import CreateIcon from '@mui/icons-material/Create';
 import { BRUSH_COLORS, CANVAS } from '../../constants';
 
@@ -11,6 +12,7 @@ const PenButton = React.memo(function PenButton({
   onWidthChange,
   disabled = false
 }) {
+  const { t } = useTranslation('toolbar');
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -59,9 +61,9 @@ const PenButton = React.memo(function PenButton({
         type="button"
         className={`${isActive ? 'btn-icon-active' : 'btn-icon'} relative`}
         onClick={handleButtonClick}
-        aria-label="Pen tool"
+        aria-label={t('pen.ariaLabel')}
         aria-expanded={isOpen}
-        title="Pen (click again to change color)"
+        title={t('tools.penTitle')}
       >
         <CreateIcon className={isActive ? 'text-white' : 'text-gray-700'} />
         <div
@@ -74,11 +76,11 @@ const PenButton = React.memo(function PenButton({
         <div
           className="dropdown-base dropdown-side rounded-2xl p-5 animate-fadeIn ml-3"
           role="menu"
-          aria-label="Pen settings"
+          aria-label={t('pen.settings')}
           style={{ minWidth: '200px' }}
         >
           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-            <span className="text-sm text-gray-500">Size</span>
+            <span className="text-sm text-gray-500">{t('pen.size')}</span>
             <input
               type="range"
               min={CANVAS.MIN_BRUSH_WIDTH}
@@ -117,13 +119,13 @@ const PenButton = React.memo(function PenButton({
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-            <span className="text-sm text-gray-500">Custom</span>
+            <span className="text-sm text-gray-500">{t('pen.custom')}</span>
             <input
               type="color"
               value={currentColor}
               onChange={(e) => handleColorSelect(e.target.value)}
               className="w-9 h-9 cursor-pointer rounded-lg border border-gray-200"
-              title="Custom color"
+              title={t('colorPicker.customColor')}
             />
           </div>
         </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
 
 export default function DiagramRenderer() {
+  const { t } = useTranslation(['editor', 'common']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
   const diagramRef = useRef(null);
@@ -130,10 +132,10 @@ export default function DiagramRenderer() {
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
       <div className="border-b border-gray-200 p-2 flex items-center space-x-4">
-        <h2 className="text-lg font-medium">Diagram Editor</h2>
+        <h2 className="text-lg font-medium">{t('diagram.title')}</h2>
         {isReadOnly && (
           <div className="ml-4 badge-readonly">
-            Read-Only Mode
+            {t('common:permissions.readOnlyMode')}
           </div>
         )}
       </div>
@@ -144,7 +146,7 @@ export default function DiagramRenderer() {
             onChange={handleContentChange}
             className="flex-1 p-2 font-mono text-sm focus:outline-none resize-none"
             disabled={isReadOnly}
-            placeholder={isReadOnly ? "Read-only" : "Enter diagram code here..."}
+            placeholder={isReadOnly ? t('diagram.readOnlyPlaceholder') : t('diagram.placeholder')}
           />
           {error && (
             <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200">

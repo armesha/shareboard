@@ -10,5 +10,14 @@
   },
   "zoom": {
     "tips": "Tips"
+  },
+  "codeboard": {
+    "openCodeBoard": "Open CodeBoard",
+    "closePanel": "Close panel",
+    "resizePanel": "Resize panel",
+    "codeEditorPanel": "Code editor panel",
+    "addToWhiteboard": "Add to Whiteboard",
+    "code": "Code",
+    "diagram": "Diagram"
   }
 }

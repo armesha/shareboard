@@ -14,12 +14,16 @@
   "errors": {
     "diagramRenderFailed": "Failed to render diagram",
     "connectionError": "Connection error occurred",
-    "permissionDenied": "Permission denied"
+    "permissionDenied": "Permission denied",
+    "diagramAddFailed": "Failed to add diagram"
   },
   "notifications": {
     "whiteboardCleared": "Whiteboard cleared",
     "sessionEnded": "Session ended",
     "exportSuccess": "Export successful",
-    "copySuccess": "Copied to clipboard"
+    "copySuccess": "Copied to clipboard",
+    "diagramAdded": "Diagram added to whiteboard",
+    "editAccessGranted": "You've been granted edit access",
+    "editAccessRevoked": "Edit access revoked"
   }
 }

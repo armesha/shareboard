@@ -3,8 +3,10 @@
     "select": "Select",
     "selectReadOnly": "Select (Read-Only View)",
     "pen": "Pen",
+    "penTitle": "Pen (click again to change color)",
     "text": "Text",
     "shapes": "Shapes",
+    "shapesTitle": "Shapes & Lines",
     "line": "Line",
     "arrow": "Arrow"
   },
@@ -33,5 +35,31 @@
     "panCanvas": "Pan canvas",
     "zoomInOut": "Zoom in/out",
     "deleteSelected": "Delete selected"
+  },
+  "pen": {
+    "size": "Size",
+    "custom": "Custom",
+    "ariaLabel": "Pen tool",
+    "settings": "Pen settings"
+  },
+  "colorPicker": {
+    "moreColors": "More colors",
+    "colorPalette": "Color palette",
+    "customColor": "Custom color",
+    "custom": "Custom"
+  },
+  "export": {
+    "title": "Export Preview",
+    "allObjects": "All Objects",
+    "customArea": "Custom Area",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "allObjectsSelected": "All objects selected",
+    "noObjects": "No objects on canvas",
+    "customAreaSelected": "Custom area selected",
+    "drawSelectionArea": "Draw a selection area",
+    "zoomPanHint": "Scroll to zoom • Right-click drag to pan",
+    "downloadImage": "Download Image",
+    "generatingPreview": "Generating preview..."
   }
 }

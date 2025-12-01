@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
@@ -80,6 +81,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
   disabled = false,
   vertical = false
 }) {
+  const { t } = useTranslation('toolbar');
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -136,10 +138,10 @@ const ShapesMenu = React.memo(function ShapesMenu({
         type="button"
         className={isActive ? 'btn-icon-active' : 'btn-icon'}
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Shapes menu"
+        aria-label={t('tools.shapes')}
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        title="Shapes & Lines"
+        title={t('tools.shapesTitle')}
       >
         <div className={isActive ? 'text-white' : 'text-gray-700'}>
           <GroupedShapesIcon />
@@ -152,12 +154,13 @@ const ShapesMenu = React.memo(function ShapesMenu({
             vertical ? 'dropdown-side' : 'top-full left-1/2 -translate-x-1/2 mt-2'
           }`}
           role="menu"
-          aria-label="Shape options"
+          aria-label={t('tools.shapes')}
         >
           <div className="grid grid-cols-4 gap-1" style={{ minWidth: '168px' }}>
             {SHAPE_ITEMS.map((item) => {
               const Icon = item.icon;
               const isSelected = activeItemId === item.id;
+              const shapeKey = item.id === 'line' ? 'tools.line' : item.id === 'arrow' ? 'tools.arrow' : `shapes.${item.id}`;
               return (
                 <button
                   key={item.id}
@@ -169,8 +172,8 @@ const ShapesMenu = React.memo(function ShapesMenu({
                   }`}
                   onClick={() => handleItemSelect(item)}
                   role="menuitem"
-                  aria-label={`Select ${item.id}`}
-                  title={item.id.charAt(0).toUpperCase() + item.id.slice(1)}
+                  aria-label={t(shapeKey)}
+                  title={t(shapeKey)}
                 >
                   {item.isCustomIcon ? <Icon /> : <Icon sx={{ fontSize: 20 }} />}
                 </button>

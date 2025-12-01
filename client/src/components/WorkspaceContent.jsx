@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
@@ -22,6 +23,7 @@ export default function WorkspaceContent({
   cycleViewMode,
   onShareClick
 }) {
+  const { t } = useTranslation(['workspace', 'editor', 'messages', 'common']);
   const { socket, connectionStatus, connectionError } = useSocket();
   const {
     clearCanvas,
@@ -50,7 +52,7 @@ export default function WorkspaceContent({
     if (editAccessInitialized.current && currentEditAccess !== previousEditAccess) {
       setNotification({
         visible: true,
-        message: currentEditAccess ? "You've been granted edit access" : 'Edit access revoked',
+        message: currentEditAccess ? t('messages:notifications.editAccessGranted') : t('messages:notifications.editAccessRevoked'),
         type: currentEditAccess ? 'success' : 'warning'
       });
     }
@@ -60,7 +62,7 @@ export default function WorkspaceContent({
     }
 
     setPreviousEditAccess(currentEditAccess);
-  }, [canWrite, previousEditAccess]);
+  }, [canWrite, previousEditAccess, t]);
 
 
   const handleAddImageToWhiteboard = useCallback(async () => {
@@ -133,25 +135,25 @@ export default function WorkspaceContent({
         }
 
         setTool('select');
-        setNotification({ visible: true, message: 'Diagram added to whiteboard', type: 'success' });
+        setNotification({ visible: true, message: t('messages:notifications.diagramAdded'), type: 'success' });
       };
 
       img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     } catch {
-      setNotification({ visible: true, message: 'Failed to add diagram', type: 'error' });
+      setNotification({ visible: true, message: t('messages:errors.diagramAddFailed'), type: 'error' });
     }
-  }, [addElement, setTool, diagramContent, socket, workspaceId]);
+  }, [addElement, setTool, diagramContent, socket, workspaceId, t]);
 
   const renderCodeEditor = useMemo(() => (
     <div className="h-full flex flex-col">
       <div className="border-b border-gray-200 p-2 flex justify-between items-center">
         <div className="flex items-center">
           <span className="text-sm font-medium text-gray-700 mr-4">
-            {activeTab === 'code' ? 'Code Editor' : 'Diagram Editor'}
+            {activeTab === 'code' ? t('editor:code.title') : t('editor:diagram.title')}
           </span>
           {!canWrite() && (
             <div className="ml-1 badge-readonly">
-              Read-Only
+              {t('common:permissions.readOnly')}
             </div>
           )}
         </div>
@@ -160,12 +162,12 @@ export default function WorkspaceContent({
             <button
               onClick={handleAddImageToWhiteboard}
               className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded-md text-sm mr-3 flex items-center shadow-md transition-all duration-200 font-medium"
-              aria-label="Add diagram to whiteboard"
+              aria-label={t('codeboard.addToWhiteboard')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Add to Whiteboard
+              {t('codeboard.addToWhiteboard')}
             </button>
           )}
           <button
@@ -174,7 +176,7 @@ export default function WorkspaceContent({
               }`}
             aria-pressed={activeTab === 'code'}
           >
-            Code
+            {t('codeboard.code')}
           </button>
           <button
             onClick={() => setActiveTab('diagram')}
@@ -182,13 +184,13 @@ export default function WorkspaceContent({
               }`}
             aria-pressed={activeTab === 'diagram'}
           >
-            Diagram
+            {t('codeboard.diagram')}
           </button>
           <button
             onClick={cycleViewMode}
             className="ml-2 p-1 rounded hover:bg-gray-200 transition-colors"
-            aria-label="Close panel"
-            title="Close panel"
+            aria-label={t('codeboard.closePanel')}
+            title={t('codeboard.closePanel')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -198,7 +200,7 @@ export default function WorkspaceContent({
       </div>
       {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer />}
     </div>
-  ), [activeTab, canWrite, handleAddImageToWhiteboard, workspaceId, cycleViewMode]);
+  ), [activeTab, canWrite, handleAddImageToWhiteboard, workspaceId, cycleViewMode, t]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
@@ -231,8 +233,8 @@ export default function WorkspaceContent({
           <button
             onClick={cycleViewMode}
             className="absolute top-4 right-4 z-40 p-2 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50 transition-colors"
-            aria-label="Open CodeBoard"
-            title="Open CodeBoard"
+            aria-label={t('codeboard.openCodeBoard')}
+            title={t('codeboard.openCodeBoard')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -251,14 +253,14 @@ export default function WorkspaceContent({
               transition: isDragging ? 'none' : 'width 0.15s ease-out'
             }}
             role="complementary"
-            aria-label="Code editor panel"
+            aria-label={t('codeboard.codeEditorPanel')}
           >
             <div
               className="absolute top-0 left-0 h-full cursor-col-resize z-20 hover:bg-blue-100 transition-colors"
               style={{ width: '12px', transform: 'translateX(-50%)' }}
               onMouseDown={(e) => handleMouseDown(e, 'left')}
               role="separator"
-              aria-label="Resize panel"
+              aria-label={t('codeboard.resizePanel')}
               tabIndex={0}
             >
               <div className={`absolute left-1/2 h-full w-1 transition-colors ${isDragging ? 'bg-blue-500' : 'bg-gray-300'}`} />
@@ -273,7 +275,7 @@ export default function WorkspaceContent({
               style={{ width: '12px', transform: 'translateX(50%)' }}
               onMouseDown={(e) => handleMouseDown(e, 'right')}
               role="separator"
-              aria-label="Resize panel"
+              aria-label={t('codeboard.resizePanel')}
               tabIndex={0}
             >
               <div className={`absolute left-1/2 h-full w-1 transition-colors ${isDragging ? 'bg-blue-500' : 'bg-gray-300'}`} />

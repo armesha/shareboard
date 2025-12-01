@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -14,6 +15,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
   workspaceId,
   readOnly = false
 }) {
+  const { t } = useTranslation(['toolbar', 'messages', 'common']);
   const [isOpen, setIsOpen] = useState(false);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -112,9 +114,9 @@ const OptionsMenu = React.memo(function OptionsMenu({
         isOpen={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         onConfirm={handleClearCanvasConfirm}
-        title="Clear Whiteboard"
-        message="This will remove all objects from the whiteboard. This action cannot be undone."
-        confirmText="Clear"
+        title={t('messages:confirmDialog.clearWhiteboard.title')}
+        message={t('messages:confirmDialog.clearWhiteboard.message')}
+        confirmText={t('common:buttons.clear')}
         variant="danger"
       />
 
@@ -122,9 +124,9 @@ const OptionsMenu = React.memo(function OptionsMenu({
         isOpen={showEndSessionConfirm}
         onClose={() => setShowEndSessionConfirm(false)}
         onConfirm={handleEndSessionConfirm}
-        title="End Session"
-        message="This will end the session for all participants. Everyone will be disconnected from this workspace."
-        confirmText="End Session"
+        title={t('messages:confirmDialog.endSession.title')}
+        message={t('messages:confirmDialog.endSession.message')}
+        confirmText={t('options.endSession')}
         variant="danger"
       />
       <div className="relative" ref={menuRef}>
@@ -132,10 +134,10 @@ const OptionsMenu = React.memo(function OptionsMenu({
           type="button"
           className="btn-icon"
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="More options"
+          aria-label={t('common:accessibility.moreOptions')}
           aria-expanded={isOpen}
           aria-haspopup="menu"
-          title="More Options"
+          title={t('options.moreOptions')}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -152,7 +154,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
           <div
             className="dropdown-base dropdown-side py-2 w-48"
             role="menu"
-            aria-label="More options"
+            aria-label={t('common:accessibility.moreOptions')}
           >
             <button
               type="button"
@@ -163,7 +165,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
               <div className="w-6 flex justify-center items-center mr-2 text-blue-500">
                 <DownloadIcon className="h-5 w-5" />
               </div>
-              <span>Export as Image</span>
+              <span>{t('options.exportAsImage')}</span>
             </button>
 
             {!readOnly && (
@@ -176,7 +178,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
                 <div className="w-6 flex justify-center items-center mr-2 text-red-500">
                   <DeleteIcon className="h-5 w-5" />
                 </div>
-                <span>Clear Whiteboard</span>
+                <span>{t('options.clearWhiteboard')}</span>
               </button>
             )}
 
@@ -190,7 +192,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
                 <div className="w-6 flex justify-center items-center mr-2 text-red-500">
                   <ExitToAppIcon className="h-5 w-5" />
                 </div>
-                <span>End Session</span>
+                <span>{t('options.endSession')}</span>
               </button>
             )}
           </div>

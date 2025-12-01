@@ -14,12 +14,16 @@
   "errors": {
     "diagramRenderFailed": "Vykreslení diagramu selhalo",
     "connectionError": "Došlo k chybě připojení",
-    "permissionDenied": "Přístup odepřen"
+    "permissionDenied": "Přístup odepřen",
+    "diagramAddFailed": "Přidání diagramu selhalo"
   },
   "notifications": {
     "whiteboardCleared": "Tabule vymazána",
     "sessionEnded": "Relace ukončena",
     "exportSuccess": "Export úspěšný",
-    "copySuccess": "Zkopírováno do schránky"
+    "copySuccess": "Zkopírováno do schránky",
+    "diagramAdded": "Diagram přidán na tabuli",
+    "editAccessGranted": "Bylo vám uděleno právo úprav",
+    "editAccessRevoked": "Právo úprav bylo odebráno"
   }
 }

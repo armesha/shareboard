@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
@@ -16,6 +17,7 @@ const ExportPreviewModal = ({
     objectsBounds,
     onDownload
 }) => {
+    const { t } = useTranslation(['toolbar', 'common']);
     const [exportMode, setExportMode] = useState(EXPORT_MODES.ALL_OBJECTS);
     const [customSelection, setCustomSelection] = useState(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -229,7 +231,7 @@ const ExportPreviewModal = ({
         <div className="modal-overlay">
             <div className="modal-content p-4 w-[95vw] h-[95vh] flex flex-col">
                 <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-xl font-bold text-gray-800">Export Preview</h2>
+                    <h2 className="text-xl font-bold text-gray-800">{t('export.title')}</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <CloseIcon />
                     </button>
@@ -252,7 +254,7 @@ const ExportPreviewModal = ({
                             />
                             <SelectAllIcon className={exportMode === EXPORT_MODES.ALL_OBJECTS ? 'text-blue-600' : 'text-gray-600'} />
                             <span className={exportMode === EXPORT_MODES.ALL_OBJECTS ? 'text-blue-800 font-medium' : 'text-gray-700'}>
-                                All Objects
+                                {t('export.allObjects')}
                             </span>
                         </label>
 
@@ -271,7 +273,7 @@ const ExportPreviewModal = ({
                             />
                             <CropFreeIcon className={exportMode === EXPORT_MODES.CUSTOM_AREA ? 'text-blue-600' : 'text-gray-600'} />
                             <span className={exportMode === EXPORT_MODES.CUSTOM_AREA ? 'text-blue-800 font-medium' : 'text-gray-700'}>
-                                Custom Area
+                                {t('export.customArea')}
                             </span>
                         </label>
                     </div>
@@ -281,7 +283,7 @@ const ExportPreviewModal = ({
                             onClick={handleZoomOut}
                             disabled={zoom <= ZOOM.MIN}
                             className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Zoom out"
+                            title={t('export.zoomOut')}
                         >
                             <RemoveIcon fontSize="small" />
                         </button>
@@ -292,7 +294,7 @@ const ExportPreviewModal = ({
                             onClick={handleZoomIn}
                             disabled={zoom >= ZOOM.MAX}
                             className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Zoom in"
+                            title={t('export.zoomIn')}
                         >
                             <AddIcon fontSize="small" />
                         </button>
@@ -339,7 +341,7 @@ const ExportPreviewModal = ({
                         </>
                     ) : (
                         <div className="text-gray-500 flex justify-center items-center h-full">
-                            Generating preview...
+                            {t('export.generatingPreview')}
                         </div>
                     )}
                 </div>
@@ -347,25 +349,25 @@ const ExportPreviewModal = ({
                 <div className="flex justify-between items-center mt-3">
                     <div className="text-sm text-gray-500">
                         {exportMode === EXPORT_MODES.ALL_OBJECTS && objectsBounds && (
-                            <span>All objects selected</span>
+                            <span>{t('export.allObjectsSelected')}</span>
                         )}
                         {exportMode === EXPORT_MODES.ALL_OBJECTS && !objectsBounds && (
-                            <span className="text-amber-600">No objects on canvas</span>
+                            <span className="text-amber-600">{t('export.noObjects')}</span>
                         )}
                         {showSelectionUI && customSelection && customSelection.width > 10 && (
-                            <span>Custom area selected</span>
+                            <span>{t('export.customAreaSelected')}</span>
                         )}
                         {showSelectionUI && !customSelection && (
-                            <span className="text-amber-600">Draw a selection area</span>
+                            <span className="text-amber-600">{t('export.drawSelectionArea')}</span>
                         )}
-                        <span className="ml-4 text-gray-400">Scroll to zoom • Right-click drag to pan</span>
+                        <span className="ml-4 text-gray-400">{t('export.zoomPanHint')}</span>
                     </div>
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
                             className="px-4 py-2 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
                         >
-                            Cancel
+                            {t('common:buttons.cancel')}
                         </button>
                         <button
                             onClick={cropAndDownload}
@@ -373,7 +375,7 @@ const ExportPreviewModal = ({
                             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <DownloadIcon fontSize="small" />
-                            Download Image
+                            {t('export.downloadImage')}
                         </button>
                     </div>
                 </div>

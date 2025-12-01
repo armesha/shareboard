@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSharing } from '../context/SharingContext';
 import { useSocket } from '../context/SocketContext';
 import { SOCKET_EVENTS, SHARING_MODES, STORAGE_KEYS } from '../constants';
 
 export default function SharingSettings({ workspaceId, onClose }) {
+  const { t } = useTranslation(['sharing', 'common']);
   const { socket } = useSocket();
   const {
     sharingMode,
@@ -77,23 +79,23 @@ export default function SharingSettings({ workspaceId, onClose }) {
 
   if (!isOwner) {
     const getModeLabel = (mode) => {
-      if (mode === SHARING_MODES.READ_ONLY) return 'Read Only';
-      if (mode === SHARING_MODES.READ_WRITE_ALL) return 'Edit by All';
-      if (mode === SHARING_MODES.READ_WRITE_SELECTED) return 'Selected Users';
+      if (mode === SHARING_MODES.READ_ONLY) return t('nonOwnerModes.readOnly.label');
+      if (mode === SHARING_MODES.READ_WRITE_ALL) return t('nonOwnerModes.readWriteAll.label');
+      if (mode === SHARING_MODES.READ_WRITE_SELECTED) return t('nonOwnerModes.readWriteSelected.label');
       return mode;
     };
 
     const getModeDescription = (mode) => {
-      if (mode === SHARING_MODES.READ_ONLY) return 'Only the owner can edit';
-      if (mode === SHARING_MODES.READ_WRITE_ALL) return 'Anyone with the link can edit';
-      if (mode === SHARING_MODES.READ_WRITE_SELECTED) return 'Only users with edit token can edit';
+      if (mode === SHARING_MODES.READ_ONLY) return t('nonOwnerModes.readOnly.description');
+      if (mode === SHARING_MODES.READ_WRITE_ALL) return t('nonOwnerModes.readWriteAll.description');
+      if (mode === SHARING_MODES.READ_WRITE_SELECTED) return t('nonOwnerModes.readWriteSelected.description');
       return '';
     };
 
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg max-w-lg w-full">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Sharing Settings</h2>
+          <h2 className="text-xl font-semibold">{t('title')}</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -105,13 +107,13 @@ export default function SharingSettings({ workspaceId, onClose }) {
         </div>
 
         <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">Current Mode</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('currentMode')}</h3>
           <p className="text-base font-medium text-gray-900">{getModeLabel(sharingMode)}</p>
           <p className="text-sm text-gray-600 mt-1">{getModeDescription(sharingMode)}</p>
         </div>
 
         <p className="text-gray-600 text-sm">
-          Only the workspace owner can change sharing settings.
+          {t('onlyOwnerCanChange')}
         </p>
 
         <div className="mt-4">
@@ -119,7 +121,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
             onClick={onClose}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Close
+            {t('common:buttons.close')}
           </button>
         </div>
       </div>
@@ -129,7 +131,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg max-w-lg w-full">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Sharing Settings</h2>
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
         <button
           onClick={onClose}
           className="text-gray-500 hover:text-gray-700"
@@ -141,7 +143,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Sharing Mode</h3>
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('sharingMode')}</h3>
         <div className="space-y-2">
           <label className="form-radio-item">
             <input
@@ -153,8 +155,8 @@ export default function SharingSettings({ workspaceId, onClose }) {
               className="mt-1 mr-3"
             />
             <div className="flex-1">
-              <div className="font-medium text-gray-900">Read Only</div>
-              <div className="text-sm text-gray-600">Only you can edit</div>
+              <div className="font-medium text-gray-900">{t('modes.readOnly.label')}</div>
+              <div className="text-sm text-gray-600">{t('modes.readOnly.description')}</div>
             </div>
           </label>
 
@@ -168,8 +170,8 @@ export default function SharingSettings({ workspaceId, onClose }) {
               className="mt-1 mr-3"
             />
             <div className="flex-1">
-              <div className="font-medium text-gray-900">Edit by All</div>
-              <div className="text-sm text-gray-600">Anyone with link can edit</div>
+              <div className="font-medium text-gray-900">{t('modes.readWriteAll.label')}</div>
+              <div className="text-sm text-gray-600">{t('modes.readWriteAll.description')}</div>
             </div>
           </label>
 
@@ -183,8 +185,8 @@ export default function SharingSettings({ workspaceId, onClose }) {
               className="mt-1 mr-3"
             />
             <div className="flex-1">
-              <div className="font-medium text-gray-900">Selected Users</div>
-              <div className="text-sm text-gray-600">Only users with edit token can edit</div>
+              <div className="font-medium text-gray-900">{t('modes.readWriteSelected.label')}</div>
+              <div className="text-sm text-gray-600">{t('modes.readWriteSelected.description')}</div>
             </div>
           </label>
         </div>
@@ -194,15 +196,15 @@ export default function SharingSettings({ workspaceId, onClose }) {
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex justify-between items-start mb-2">
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-blue-900 mb-1">View Link</h3>
-              <p className="text-xs text-blue-700">Share this link for read-only access</p>
+              <h3 className="text-sm font-semibold text-blue-900 mb-1">{t('links.viewLink.title')}</h3>
+              <p className="text-xs text-blue-700">{t('links.viewLink.description')}</p>
               <p className="text-xs text-gray-600 mt-1 break-all font-mono">{window.location.href.split('?')[0]}</p>
             </div>
             <button
               onClick={() => copyToClipboard(window.location.href.split('?')[0])}
               className="ml-3 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
             >
-              {copySuccess === 'view' ? 'Copied!' : 'Copy'}
+              {copySuccess === 'view' ? t('common:buttons.copied') : t('common:buttons.copy')}
             </button>
           </div>
         </div>
@@ -210,8 +212,8 @@ export default function SharingSettings({ workspaceId, onClose }) {
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex justify-between items-start mb-2">
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-green-900 mb-1">Edit Link</h3>
-              <p className="text-xs text-green-700">Share this link to grant edit access</p>
+              <h3 className="text-sm font-semibold text-green-900 mb-1">{t('links.editLink.title')}</h3>
+              <p className="text-xs text-green-700">{t('links.editLink.description')}</p>
               {editLink && (
                 <p className="text-xs text-gray-600 mt-1 break-all font-mono">{editLink}</p>
               )}
@@ -221,7 +223,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
               className="ml-3 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 whitespace-nowrap"
               disabled={!editLink}
             >
-              {copySuccess === 'edit' ? 'Copied!' : 'Copy'}
+              {copySuccess === 'edit' ? t('common:buttons.copied') : t('common:buttons.copy')}
             </button>
           </div>
         </div>

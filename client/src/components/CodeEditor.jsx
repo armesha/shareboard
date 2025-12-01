@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Editor from '@monaco-editor/react';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
@@ -6,13 +7,14 @@ import { useSharing } from '../context/SharingContext';
 import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES } from '../constants';
 
 export default function CodeEditor() {
+  const { t } = useTranslation(['editor', 'common']);
   const {
     content,
     language,
     setContent,
     setLanguage
   } = useCodeEditor();
-  
+
   const { canWrite } = useSharing();
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -123,14 +125,14 @@ export default function CodeEditor() {
           <button
             onClick={handleInsertExample}
             className="btn-secondary text-sm"
-            title="Insert example code for selected language"
+            title={t('code.insertExampleTitle')}
           >
-            Insert Example
+            {t('code.insertExample')}
           </button>
         )}
         {isReadOnly && (
           <div className="badge-readonly">
-            Read-Only Mode
+            {t('common:permissions.readOnlyMode')}
           </div>
         )}
       </div>

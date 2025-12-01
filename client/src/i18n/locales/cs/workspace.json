@@ -10,5 +10,14 @@
   },
   "zoom": {
     "tips": "Tipy"
+  },
+  "codeboard": {
+    "openCodeBoard": "Otevřít CodeBoard",
+    "closePanel": "Zavřít panel",
+    "resizePanel": "Změnit velikost panelu",
+    "codeEditorPanel": "Panel editoru kódu",
+    "addToWhiteboard": "Přidat na tabuli",
+    "code": "Kód",
+    "diagram": "Diagram"
   }
 }

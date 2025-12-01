@@ -3,8 +3,10 @@
     "select": "Vybrat",
     "selectReadOnly": "Vybrat (Zobrazení pouze pro čtení)",
     "pen": "Pero",
+    "penTitle": "Pero (klikněte znovu pro změnu barvy)",
     "text": "Text",
     "shapes": "Tvary",
+    "shapesTitle": "Tvary a čáry",
     "line": "Čára",
     "arrow": "Šipka"
   },
@@ -33,5 +35,31 @@
     "panCanvas": "Posun",
     "zoomInOut": "Zoom",
     "deleteSelected": "Smazat"
+  },
+  "pen": {
+    "size": "Velikost",
+    "custom": "Vlastní",
+    "ariaLabel": "Nástroj pero",
+    "settings": "Nastavení pera"
+  },
+  "colorPicker": {
+    "moreColors": "Více barev",
+    "colorPalette": "Paleta barev",
+    "customColor": "Vlastní barva",
+    "custom": "Vlastní"
+  },
+  "export": {
+    "title": "Náhled exportu",
+    "allObjects": "Všechny objekty",
+    "customArea": "Vlastní oblast",
+    "zoomIn": "Přiblížit",
+    "zoomOut": "Oddálit",
+    "allObjectsSelected": "Vybrány všechny objekty",
+    "noObjects": "Na plátně nejsou žádné objekty",
+    "customAreaSelected": "Vybrána vlastní oblast",
+    "drawSelectionArea": "Nakreslete oblast výběru",
+    "zoomPanHint": "Kolečkem přibližujte • Pravým tlačítkem posouvejte",
+    "downloadImage": "Stáhnout obrázek",
+    "generatingPreview": "Generování náhledu..."
   }
 }
