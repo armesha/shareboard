@@ -61,7 +61,18 @@ export default function SharingSettings({ workspaceId, onClose }) {
   }, [socket, workspaceId, sharingMode, isOwner]);
 
   const copyToClipboard = (text, isEditLink = false) => {
-    navigator.clipboard.writeText(text);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
     if (isEditLink) {
       setCopySuccess('edit');
     } else {
