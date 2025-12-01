@@ -10,9 +10,7 @@ export default function CodeEditor() {
     content,
     language,
     setContent,
-    setLanguage,
-    isEditing,
-    setIsEditing
+    setLanguage
   } = useCodeEditor();
   
   const { canWrite } = useSharing();

@@ -154,7 +154,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     const deltaHeight = pointer.y - startY;
 
     switch (selectedShape) {
-      case SHAPES.RECTANGLE:
+      case SHAPES.RECTANGLE: {
         if (isCtrlPressed) {
           const size = Math.max(Math.abs(deltaWidth), Math.abs(deltaHeight));
           shape.set({
@@ -172,6 +172,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
           });
         }
         break;
+      }
 
       case SHAPES.CIRCLE: {
         const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
@@ -195,7 +196,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         break;
       }
 
-      case SHAPES.TRIANGLE:
+      case SHAPES.TRIANGLE: {
         const isUpsideDown = deltaHeight < 0;
         const absWidth = Math.abs(deltaWidth) || 1;
         const absHeight = Math.abs(deltaHeight) || 1;
@@ -229,6 +230,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         shape.set({ points: points });
         shape._setPositionDimensions({});
         break;
+      }
 
       case SHAPES.STAR: {
         const outerRadius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;

@@ -3,7 +3,7 @@ import { fabric } from 'fabric';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { ZoomControls } from './ui';
-import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, KEYBOARD, SOCKET_EVENTS } from '../constants';
+import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
 import { useLineDrawing } from '../hooks/useLineDrawing';

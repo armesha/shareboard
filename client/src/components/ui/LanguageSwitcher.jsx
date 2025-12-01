@@ -16,7 +16,7 @@ const LanguageSwitcher = React.memo(function LanguageSwitcher() {
   return (
     <button
       onClick={handleToggle}
-      className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-150"
+      className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-150"
       aria-label={`Switch language to ${nextLang === 'cs' ? 'Czech' : 'English'}`}
       title={`Switch to ${nextLang === 'cs' ? 'Čeština' : 'English'}`}
     >

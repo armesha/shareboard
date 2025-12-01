@@ -7,14 +7,9 @@ export default function SharingSettings({ workspaceId, onClose }) {
   const { socket } = useSocket();
   const {
     sharingMode,
-    allowedUsers,
     isOwner,
-    currentUser,
     changeMode
   } = useSharing();
-  
-  const [activeUsers, setActiveUsers] = useState([]);
-  const [errorMessage, setErrorMessage] = useState('');
   const [editLink, setEditLink] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
 
@@ -29,8 +24,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
       });
     }
 
-    const handleActiveUsersUpdate = (data) => {
-      setActiveUsers(data.activeUsers || []);
+    const handleActiveUsersUpdate = () => {
     };
 
     socket.on(SOCKET_EVENTS.ACTIVE_USERS_UPDATE, handleActiveUsersUpdate);

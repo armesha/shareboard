@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
@@ -36,7 +36,7 @@ export default function WorkspaceContent({
     setColor
   } = useWhiteboard();
 
-  const { canWrite, sharingMode, isOwner, sharingInfoReceived } = useSharing();
+  const { canWrite, isOwner, sharingInfoReceived } = useSharing();
   const { content: diagramContent } = useDiagramEditor();
 
   const [activeTab, setActiveTab] = useState('code');
@@ -295,9 +295,7 @@ export default function WorkspaceContent({
               error={connectionError}
             />
           </div>
-          <div className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200">
-            <LanguageSwitcher />
-          </div>
+          <LanguageSwitcher />
         </div>
       </main>
     </div>

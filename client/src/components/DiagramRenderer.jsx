@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
