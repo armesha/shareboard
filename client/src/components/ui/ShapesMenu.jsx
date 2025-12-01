@@ -30,14 +30,35 @@ const HexagonIcon = () => (
   </svg>
 );
 
+const EllipseIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <ellipse cx="12" cy="12" rx="10" ry="6" />
+  </svg>
+);
+
+const OctagonIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8 2 L16 2 L22 8 L22 16 L16 22 L8 22 L2 16 L2 8 Z" />
+  </svg>
+);
+
+const CrossIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M9 2 L15 2 L15 9 L22 9 L22 15 L15 15 L15 22 L9 22 L9 15 L2 15 L2 9 L9 9 Z" />
+  </svg>
+);
+
 const SHAPE_ITEMS = [
   { id: SHAPES.RECTANGLE, icon: CropSquareIcon, tool: TOOLS.SHAPES },
   { id: SHAPES.CIRCLE, icon: CircleOutlinedIcon, tool: TOOLS.SHAPES },
+  { id: SHAPES.ELLIPSE, icon: EllipseIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
   { id: SHAPES.TRIANGLE, icon: ChangeHistoryIcon, tool: TOOLS.SHAPES },
-  { id: SHAPES.STAR, icon: StarIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
-  { id: SHAPES.DIAMOND, icon: DiamondIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
   { id: SHAPES.PENTAGON, icon: PentagonIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
   { id: SHAPES.HEXAGON, icon: HexagonIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.OCTAGON, icon: OctagonIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.DIAMOND, icon: DiamondIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.STAR, icon: StarIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
+  { id: SHAPES.CROSS, icon: CrossIcon, tool: TOOLS.SHAPES, isCustomIcon: true },
   { id: 'line', icon: HorizontalRuleIcon, tool: TOOLS.LINE },
   { id: 'arrow', icon: ArrowRightAltIcon, tool: TOOLS.ARROW },
 ];
@@ -56,7 +77,8 @@ const ShapesMenu = React.memo(function ShapesMenu({
   selectedShape,
   onSelectShape,
   setTool,
-  disabled = false
+  disabled = false,
+  vertical = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -112,9 +134,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
     <div className="relative" ref={menuRef}>
       <button
         type="button"
-        className={`p-2 rounded-full transition-all duration-200 ${
-          isActive ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-gray-100'
-        }`}
+        className={isActive ? 'btn-icon-active' : 'btn-icon'}
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Shapes menu"
         aria-expanded={isOpen}
@@ -128,11 +148,13 @@ const ShapesMenu = React.memo(function ShapesMenu({
 
       {isOpen && (
         <div
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5 z-50 animate-fadeIn"
+          className={`dropdown-base rounded-xl p-1.5 animate-fadeIn ${
+            vertical ? 'dropdown-side' : 'top-full left-1/2 -translate-x-1/2 mt-2'
+          }`}
           role="menu"
           aria-label="Shape options"
         >
-          <div className="grid grid-cols-3 gap-1" style={{ minWidth: '126px' }}>
+          <div className="grid grid-cols-4 gap-1" style={{ minWidth: '168px' }}>
             {SHAPE_ITEMS.map((item) => {
               const Icon = item.icon;
               const isSelected = activeItemId === item.id;

@@ -45,6 +45,13 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
           radius: 0
         });
         break;
+      case SHAPES.ELLIPSE:
+        shapeObj = new fabric.Ellipse({
+          ...commonProps,
+          rx: 0,
+          ry: 0
+        });
+        break;
       case SHAPES.TRIANGLE:
         shapeObj = new fabric.Polygon(
           [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
@@ -105,6 +112,30 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         );
         shapeObj.type = 'hexagon';
         break;
+      case SHAPES.OCTAGON:
+        shapeObj = new fabric.Polygon(
+          Array(8).fill({ x: 0, y: 0 }),
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'octagon';
+        break;
+      case SHAPES.CROSS:
+        shapeObj = new fabric.Polygon(
+          Array(12).fill({ x: 0, y: 0 }),
+          {
+            ...commonProps,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            strokeUniform: true
+          }
+        );
+        shapeObj.type = 'cross';
+        break;
       default:
         return;
     }
@@ -142,7 +173,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         }
         break;
 
-      case SHAPES.CIRCLE:
+      case SHAPES.CIRCLE: {
         const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
         shape.set({
           radius: radius,
@@ -150,6 +181,19 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
           top: startY - radius
         });
         break;
+      }
+
+      case SHAPES.ELLIPSE: {
+        const rx = Math.abs(deltaWidth) / 2;
+        const ry = Math.abs(deltaHeight) / 2;
+        shape.set({
+          rx: rx,
+          ry: ry,
+          left: deltaWidth > 0 ? startX : startX - rx * 2,
+          top: deltaHeight > 0 ? startY : startY - ry * 2
+        });
+        break;
+      }
 
       case SHAPES.TRIANGLE:
         const isUpsideDown = deltaHeight < 0;
@@ -246,6 +290,45 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
           });
         }
         shape.set({ points: hexPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
+
+      case SHAPES.OCTAGON: {
+        const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+
+        const octPoints = [];
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI / 2) + (i * Math.PI / 4);
+          octPoints.push({
+            x: startX + radius * Math.cos(angle),
+            y: startY - radius * Math.sin(angle)
+          });
+        }
+        shape.set({ points: octPoints });
+        shape._setPositionDimensions({});
+        break;
+      }
+
+      case SHAPES.CROSS: {
+        const size = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
+        const armWidth = size / 3;
+
+        const crossPoints = [
+          { x: startX - armWidth, y: startY - size },
+          { x: startX + armWidth, y: startY - size },
+          { x: startX + armWidth, y: startY - armWidth },
+          { x: startX + size, y: startY - armWidth },
+          { x: startX + size, y: startY + armWidth },
+          { x: startX + armWidth, y: startY + armWidth },
+          { x: startX + armWidth, y: startY + size },
+          { x: startX - armWidth, y: startY + size },
+          { x: startX - armWidth, y: startY + armWidth },
+          { x: startX - size, y: startY + armWidth },
+          { x: startX - size, y: startY - armWidth },
+          { x: startX - armWidth, y: startY - armWidth }
+        ];
+        shape.set({ points: crossPoints });
         shape._setPositionDimensions({});
         break;
       }

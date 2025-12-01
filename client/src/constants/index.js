@@ -31,23 +31,23 @@ export const KEYBOARD = {
   DELETE: 'Delete',
 };
 
-export const KEYBOARD_SHORTCUTS = [
-  { key: 'Right-click', action: 'Pan canvas' },
-  { key: 'Scroll', action: 'Zoom in/out' },
-  { key: 'V', action: 'Select tool' },
-  { key: 'P', action: 'Pen tool' },
-  { key: 'T', action: 'Text tool' },
-  { key: 'Delete', action: 'Delete selected' },
+export const CONTROL_TIPS = [
+  { key: 'Right-click', action: 'Pan canvas', keyTranslationKey: 'rightClick', translationKey: 'panCanvas' },
+  { key: 'Scroll', action: 'Zoom in/out', keyTranslationKey: 'scroll', translationKey: 'zoomInOut' },
+  { key: 'Delete', action: 'Delete selected', keyTranslationKey: 'delete', translationKey: 'deleteSelected' },
 ];
 
 export const SHAPES = {
   RECTANGLE: 'rectangle',
   CIRCLE: 'circle',
+  ELLIPSE: 'ellipse',
   TRIANGLE: 'triangle',
-  STAR: 'star',
-  DIAMOND: 'diamond',
   PENTAGON: 'pentagon',
   HEXAGON: 'hexagon',
+  OCTAGON: 'octagon',
+  DIAMOND: 'diamond',
+  STAR: 'star',
+  CROSS: 'cross',
 };
 
 export const SHARING_MODES = {
@@ -103,8 +103,13 @@ export const FABRIC_EVENTS = {
 };
 
 export const INTERACTIVE_TYPES = [
-  'image', 'text', 'i-text', 'rect', 'circle', 'triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'path', 'line', 'arrow', 'group'
+  'image', 'text', 'i-text', 'rect', 'circle', 'ellipse', 'triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'octagon', 'cross', 'path', 'line', 'arrow', 'group'
 ];
+
+export const EXPORT_MODES = {
+  ALL_OBJECTS: 'all-objects',
+  CUSTOM_AREA: 'custom-area',
+};
 
 export const COLORS = {
   BG_WHITEBOARD: 'rgb(249, 250, 251)',
@@ -136,11 +141,14 @@ export const MERMAID_THEME = {
   background: 'transparent',
   backgroundColor: 'transparent',
   nodeBorder: '#3B82F6',
-  mainBkg: 'rgba(220, 225, 255, 0.7)',
+  nodeBkg: 'rgba(240, 245, 255, 0.7)',
+  mainBkg: 'rgba(240, 245, 255, 0.7)',
   titleColor: '#1F2937',
   edgeLabelBackground: 'transparent',
   clusterBkg: 'transparent',
   clusterBorder: '#3B82F6',
+  labelBackground: 'transparent',
+  nodeTextColor: '#1F2937',
 };
 
 export const TIMING = {
@@ -167,6 +175,7 @@ export const CANVAS = {
 
 export const STORAGE_KEYS = {
   USER_ID: 'shareboardUserId',
+  SPLIT_POSITION: 'shareboardSplitPosition',
   accessToken: (workspaceId) => `accessToken_${workspaceId}`,
   editToken: (workspaceId) => `editToken_${workspaceId}`,
 };
@@ -185,3 +194,123 @@ export const FABRIC_OBJECT_PROPS = [
   'text', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
   'textAlign', 'charSpacing', 'lineHeight'
 ];
+
+export const CODE_EDITOR_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C/C++' },
+  { value: 'go', label: 'Go' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'json', label: 'JSON' }
+];
+
+export const CODE_EXAMPLES = {
+  javascript: `function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet("World"));`,
+
+  typescript: `function greet(name: string): string {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet("World"));`,
+
+  python: `def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))`,
+
+  java: `public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println(greet("World"));
+    }
+
+    public static String greet(String name) {
+        return "Hello, " + name + "!";
+    }
+}`,
+
+  cpp: `#include <iostream>
+#include <string>
+
+std::string greet(const std::string& name) {
+    return "Hello, " + name + "!";
+}
+
+int main() {
+    std::cout << greet("World") << std::endl;
+    return 0;
+}`,
+
+  go: `package main
+
+import "fmt"
+
+func greet(name string) string {
+    return fmt.Sprintf("Hello, %s!", name)
+}
+
+func main() {
+    fmt.Println(greet("World"))
+}`,
+
+  sql: `-- Create a greetings table
+CREATE TABLE greetings (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    message VARCHAR(255)
+);
+
+-- Insert a greeting
+INSERT INTO greetings (id, name, message)
+VALUES (1, 'World', 'Hello, World!');
+
+-- Select the greeting
+SELECT * FROM greetings WHERE name = 'World';`,
+
+  html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello World</title>
+</head>
+<body>
+    <h1>Hello, World!</h1>
+    <p>Welcome to my page.</p>
+</body>
+</html>`,
+
+  css: `/* Main container styles */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.hello-world {
+    font-size: 3rem;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}`,
+
+  json: `{
+  "greeting": {
+    "message": "Hello, World!",
+    "language": "en",
+    "timestamp": "2024-01-01T00:00:00Z"
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Developer"
+  }
+}`
+};

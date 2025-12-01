@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
-import { useSharing } from './SharingContext'; 
+import { useSharing } from './SharingContext';
 import debounce from 'lodash/debounce';
 
 const DiagramEditorContext = createContext(null);
@@ -23,6 +23,7 @@ export function DiagramEditorProvider({ children }) {
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const lastLocalChangeRef = useRef(0);
 
   useEffect(() => {
     const readOnly = !canWrite();
@@ -50,7 +51,10 @@ export function DiagramEditorProvider({ children }) {
     if (!socket) return;
 
     const handleDiagramUpdate = ({ content: newContent }) => {
-      if (!isEditing || newContent !== content) {
+      const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
+      if (timeSinceLastLocal < 500) return;
+
+      if (newContent !== content) {
         setContent(newContent);
         setLastEmittedContent(newContent);
       }
@@ -72,9 +76,10 @@ export function DiagramEditorProvider({ children }) {
   }, [socket, isEditing, content]);
 
   const updateContent = useCallback((newContent) => {
+    lastLocalChangeRef.current = Date.now();
     setContent(newContent);
     const workspaceId = window.location.pathname.split('/')[2];
-    
+
     if (Math.abs(newContent.length - content.length) <= 1) {
       emitDiagramChange(workspaceId, newContent);
     } else {

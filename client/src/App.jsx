@@ -6,7 +6,6 @@ import {
 import LandingPage from './pages/LandingPage';
 import Workspace from './pages/Workspace';
 import { SocketProvider } from './context/SocketContext';
-import { WhiteboardProvider } from './context/WhiteboardContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -40,12 +39,10 @@ const router = createBrowserRouter(
 function App() {
   return (
     <SocketProvider>
-      <WhiteboardProvider>
-        <div className="min-h-screen bg-gray-100">
-          <RouterProvider router={router} future={{ v7_startTransition: true }} />
-          <ToastContainer position="bottom-right" />
-        </div>
-      </WhiteboardProvider>
+      <div className="min-h-screen bg-gray-100">
+        <RouterProvider router={router} future={{ v7_startTransition: true }} />
+        <ToastContainer position="bottom-right" />
+      </div>
     </SocketProvider>
   );
 }

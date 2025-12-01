@@ -1,0 +1,12 @@
+{
+  "title": "ShareBoard",
+  "subtitle": "Real-time collaborative whiteboard and code editor",
+  "createWorkspace": "Create New Workspace",
+  "creating": "Creating...",
+  "orJoinExisting": "Or join existing",
+  "workspaceKeyPlaceholder": "Enter workspace key",
+  "joinWorkspace": "Join Workspace",
+  "errors": {
+    "createFailed": "Failed to create workspace. Please try again."
+  }
+}

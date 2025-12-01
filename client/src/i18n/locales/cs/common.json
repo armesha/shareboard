@@ -1,0 +1,36 @@
+{
+  "buttons": {
+    "create": "Vytvořit",
+    "join": "Připojit se",
+    "cancel": "Zrušit",
+    "confirm": "Potvrdit",
+    "close": "Zavřít",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno!",
+    "save": "Uložit",
+    "delete": "Smazat",
+    "clear": "Vymazat",
+    "export": "Exportovat",
+    "download": "Stáhnout",
+    "back": "Zpět"
+  },
+  "status": {
+    "loading": "Načítání...",
+    "creating": "Vytváření...",
+    "saving": "Ukládání...",
+    "error": "Chyba",
+    "success": "Úspěch"
+  },
+  "accessibility": {
+    "returnToHome": "Návrat na domovskou stránku",
+    "zoomIn": "Přiblížit",
+    "zoomOut": "Oddálit",
+    "keyboardShortcuts": "Klávesové zkratky",
+    "moreOptions": "Další možnosti",
+    "shareSettings": "Nastavení sdílení"
+  },
+  "permissions": {
+    "readOnly": "Pouze pro čtení",
+    "readOnlyMode": "Režim pouze pro čtení"
+  }
+}

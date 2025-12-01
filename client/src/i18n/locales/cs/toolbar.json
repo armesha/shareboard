@@ -1,0 +1,37 @@
+{
+  "tools": {
+    "select": "Vybrat",
+    "selectReadOnly": "Vybrat (Zobrazení pouze pro čtení)",
+    "pen": "Pero",
+    "text": "Text",
+    "shapes": "Tvary",
+    "line": "Čára",
+    "arrow": "Šipka"
+  },
+  "shapes": {
+    "rectangle": "Obdélník",
+    "circle": "Kruh",
+    "ellipse": "Elipsa",
+    "triangle": "Trojúhelník",
+    "pentagon": "Pětiúhelník",
+    "hexagon": "Šestiúhelník",
+    "octagon": "Osmiúhelník",
+    "diamond": "Kosočtverec",
+    "star": "Hvězda",
+    "cross": "Kříž"
+  },
+  "options": {
+    "exportAsImage": "Exportovat jako obrázek",
+    "clearWhiteboard": "Vymazat tabuli",
+    "endSession": "Ukončit relaci",
+    "moreOptions": "Další možnosti"
+  },
+  "controls": {
+    "rightClick": "Pravé tl.",
+    "scroll": "Kolečko",
+    "delete": "Delete",
+    "panCanvas": "Posun",
+    "zoomInOut": "Zoom",
+    "deleteSelected": "Smazat"
+  }
+}

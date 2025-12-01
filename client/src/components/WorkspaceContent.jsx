@@ -4,19 +4,16 @@ import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { Header, Toolbar } from './layout';
-import { Notification } from './ui';
+import { Notification, ConnectionStatus, LanguageSwitcher } from './ui';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
 import { v4 as uuidv4 } from 'uuid';
 import mermaid from 'mermaid';
-import { MERMAID_THEME, SOCKET_EVENTS, TIMING } from '../constants';
-import { getPersistentUserId } from '../utils';
+import { MERMAID_THEME, SOCKET_EVENTS } from '../constants';
 
 export default function WorkspaceContent({
   workspaceId,
-  status,
-  setStatus,
   viewMode,
   splitPosition,
   isDragging,
@@ -36,22 +33,16 @@ export default function WorkspaceContent({
     width,
     setWidth,
     color,
-    setColor,
-    activeUsers
+    setColor
   } = useWhiteboard();
 
-  const { canWrite, sharingMode, isOwner } = useSharing();
+  const { canWrite, sharingMode, isOwner, sharingInfoReceived } = useSharing();
   const { content: diagramContent } = useDiagramEditor();
 
   const [activeTab, setActiveTab] = useState('code');
-  const [persistentUserId, setPersistentUserId] = useState(null);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' });
   const [previousEditAccess, setPreviousEditAccess] = useState(canWrite());
   const editAccessInitialized = useRef(false);
-
-  useEffect(() => {
-    setPersistentUserId(getPersistentUserId());
-  }, []);
 
   useEffect(() => {
     const currentEditAccess = canWrite();
@@ -71,32 +62,6 @@ export default function WorkspaceContent({
     setPreviousEditAccess(currentEditAccess);
   }, [canWrite, previousEditAccess]);
 
-  useEffect(() => {
-    if (!socket || !workspaceId || !persistentUserId) return;
-
-    const handleConnect = () => {
-      setStatus('connected');
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, { workspaceId, userId: persistentUserId });
-      socket.emit(SOCKET_EVENTS.REQUEST_CANVAS_STATE, workspaceId);
-    };
-
-    const handleDisconnect = () => setStatus('disconnected');
-    const handleError = () => setStatus('error');
-
-    socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
-    socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
-    socket.on(SOCKET_EVENTS.ERROR, handleError);
-
-    if (socket.connected) {
-      handleConnect();
-    }
-
-    return () => {
-      socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
-      socket.off(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
-      socket.off(SOCKET_EVENTS.ERROR, handleError);
-    };
-  }, [socket, workspaceId, persistentUserId, setStatus]);
 
   const handleAddImageToWhiteboard = useCallback(async () => {
     try {
@@ -113,11 +78,17 @@ export default function WorkspaceContent({
       let { svg } = await mermaid.render(`diagram-${Date.now()}`, diagramContent);
 
       svg = svg
+        .replace(/\.labelBkg\s*\{[^}]*background-color:[^}]*\}/gi, '.labelBkg{background-color:transparent;}')
         .replace(/fill="white"/g, 'fill="rgba(240, 245, 255, 0.7)"')
-        .replace(/fill="#ffffff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
-        .replace(/fill="#fff"/g, 'fill="rgba(240, 245, 255, 0.7)"')
+        .replace(/fill="#ffffff"/gi, 'fill="rgba(240, 245, 255, 0.7)"')
+        .replace(/fill="#fff"/gi, 'fill="rgba(240, 245, 255, 0.7)"')
         .replace(/<rect.*?class="background".*?\/>/g, '')
-        .replace(/style="background-color:.*?"/g, 'style="background-color:transparent"');
+        .replace(/style="background-color:.*?"/g, 'style="background-color:transparent"')
+        .replace(/background-color:\s*rgba?\([^)]+\)/gi, 'background-color:transparent')
+        .replace(/background-color:\s*#[0-9a-f]{3,6}/gi, 'background-color:transparent')
+        .replace(/background:\s*rgba?\([^)]+\)/gi, 'background:transparent')
+        .replace(/background:\s*#[0-9a-f]{3,6}/gi, 'background:transparent')
+        .replace(/fill="rgb\([\d\s,]+\)"/gi, 'fill="rgba(240, 245, 255, 0.7)"');
 
       const img = new Image();
       img.onload = () => {
@@ -179,7 +150,7 @@ export default function WorkspaceContent({
             {activeTab === 'code' ? 'Code Editor' : 'Diagram Editor'}
           </span>
           {!canWrite() && (
-            <div className="ml-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+            <div className="ml-1 badge-readonly">
               Read-Only
             </div>
           )}
@@ -213,26 +184,32 @@ export default function WorkspaceContent({
           >
             Diagram
           </button>
+          <button
+            onClick={cycleViewMode}
+            className="ml-2 p-1 rounded hover:bg-gray-200 transition-colors"
+            aria-label="Close panel"
+            title="Close panel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
-      {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer workspaceId={workspaceId} />}
+      {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer />}
     </div>
-  ), [activeTab, canWrite, handleAddImageToWhiteboard, workspaceId]);
+  ), [activeTab, canWrite, handleAddImageToWhiteboard, workspaceId, cycleViewMode]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <Header
         workspaceId={workspaceId}
         canWrite={canWrite}
-        connectionStatus={connectionStatus}
-        connectionError={connectionError}
-        activeUsers={activeUsers}
       />
 
       <main className="flex-1 relative bg-gray-50" ref={containerRef}>
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
-          <div className="pointer-events-auto">
-            <Toolbar
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-40 pointer-events-auto">
+          <Toolbar
               tool={tool}
               setTool={setTool}
               selectedShape={selectedShape}
@@ -243,19 +220,27 @@ export default function WorkspaceContent({
               setWidth={setWidth}
               canWrite={canWrite}
               isOwner={isOwner}
-              viewMode={viewMode}
-              cycleViewMode={cycleViewMode}
               onShareClick={onShareClick}
-              connectionStatus={connectionStatus}
-              connectionError={connectionError}
               clearCanvas={clearCanvas}
               socket={socket}
               workspaceId={workspaceId}
-            />
-          </div>
+          />
         </div>
+
+        {viewMode !== 'split' && (
+          <button
+            onClick={cycleViewMode}
+            className="absolute top-4 right-4 z-40 p-2 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50 transition-colors"
+            aria-label="Open CodeBoard"
+            title="Open CodeBoard"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+          </button>
+        )}
         <div className="h-full w-full whiteboard-container">
-          <Whiteboard disabled={!canWrite()} />
+          <Whiteboard disabled={sharingInfoReceived && !canWrite()} />
         </div>
 
         {viewMode === 'split' && (
@@ -302,6 +287,18 @@ export default function WorkspaceContent({
           visible={notification.visible}
           onClose={() => setNotification(prev => ({ ...prev, visible: false }))}
         />
+
+        <div className="absolute bottom-4 left-4 z-40 pointer-events-auto flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200 whitespace-nowrap">
+            <ConnectionStatus
+              status={connectionStatus}
+              error={connectionError}
+            />
+          </div>
+          <div className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200">
+            <LanguageSwitcher />
+          </div>
+        </div>
       </main>
     </div>
   );

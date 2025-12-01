@@ -1,0 +1,7 @@
+{
+  "required": "Toto pole je povinné",
+  "invalidWorkspaceKey": "Neplatný klíč pracovního prostoru",
+  "invalidEmail": "Neplatná e-mailová adresa",
+  "tooShort": "Příliš krátké",
+  "tooLong": "Příliš dlouhé"
+}

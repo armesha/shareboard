@@ -138,7 +138,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
       <div className="mb-6">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">Sharing Mode</h3>
         <div className="space-y-2">
-          <label className="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <label className="form-radio-item">
             <input
               type="radio"
               name="sharingMode"
@@ -153,7 +153,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
             </div>
           </label>
 
-          <label className="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <label className="form-radio-item">
             <input
               type="radio"
               name="sharingMode"
@@ -168,7 +168,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
             </div>
           </label>
 
-          <label className="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <label className="form-radio-item">
             <input
               type="radio"
               name="sharingMode"

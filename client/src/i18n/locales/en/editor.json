@@ -1,0 +1,24 @@
+{
+  "code": {
+    "title": "Code Editor",
+    "insertExample": "Insert Example",
+    "insertExampleTitle": "Insert example code for selected language"
+  },
+  "diagram": {
+    "title": "Diagram Editor",
+    "placeholder": "Enter diagram code here...",
+    "readOnlyPlaceholder": "Read-only"
+  },
+  "languages": {
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "python": "Python",
+    "java": "Java",
+    "cpp": "C/C++",
+    "go": "Go",
+    "sql": "SQL",
+    "html": "HTML",
+    "css": "CSS",
+    "json": "JSON"
+  }
+}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import debounce from 'lodash/debounce';
 
@@ -15,6 +15,7 @@ export function CodeEditorProvider({ children }) {
   const [language, setLanguage] = useState('javascript');
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
+  const lastLocalChangeRef = useRef(0);
 
   const emitCodeChange = useCallback((workspaceId, language, newContent) => {
     if (socket && newContent !== lastEmittedContent) {
@@ -38,7 +39,10 @@ export function CodeEditorProvider({ children }) {
     if (!socket) return;
 
     const handleCodeUpdate = ({ language: newLanguage, content: newContent }) => {
-      if (!isEditing || newContent !== content) {
+      const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
+      if (timeSinceLastLocal < 500) return;
+
+      if (newContent !== content) {
         setLanguage(newLanguage);
         setContent(newContent);
         setLastEmittedContent(newContent);
@@ -62,9 +66,10 @@ export function CodeEditorProvider({ children }) {
   }, [socket, isEditing, content]);
 
   const updateCode = useCallback((newContent) => {
+    lastLocalChangeRef.current = Date.now();
     setContent(newContent);
     const workspaceId = window.location.pathname.split('/')[2];
-    
+
     if (Math.abs(newContent.length - content.length) <= 1) {
       emitCodeChange(workspaceId, language, newContent);
     } else {

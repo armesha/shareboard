@@ -1,20 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
 import { useSharing } from '../context/SharingContext';
-
-const SUPPORTED_LANGUAGES = [
-  'javascript',
-  'typescript',
-  'python',
-  'java',
-  'cpp',
-  'csharp',
-  'html',
-  'css',
-  'json',
-  'markdown'
-];
+import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES } from '../constants';
 
 export default function CodeEditor() {
   const {
@@ -28,12 +17,20 @@ export default function CodeEditor() {
   
   const { canWrite } = useSharing();
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const editorRef = useRef(null);
+  const langMenuRef = useRef(null);
 
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
   }, [canWrite]);
+
+  useEffect(() => {
+    if (!content && language) {
+      setContent(CODE_EXAMPLES[language] || '');
+    }
+  }, []);
 
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;
@@ -50,9 +47,29 @@ export default function CodeEditor() {
     }
   };
 
-  const handleLanguageChange = (e) => {
+  const handleLanguageChange = (langValue) => {
     if (!isReadOnly) {
-      setLanguage(e.target.value);
+      setLanguage(langValue);
+      setIsLangMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target)) {
+        setIsLangMenuOpen(false);
+      }
+    };
+
+    if (isLangMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isLangMenuOpen]);
+
+  const handleInsertExample = () => {
+    if (!isReadOnly && CODE_EXAMPLES[language]) {
+      setContent(CODE_EXAMPLES[language]);
     }
   };
 
@@ -70,20 +87,51 @@ export default function CodeEditor() {
   return (
     <div className="h-full w-full flex flex-col bg-white">
       <div className="border-b border-gray-200 p-2 flex items-center space-x-4">
-        <select
-          value={language}
-          onChange={handleLanguageChange}
-          className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isReadOnly}
-        >
-          {SUPPORTED_LANGUAGES.map(lang => (
-            <option key={lang} value={lang}>
-              {lang.charAt(0).toUpperCase() + lang.slice(1)}
-            </option>
-          ))}
-        </select>
+        <div className="relative" ref={langMenuRef}>
+          <button
+            type="button"
+            onClick={() => !isReadOnly && setIsLangMenuOpen(!isLangMenuOpen)}
+            disabled={isReadOnly}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="font-medium">
+              {CODE_EDITOR_LANGUAGES.find(l => l.value === language)?.label || language}
+            </span>
+            <KeyboardArrowDownIcon
+              className={`w-4 h-4 text-gray-500 transition-transform ${isLangMenuOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {isLangMenuOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[150px] p-1.5 grid gap-1">
+              {CODE_EDITOR_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.value}
+                  type="button"
+                  onClick={() => handleLanguageChange(lang.value)}
+                  className={`w-full px-3 py-1.5 text-left rounded border transition-colors ${
+                    lang.value === language
+                      ? 'bg-blue-50 text-blue-600 font-medium border-blue-300'
+                      : 'text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {!isReadOnly && (
+          <button
+            onClick={handleInsertExample}
+            className="btn-secondary text-sm"
+            title="Insert example code for selected language"
+          >
+            Insert Example
+          </button>
+        )}
         {isReadOnly && (
-          <div className="ml-4 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+          <div className="badge-readonly">
             Read-Only Mode
           </div>
         )}

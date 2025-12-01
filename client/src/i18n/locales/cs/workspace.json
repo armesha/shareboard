@@ -1,0 +1,14 @@
+{
+  "header": {
+    "workspacePrefix": "Pracovní prostor / "
+  },
+  "connection": {
+    "online": "Online",
+    "connecting": "Připojování...",
+    "offline": "Offline",
+    "error": "Chyba"
+  },
+  "zoom": {
+    "tips": "Tipy"
+  }
+}

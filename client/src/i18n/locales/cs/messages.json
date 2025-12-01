@@ -1,0 +1,25 @@
+{
+  "confirmDialog": {
+    "title": "Potvrdit akci",
+    "defaultMessage": "Opravdu chcete pokračovat?",
+    "clearWhiteboard": {
+      "title": "Vymazat tabuli",
+      "message": "Tímto odstraníte všechny objekty z tabule. Tuto akci nelze vrátit zpět."
+    },
+    "endSession": {
+      "title": "Ukončit relaci",
+      "message": "Tímto ukončíte relaci pro všechny účastníky. Všichni budou odpojeni od tohoto pracovního prostoru."
+    }
+  },
+  "errors": {
+    "diagramRenderFailed": "Vykreslení diagramu selhalo",
+    "connectionError": "Došlo k chybě připojení",
+    "permissionDenied": "Přístup odepřen"
+  },
+  "notifications": {
+    "whiteboardCleared": "Tabule vymazána",
+    "sessionEnded": "Relace ukončena",
+    "exportSuccess": "Export úspěšný",
+    "copySuccess": "Zkopírováno do schránky"
+  }
+}

@@ -13,7 +13,7 @@ export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.DISCONNECTED);
+  const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.CONNECTING);
   const [userId, setUserId] = useState(null);
   const maxReconnectAttempts = 5;
 
@@ -86,18 +86,6 @@ export function SocketProvider({ children }) {
         });
       });
 
-      socketInstance.on(SOCKET_EVENTS.SESSION_ENDED, (data) => {
-        toast.warning(data.message || 'The session has been ended by the owner', {
-          position: 'bottom-right',
-          autoClose: false,
-          closeOnClick: false,
-          draggable: true
-        });
-        
-        setTimeout(() => {
-          window.location.href = 'http://localhost:5173/';
-        }, 3000);
-      });
 
       socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
         setConnectionError(error.message || 'Unknown socket error');
@@ -121,7 +109,6 @@ export function SocketProvider({ children }) {
         socket.off('connect_error');
         socket.off(SOCKET_EVENTS.DISCONNECT);
         socket.off(SOCKET_EVENTS.ERROR);
-        socket.off(SOCKET_EVENTS.SESSION_ENDED);
       }
     };
   }, [initializeSocket]);

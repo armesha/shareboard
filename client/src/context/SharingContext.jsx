@@ -17,7 +17,9 @@ export function SharingProvider({ children, workspaceId }) {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [hasEditAccess, setHasEditAccess] = useState(false);
   const [workspaceOwner, setWorkspaceOwner] = useState(null);
+  const [sharingInfoReceived, setSharingInfoReceived] = useState(false);
 
+  // Initialize persistent user ID
   useEffect(() => {
     let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
     if (!userId) {
@@ -35,19 +37,9 @@ export function SharingProvider({ children, workspaceId }) {
     }
   }, [workspaceId]);
 
+  // Socket listeners - independent of persistentUserId to avoid race conditions
   useEffect(() => {
-    if (!socket || !workspaceId || !persistentUserId) return;
-
-    const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId)) ||
-      new URLSearchParams(window.location.search).get('access');
-
-    const handleConnect = () => {
-      socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
-    };
+    if (!socket) return;
 
     const handleSharingUpdate = (data) => {
       setSharingMode(data.sharingMode || SHARING_MODES.READ_WRITE_SELECTED);
@@ -57,9 +49,11 @@ export function SharingProvider({ children, workspaceId }) {
       const currentAccessToken = urlParams.get('access') ||
         localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId));
 
+      const currentUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
+
       if (data.hasEditAccess !== undefined) {
         setHasEditAccess(data.hasEditAccess);
-      } else if (data.isOwner || (data.owner === persistentUserId)) {
+      } else if (data.isOwner || (data.owner && currentUserId && data.owner === currentUserId)) {
         setHasEditAccess(true);
       } else if (currentAccessToken && data.editToken && currentAccessToken === data.editToken) {
         setHasEditAccess(true);
@@ -73,19 +67,21 @@ export function SharingProvider({ children, workspaceId }) {
 
       if (data.isOwner !== undefined) {
         setIsOwner(data.isOwner);
-      } else if (data.owner && persistentUserId) {
-        setIsOwner(data.owner === persistentUserId);
+      } else if (data.owner && currentUserId) {
+        setIsOwner(data.owner === currentUserId);
       }
 
       if (data.currentUser) {
         setCurrentUser(data.currentUser);
-      } else if (persistentUserId) {
-        setCurrentUser(persistentUserId);
+      } else if (currentUserId) {
+        setCurrentUser(currentUserId);
       }
 
       if (data.editToken) {
         localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
+
+      setSharingInfoReceived(true);
     };
 
     const handleEditTokenUpdate = (data) => {
@@ -97,44 +93,76 @@ export function SharingProvider({ children, workspaceId }) {
     const handleSharingModeChanged = (data) => {
       if (data.sharingMode) {
         setSharingMode(data.sharingMode);
+
+        if (data.sharingMode === SHARING_MODES.READ_ONLY) {
+          setHasEditAccess(false);
+        } else if (data.sharingMode === SHARING_MODES.READ_WRITE_ALL) {
+          setHasEditAccess(true);
+        } else if (data.sharingMode === SHARING_MODES.READ_WRITE_SELECTED) {
+          const currentAccessToken = new URLSearchParams(window.location.search).get('access') ||
+            localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId));
+          if (data.editToken && currentAccessToken === data.editToken) {
+            setHasEditAccess(true);
+          } else {
+            setHasEditAccess(false);
+          }
+        }
       }
       if (data.editToken) {
         localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
     };
 
-    socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
     socket.on(SOCKET_EVENTS.SHARING_INFO, handleSharingUpdate);
     socket.on(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, handleEditTokenUpdate);
     socket.on(SOCKET_EVENTS.SHARING_MODE_CHANGED, handleSharingModeChanged);
 
-    if (socket.connected) {
+    return () => {
+      socket.off(SOCKET_EVENTS.SHARING_INFO, handleSharingUpdate);
+      socket.off(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, handleEditTokenUpdate);
+      socket.off(SOCKET_EVENTS.SHARING_MODE_CHANGED, handleSharingModeChanged);
+    };
+  }, [socket, workspaceId]);
+
+  // Join workspace and request info - depends on persistentUserId
+  useEffect(() => {
+    if (!socket || !workspaceId || !persistentUserId) return;
+
+    const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId)) ||
+      new URLSearchParams(window.location.search).get('access');
+
+    const handleConnect = () => {
       socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
         workspaceId,
         userId: persistentUserId,
         accessToken
       });
-    }
 
-    if (socket.connected) {
       socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
         workspaceId,
         userId: persistentUserId,
         accessToken
       });
+    };
+
+    socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
+
+    if (socket.connected) {
+      handleConnect();
     }
 
     return () => {
       socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
-      socket.off(SOCKET_EVENTS.SHARING_INFO, handleSharingUpdate);
-      socket.off(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, handleEditTokenUpdate);
-      socket.off(SOCKET_EVENTS.SHARING_MODE_CHANGED, handleSharingModeChanged);
     };
   }, [socket, workspaceId, persistentUserId]);
 
+  // Fallback check for ownership
   useEffect(() => {
     if (workspaceOwner && persistentUserId) {
-      setIsOwner(workspaceOwner === persistentUserId);
+      if (workspaceOwner === persistentUserId) {
+        setIsOwner(true);
+        setHasEditAccess(true);
+      }
     }
   }, [workspaceOwner, persistentUserId]);
 
@@ -174,7 +202,8 @@ export function SharingProvider({ children, workspaceId }) {
       hasEditAccess,
       canWrite,
       changeMode,
-      workspaceOwner
+      workspaceOwner,
+      sharingInfoReceived
     }}>
       {children}
     </SharingContext.Provider>

@@ -11,10 +11,8 @@ const ToolButton = React.memo(function ToolButton({
   return (
     <button
       type="button"
-      className={`p-2 rounded-full transition-all duration-200 ${
-        isActive
-          ? 'bg-blue-500 hover:bg-blue-600'
-          : 'hover:bg-gray-100'
+      className={`${
+        isActive ? 'btn-icon-active' : 'btn-icon'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
       onClick={disabled ? undefined : onClick}
       title={title}

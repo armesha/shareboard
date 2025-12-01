@@ -1,0 +1,37 @@
+{
+  "tools": {
+    "select": "Select",
+    "selectReadOnly": "Select (Read-Only View)",
+    "pen": "Pen",
+    "text": "Text",
+    "shapes": "Shapes",
+    "line": "Line",
+    "arrow": "Arrow"
+  },
+  "shapes": {
+    "rectangle": "Rectangle",
+    "circle": "Circle",
+    "ellipse": "Ellipse",
+    "triangle": "Triangle",
+    "pentagon": "Pentagon",
+    "hexagon": "Hexagon",
+    "octagon": "Octagon",
+    "diamond": "Diamond",
+    "star": "Star",
+    "cross": "Cross"
+  },
+  "options": {
+    "exportAsImage": "Export as Image",
+    "clearWhiteboard": "Clear Whiteboard",
+    "endSession": "End Session",
+    "moreOptions": "More Options"
+  },
+  "controls": {
+    "rightClick": "Right-click",
+    "scroll": "Scroll",
+    "delete": "Delete",
+    "panCanvas": "Pan canvas",
+    "zoomInOut": "Zoom in/out",
+    "deleteSelected": "Delete selected"
+  }
+}

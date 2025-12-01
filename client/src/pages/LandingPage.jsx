@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { STORAGE_KEYS } from '../constants';
+import { LanguageSwitcher } from '../components/ui';
 
 export default function LandingPage() {
+  const { t } = useTranslation('landing');
   const [workspaceKey, setWorkspaceKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -31,7 +34,7 @@ export default function LandingPage() {
       const data = await response.json();
       navigate(`/w/${data.workspaceId}`);
     } catch {
-      setError('Failed to create workspace. Please try again.');
+      setError(t('errors.createFailed'));
     }
   };
 
@@ -44,13 +47,18 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="absolute bottom-4 left-4">
+        <div className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200">
+          <LanguageSwitcher />
+        </div>
+      </div>
       <div className="max-w-md w-full space-y-8">
         <div>
           <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            ShareBoard
+            {t('title')}
           </h1>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Real-time collaborative whiteboard and code editor
+            {t('subtitle')}
           </p>
         </div>
         
@@ -62,7 +70,7 @@ export default function LandingPage() {
               isLoading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            {isLoading ? 'Creating...' : 'Create New Workspace'}
+            {isLoading ? t('creating') : t('createWorkspace')}
           </button>
 
           {error && (
@@ -77,7 +85,7 @@ export default function LandingPage() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-50 text-gray-500">
-                Or join existing
+                {t('orJoinExisting')}
               </span>
             </div>
           </div>
@@ -87,7 +95,7 @@ export default function LandingPage() {
               type="text"
               required
               className="w-full input"
-              placeholder="Enter workspace key"
+              placeholder={t('workspaceKeyPlaceholder')}
               value={workspaceKey}
               onChange={(e) => setWorkspaceKey(e.target.value)}
             />
@@ -95,7 +103,7 @@ export default function LandingPage() {
               type="submit"
               className="w-full btn-secondary"
             >
-              Join Workspace
+              {t('joinWorkspace')}
             </button>
           </form>
         </div>

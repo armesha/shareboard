@@ -1,19 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
+import debounce from 'lodash/debounce';
 
-export default function DiagramRenderer({ workspaceId }) {
-  const { content, setContent, debouncedEmit, isReadOnly } = useDiagramEditor();
+export default function DiagramRenderer() {
+  const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
   const diagramRef = useRef(null);
 
   useEffect(() => {
     mermaid.initialize({
-      startOnLoad: true,
+      startOnLoad: false,
       theme: 'base',
       logLevel: 'error',
       securityLevel: 'loose',
-      flowchart: { curve: 'basis' },
+      flowchart: {
+        curve: 'linear',
+        htmlLabels: true
+      },
       fontFamily: 'sans-serif',
       themeVariables: {
         primaryColor: 'transparent',
@@ -24,75 +28,103 @@ export default function DiagramRenderer({ workspaceId }) {
         lineColor: '#333',
         textColor: '#333',
         nodeBorder: '#333',
+        nodeBkg: 'transparent',
+        mainBkg: 'transparent',
         clusterBkg: 'transparent',
         clusterBorder: '#333',
         defaultLinkColor: '#333',
         titleColor: '#333',
-        edgeLabelBackground: 'transparent'
+        edgeLabelBackground: 'transparent',
+        nodeTextColor: '#333'
       }
     });
   }, []);
 
-  useEffect(() => {
-    const renderDiagram = async () => {
-      if (diagramRef.current) {
-        try {
-          diagramRef.current.innerHTML = '';
-          const { svg } = await mermaid.render('diagram', content);
-          
-          let svgWithId = svg;
-          if (!svgWithId.includes('id="diagram"')) {
-            svgWithId = svg.replace('<svg ', '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" ');
-          }
-          
-          diagramRef.current.innerHTML = svgWithId;
-          
-          const svgElement = diagramRef.current.querySelector('svg');
-          if (svgElement) {
-            if (!svgElement.id) {
-              svgElement.id = 'diagram';
-              svgElement.classList.add('mermaid-diagram');
-            }
+  const renderIdRef = useRef(0);
 
-            svgElement.setAttribute('data-exportable', 'true');
-            svgElement.setAttribute('data-name', 'diagram');
-            svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const renderDiagram = useCallback(async (diagramContent) => {
+    if (!diagramRef.current) return;
 
-            const edgeLabelSpans = svgElement.querySelectorAll('.edgeLabel span, .edgeLabel div, foreignObject span, foreignObject div');
-            edgeLabelSpans.forEach(el => {
-              el.style.backgroundColor = 'transparent';
-              el.style.background = 'transparent';
-            });
+    try {
+      renderIdRef.current += 1;
+      const renderId = `diagram-${renderIdRef.current}`;
 
-            const labelContainers = svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container');
-            labelContainers.forEach(el => {
-              el.setAttribute('fill', 'transparent');
-              el.style.fill = 'transparent';
-            });
+      const oldTempSvg = document.getElementById(renderId);
+      if (oldTempSvg) oldTempSvg.remove();
 
-            const nodeRects = svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse');
-            nodeRects.forEach(el => {
-              el.setAttribute('fill', 'transparent');
-              el.style.fill = 'transparent';
-            });
-          }
-          
-          setError(null);
-        } catch (err) {
-          console.error('Error rendering diagram:', err);
-          setError(err.message || 'Failed to render diagram');
-        }
+      const { svg } = await mermaid.render(renderId, diagramContent);
+
+      const tempSvg = document.getElementById(renderId);
+      if (tempSvg) tempSvg.remove();
+
+      let svgWithId = svg;
+      if (!svgWithId.includes('id="diagram"')) {
+        svgWithId = svg.replace('<svg ', '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" ');
       }
-    };
 
-    renderDiagram();
-  }, [content]);
+      while (diagramRef.current.firstChild) {
+        diagramRef.current.removeChild(diagramRef.current.firstChild);
+      }
+      diagramRef.current.innerHTML = svgWithId;
+
+      const svgElement = diagramRef.current.querySelector('svg');
+      if (svgElement) {
+        if (!svgElement.id) {
+          svgElement.id = 'diagram';
+          svgElement.classList.add('mermaid-diagram');
+        }
+
+        svgElement.setAttribute('data-exportable', 'true');
+        svgElement.setAttribute('data-name', 'diagram');
+        svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        const allForeignObjectElements = svgElement.querySelectorAll('foreignObject, foreignObject *, .nodeLabel, .flowchart-label, .label');
+        allForeignObjectElements.forEach(el => {
+          el.style.backgroundColor = 'transparent';
+          el.style.background = 'transparent';
+          if (el.tagName === 'foreignObject') {
+            el.querySelectorAll('*').forEach(child => {
+              child.style.backgroundColor = 'transparent';
+              child.style.background = 'transparent';
+            });
+          }
+        });
+
+        const labelContainers = svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container, .edgeLabel');
+        labelContainers.forEach(el => {
+          el.setAttribute('fill', 'transparent');
+          el.style.fill = 'transparent';
+          el.style.backgroundColor = 'transparent';
+        });
+
+        const nodeRects = svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse, .node path');
+        nodeRects.forEach(el => {
+          el.setAttribute('fill', 'transparent');
+          el.style.fill = 'transparent';
+        });
+      }
+
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to render diagram');
+    }
+  }, []);
+
+  const debouncedRender = useCallback(
+    debounce((diagramContent) => {
+      renderDiagram(diagramContent);
+    }, 500),
+    [renderDiagram]
+  );
+
+  useEffect(() => {
+    debouncedRender(content);
+    return () => debouncedRender.cancel();
+  }, [content, debouncedRender]);
 
   const handleContentChange = (e) => {
     if (isReadOnly) return;
-    const newContent = e.target.value;
-    setContent(newContent);
-    debouncedEmit(workspaceId, newContent);
+    setContent(e.target.value);
   };
 
   return (
@@ -100,7 +132,7 @@ export default function DiagramRenderer({ workspaceId }) {
       <div className="border-b border-gray-200 p-2 flex items-center space-x-4">
         <h2 className="text-lg font-medium">Diagram Editor</h2>
         {isReadOnly && (
-          <div className="ml-4 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+          <div className="ml-4 badge-readonly">
             Read-Only Mode
           </div>
         )}

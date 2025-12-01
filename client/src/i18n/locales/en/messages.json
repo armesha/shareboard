@@ -1,0 +1,25 @@
+{
+  "confirmDialog": {
+    "title": "Confirm Action",
+    "defaultMessage": "Are you sure you want to proceed?",
+    "clearWhiteboard": {
+      "title": "Clear Whiteboard",
+      "message": "This will remove all objects from the whiteboard. This action cannot be undone."
+    },
+    "endSession": {
+      "title": "End Session",
+      "message": "This will end the session for all participants. Everyone will be disconnected from this workspace."
+    }
+  },
+  "errors": {
+    "diagramRenderFailed": "Failed to render diagram",
+    "connectionError": "Connection error occurred",
+    "permissionDenied": "Permission denied"
+  },
+  "notifications": {
+    "whiteboardCleared": "Whiteboard cleared",
+    "sessionEnded": "Session ended",
+    "exportSuccess": "Export successful",
+    "copySuccess": "Copied to clipboard"
+  }
+}

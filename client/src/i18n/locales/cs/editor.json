@@ -1,0 +1,24 @@
+{
+  "code": {
+    "title": "Editor kódu",
+    "insertExample": "Vložit příklad",
+    "insertExampleTitle": "Vložit ukázkový kód pro vybraný jazyk"
+  },
+  "diagram": {
+    "title": "Editor diagramů",
+    "placeholder": "Sem zadejte kód diagramu...",
+    "readOnlyPlaceholder": "Pouze pro čtení"
+  },
+  "languages": {
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "python": "Python",
+    "java": "Java",
+    "cpp": "C/C++",
+    "go": "Go",
+    "sql": "SQL",
+    "html": "HTML",
+    "css": "CSS",
+    "json": "JSON"
+  }
+}

@@ -36,8 +36,18 @@ export function WhiteboardProvider({ children }) {
   const elementsMapRef = useRef(new Map());
   const isUpdatingRef = useRef(false);
   const lastEmitTimeRef = useRef(0);
+  const socketRef = useRef(socket);
+  const canWriteRef = useRef(null);
 
   const { canWrite } = useSharing() || { canWrite: () => true };
+
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
+
+  useEffect(() => {
+    canWriteRef.current = canWrite;
+  }, [canWrite]);
 
   const createFabricObject = useCallback((element) => {
     let obj;
@@ -226,8 +236,8 @@ export function WhiteboardProvider({ children }) {
     setElements(updatedElements);
 
     const workspaceId = getWorkspaceId();
-    if (workspaceId && socket && !isUpdatingRef.current) {
-      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+    if (workspaceId && socketRef.current && !isUpdatingRef.current) {
+      socketRef.current.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
         workspaceId,
         elements: [element]
       });
@@ -255,7 +265,7 @@ export function WhiteboardProvider({ children }) {
         }
       }
     }, 0);
-  }, [socket, createFabricObject]);
+  }, [createFabricObject]);
 
   const updateElement = useCallback((id, element, isMoving = false) => {
     if (!id || !elementsMapRef.current.has(id)) return;
@@ -270,24 +280,24 @@ export function WhiteboardProvider({ children }) {
     }
 
     const workspaceId = getWorkspaceId();
-    if (workspaceId && socket && !isUpdatingRef.current) {
+    if (workspaceId && socketRef.current && !isUpdatingRef.current) {
       if (isMoving) {
         const now = Date.now();
         if (now - lastEmitTimeRef.current >= TIMING.MOVEMENT_TIMEOUT) {
           lastEmitTimeRef.current = now;
-          socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+          socketRef.current.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
             workspaceId,
             elements: [elementWithId]
           });
         }
       } else {
-        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+        socketRef.current.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
           workspaceId,
           elements: [elementWithId]
         });
       }
     }
-  }, [socket]);
+  }, []);
 
   const handleWhiteboardUpdate = useCallback((serverElements) => {
     if (!serverElements || !Array.isArray(serverElements) || serverElements.length === 0) {
@@ -384,7 +394,7 @@ export function WhiteboardProvider({ children }) {
     canvasRef.current = canvas;
 
     const handlePathCreated = (e) => {
-      if (!canWrite()) {
+      if (!canWriteRef.current || !canWriteRef.current()) {
         return;
       }
 
@@ -407,8 +417,8 @@ export function WhiteboardProvider({ children }) {
       elementsMapRef.current.set(path.id, element);
 
       const workspaceId = getWorkspaceId();
-      if (workspaceId && socket && !isUpdatingRef.current) {
-        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
+      if (workspaceId && socketRef.current && !isUpdatingRef.current) {
+        socketRef.current.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, {
           workspaceId,
           elements: [element]
         });
@@ -466,31 +476,9 @@ export function WhiteboardProvider({ children }) {
       canvas.off('text:changed', handleObjectModified);
       canvas.dispose();
     };
-  }, [socket, updateElement]);
+  }, [updateElement]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas?.freeDrawingBrush) return;
 
-    canvas.freeDrawingBrush.color = color;
-    canvas.freeDrawingBrush.width = width;
-    canvas.freeDrawingBrush.strokeLineCap = 'round';
-    canvas.freeDrawingBrush.strokeLineJoin = 'round';
-  }, [color, width]);
-
-  const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.clear();
-    elementsMapRef.current.clear();
-    setElements([]);
-
-    const workspaceId = getWorkspaceId();
-    if (workspaceId && socket) {
-      socket.emit(SOCKET_EVENTS.WHITEBOARD_CLEAR, { workspaceId });
-    }
-  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;
@@ -684,6 +672,15 @@ export function WhiteboardProvider({ children }) {
     }
   }, [tool, setTool]);
 
+  const handleWidthChange = useCallback((newWidth) => {
+    setWidth(newWidth);
+
+    const canvas = canvasRef.current;
+    if (canvas && canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.width = newWidth;
+    }
+  }, []);
+
   useEffect(() => {
     if (!canWrite() && (tool !== TOOLS.SELECT || selectedShape !== null)) {
       setTool(TOOLS.SELECT);
@@ -705,6 +702,64 @@ export function WhiteboardProvider({ children }) {
     }
   }, [canWrite, tool, setTool]);
 
+  const clearCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.clear();
+    elementsMapRef.current.clear();
+    setElements([]);
+
+    const workspaceId = getWorkspaceId();
+    if (workspaceId && socketRef.current) {
+      socketRef.current.emit(SOCKET_EVENTS.WHITEBOARD_CLEAR, { workspaceId });
+    }
+  }, []);
+
+  const getFullCanvasImage = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const objects = canvas.getObjects();
+    let objectsBounds = null;
+
+    if (objects.length > 0) {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      objects.forEach(obj => {
+        const coords = obj.getBoundingRect(true);
+        if (coords.left < minX) minX = coords.left;
+        if (coords.top < minY) minY = coords.top;
+        if (coords.left + coords.width > maxX) maxX = coords.left + coords.width;
+        if (coords.top + coords.height > maxY) maxY = coords.top + coords.height;
+      });
+
+      const padding = 50;
+      objectsBounds = {
+        left: (minX - padding) * 2,
+        top: (minY - padding) * 2,
+        width: (maxX - minX + padding * 2) * 2,
+        height: (maxY - minY + padding * 2) * 2
+      };
+    }
+
+    const dataUrl = canvas.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: 2
+    });
+
+    return {
+      dataUrl,
+      width: canvas.getWidth() * 2,
+      height: canvas.getHeight() * 2,
+      objectsBounds
+    };
+  }, []);
+
   const value = {
     tool,
     color,
@@ -724,7 +779,8 @@ export function WhiteboardProvider({ children }) {
     setTool,
     setSelectedShape,
     setColor: handleColorChange,
-    setWidth
+    setWidth: handleWidthChange,
+    getFullCanvasImage
   };
 
   return (

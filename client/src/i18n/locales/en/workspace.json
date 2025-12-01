@@ -1,0 +1,14 @@
+{
+  "header": {
+    "workspacePrefix": "Workspace / "
+  },
+  "connection": {
+    "online": "Online",
+    "connecting": "Connecting...",
+    "offline": "Offline - Reconnecting...",
+    "error": "Connection Error"
+  },
+  "zoom": {
+    "tips": "Tips"
+  }
+}

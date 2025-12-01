@@ -31,7 +31,8 @@ const saveRecentColor = (color, recentColors) => {
 const ColorPicker = React.memo(function ColorPicker({
   currentColor,
   onColorChange,
-  disabled = false
+  disabled = false,
+  vertical = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [recentColors, setRecentColors] = useState(getRecentColors);
@@ -75,15 +76,15 @@ const ColorPicker = React.memo(function ColorPicker({
 
   return (
     <div className="relative" ref={menuRef}>
-      <div className="flex items-center gap-1 border-r pr-2">
+      <div className={vertical ? "flex flex-col items-center gap-1" : "flex items-center gap-1 border-r pr-2"}>
         {BASIC_COLORS.map((color) => (
           <button
             key={color}
             type="button"
-            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md border transition-all flex-shrink-0 ${
+            className={`color-swatch ${
               currentColor.toLowerCase() === color.toLowerCase()
-                ? 'ring-2 ring-blue-500 ring-offset-1'
-                : 'border-transparent hover:scale-110'
+                ? 'color-swatch-selected'
+                : 'color-swatch-hover'
             }`}
             style={{ backgroundColor: color }}
             onClick={() => handleColorSelect(color)}
@@ -94,9 +95,9 @@ const ColorPicker = React.memo(function ColorPicker({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md border transition-all flex-shrink-0 flex items-center justify-center ${
+          className={`color-swatch flex items-center justify-center ${
             isOpen || (!isCurrentInBasic && !isCurrentInRecent)
-              ? 'ring-2 ring-blue-500 ring-offset-1'
+              ? 'color-swatch-selected'
               : 'border-gray-300 hover:border-gray-400'
           }`}
           style={{
@@ -111,21 +112,23 @@ const ColorPicker = React.memo(function ColorPicker({
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-3 z-50 animate-fadeIn"
+          className={`dropdown-base rounded-xl p-3 animate-fadeIn ${
+            vertical ? 'dropdown-side' : 'dropdown-top'
+          }`}
           role="menu"
           aria-label="Color palette"
         >
-          <div className="grid grid-cols-4 gap-1 mb-2">
+          <div className="grid grid-cols-4 gap-2 mb-3">
             {BRUSH_COLORS.map((color) => (
               <button
                 key={color}
                 type="button"
-                className={`w-6 h-6 rounded border transition-all ${
+                className={`color-swatch rounded ${
                   currentColor.toLowerCase() === color.toLowerCase()
-                    ? 'ring-2 ring-blue-500 ring-offset-1'
+                    ? 'color-swatch-selected'
                     : color === '#FFFFFF'
                       ? 'border-gray-300 hover:border-gray-400'
-                      : 'border-transparent hover:scale-110'
+                      : 'color-swatch-hover'
                 }`}
                 style={{ backgroundColor: color }}
                 onClick={() => handleColorSelect(color, true)}

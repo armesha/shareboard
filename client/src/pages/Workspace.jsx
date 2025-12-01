@@ -16,7 +16,10 @@ function WorkspaceLayout() {
   const { isLoading, connectionStatus: whiteboardConnectionStatus } = useWhiteboard();
   const { isOwner } = useSharing();
   const [viewMode, setViewMode] = useState('whiteboard');
-  const [splitPosition, setSplitPosition] = useState(40);
+  const [splitPosition, setSplitPosition] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SPLIT_POSITION);
+    return saved ? parseFloat(saved) : 40;
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(null);
   const [initialWidth, setInitialWidth] = useState(null);
@@ -26,8 +29,8 @@ function WorkspaceLayout() {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
-  const MIN_WIDTH_PERCENT = 20;
-  const MAX_WIDTH_PERCENT = 80;
+  const MIN_WIDTH_PERCENT = 30;
+  const MAX_WIDTH_PERCENT = 70;
   const navigate = useNavigate();
 
   // Get persistent userId from localStorage
@@ -84,9 +87,18 @@ function WorkspaceLayout() {
     };
   }, [isDragging, initialMouseX, initialWidth]);
 
+  useEffect(() => {
+    if (!isDragging && splitPosition !== 40) {
+      localStorage.setItem(STORAGE_KEYS.SPLIT_POSITION, splitPosition.toString());
+    }
+  }, [isDragging, splitPosition]);
+
   const cycleViewMode = () => {
+    if (viewMode === 'whiteboard') {
+      const saved = localStorage.getItem(STORAGE_KEYS.SPLIT_POSITION);
+      setSplitPosition(saved ? parseFloat(saved) : 40);
+    }
     setViewMode(viewMode === 'whiteboard' ? 'split' : 'whiteboard');
-    setSplitPosition(40);
   };
 
   const toggleSharingSettings = () => {
@@ -96,16 +108,8 @@ function WorkspaceLayout() {
   useEffect(() => {
     if (!socket || !persistentUserId) return;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access');
-
     const handleConnect = () => {
       setIsConnected(true);
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
     };
 
     const handleDisconnect = () => {
@@ -117,25 +121,14 @@ function WorkspaceLayout() {
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
 
-    if (socket.connected) {
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
-    }
-
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
     };
-  }, [socket, workspaceId, persistentUserId]);
+  }, [socket, persistentUserId]);
 
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access');
 
     const handleWorkspaceState = (data) => {
       if (data.isNewWorkspace) {
@@ -143,38 +136,21 @@ function WorkspaceLayout() {
       }
     };
 
-    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
-
-    socket.on('connect', () => {
+    const handleConnectStatus = () => {
       setStatus('connected');
+    };
 
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
-
-      setTimeout(() => {
-        socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
-          workspaceId,
-          userId: persistentUserId,
-          accessToken
-        });
-        socket.emit(SOCKET_EVENTS.REQUEST_CANVAS_STATE, workspaceId);
-      }, 500);
-    });
-
-    socket.on('disconnect', () => {
+    const handleDisconnectStatus = () => {
       setStatus('disconnected');
-    });
+    };
 
-    socket.on('error', () => {
+    const handleErrorStatus = () => {
       setStatus('error');
-    });
+    };
 
-    socket.on(SOCKET_EVENTS.SESSION_ENDED, (data) => {
+    const handleSessionEnded = (data) => {
       toast.info(data.message, {
-        position: 'top-center',
+        position: 'bottom-left',
         autoClose: 5000,
         closeOnClick: true,
         pauseOnHover: true,
@@ -184,23 +160,24 @@ function WorkspaceLayout() {
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 2000);
-    });
+    };
+
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
+    socket.on('connect', handleConnectStatus);
+    socket.on('disconnect', handleDisconnectStatus);
+    socket.on('error', handleErrorStatus);
+    socket.on(SOCKET_EVENTS.SESSION_ENDED, handleSessionEnded);
 
     if (socket.connected) {
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
-      socket.emit(SOCKET_EVENTS.REQUEST_CANVAS_STATE, workspaceId);
+      setStatus('connected');
     }
 
     return () => {
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('error');
-      socket.off(SOCKET_EVENTS.SESSION_ENDED);
+      socket.off('connect', handleConnectStatus);
+      socket.off('disconnect', handleDisconnectStatus);
+      socket.off('error', handleErrorStatus);
+      socket.off(SOCKET_EVENTS.SESSION_ENDED, handleSessionEnded);
     };
   }, [socket, workspaceId, persistentUserId, setStatus, navigate]);
 
@@ -257,15 +234,12 @@ function WorkspaceLayout() {
         <WorkspaceContent
           workspaceId={workspaceId}
           viewMode={viewMode}
-          setViewMode={setViewMode}
           splitPosition={splitPosition}
           isDragging={isDragging}
           handleMouseDown={handleMouseDown}
           containerRef={containerRef}
           cycleViewMode={cycleViewMode}
           onShareClick={toggleSharingSettings}
-          status={status}
-          setStatus={setStatus}
         />
       </div>
 

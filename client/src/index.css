@@ -20,11 +20,11 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(10px) translateX(-50%);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) translateX(-50%);
+    transform: translateY(0);
   }
 }
 
@@ -81,6 +81,38 @@ body {
          bg-blue-500 hover:bg-blue-600 text-white;
 }
 
+.dropdown-base {
+  @apply absolute z-50 bg-white rounded-lg shadow-lg border border-gray-200;
+}
+
+.dropdown-top {
+  @apply top-full left-0 mt-2;
+}
+
+.dropdown-side {
+  @apply left-full top-0 ml-2;
+}
+
+.color-swatch {
+  @apply w-6 h-6 rounded-md border transition-all flex-shrink-0;
+}
+
+.color-swatch-selected {
+  @apply ring-2 ring-blue-500 ring-offset-1;
+}
+
+.color-swatch-hover {
+  @apply border-transparent hover:scale-110;
+}
+
+.badge-readonly {
+  @apply bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md text-xs font-medium;
+}
+
+.form-radio-item {
+  @apply flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors;
+}
+
 .input {
   @apply px-4 py-2 border border-gray-300 rounded-md
          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
@@ -98,8 +130,7 @@ body {
 }
 
 .modal-content {
-  @apply bg-white rounded-lg shadow-xl max-w-lg w-full mx-4;
-  animation: slideUp 0.3s ease-out;
+  @apply bg-white rounded-lg shadow-xl mx-4;
 }
 
 .toolbar {
@@ -243,6 +274,15 @@ body {
   }
 }
 
+.diagram-container svg {
+  animation: diagramFadeIn 0.15s ease-out;
+}
+
+@keyframes diagramFadeIn {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
 .diagram-container svg .node rect,
 .diagram-container svg .node circle,
 .diagram-container svg .node ellipse,
@@ -270,4 +310,16 @@ body {
 .diagram-container svg .edgeLabel,
 .diagram-container svg text {
   fill: #333 !important;
+}
+
+.diagram-container svg .edgePath path,
+.diagram-container svg .flowchart-link {
+  stroke: #333 !important;
+  stroke-width: 1.5px !important;
+  fill: none !important;
+}
+
+.diagram-container svg marker path {
+  fill: #333 !important;
+  stroke: #333 !important;
 }
