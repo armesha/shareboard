@@ -323,3 +323,28 @@ body {
   fill: #333 !important;
   stroke: #333 !important;
 }
+
+.demo-background {
+  @apply fixed inset-0 overflow-hidden pointer-events-none;
+  z-index: 0;
+}
+
+.demo-svg {
+  @apply absolute inset-0;
+}
+
+.demo-blur-overlay {
+  @apply absolute inset-0;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.landing-content {
+  @apply relative z-10 min-h-screen w-full flex flex-col items-center justify-center p-4;
+}
+
+.landing-card {
+  @apply bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
