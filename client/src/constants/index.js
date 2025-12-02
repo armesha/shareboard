@@ -1,3 +1,7 @@
+import { SOCKET_EVENTS, SHARING_MODES } from '../../../shared/constants.js';
+
+export { SOCKET_EVENTS, SHARING_MODES };
+
 export const TOOLS = {
   SELECT: 'select',
   PEN: 'pen',
@@ -55,40 +59,6 @@ export const SHAPES = {
   CROSS: 'cross',
 };
 
-export const SHARING_MODES = {
-  READ_WRITE_ALL: 'read-write-all',
-  READ_ONLY: 'read-only',
-  READ_WRITE_SELECTED: 'read-write-selected',
-};
-
-export const SOCKET_EVENTS = {
-  CONNECT: 'connect',
-  DISCONNECT: 'disconnect',
-  ERROR: 'error',
-  JOIN_WORKSPACE: 'join-workspace',
-  LEAVE_WORKSPACE: 'leave-workspace',
-  WORKSPACE_STATE: 'workspace-state',
-  WHITEBOARD_UPDATE: 'whiteboard-update',
-  WHITEBOARD_CLEAR: 'whiteboard-clear',
-  DELETE_ELEMENT: 'delete-element',
-  CODE_UPDATE: 'code-update',
-  DIAGRAM_UPDATE: 'diagram-update',
-  GET_SHARING_INFO: 'get-sharing-info',
-  SHARING_INFO: 'sharing-info',
-  SHARING_UPDATE: 'sharing-update',
-  EDIT_TOKEN_UPDATED: 'edit-token-updated',
-  GET_EDIT_TOKEN: 'get-edit-token',
-  SET_EDIT_TOKEN: 'set-edit-token',
-  GET_ACTIVE_USERS: 'get-active-users',
-  ACTIVE_USERS_UPDATE: 'active-users-update',
-  INVITE_USER: 'invite-user',
-  END_SESSION: 'end-session',
-  SESSION_ENDED: 'session-ended',
-  REQUEST_CANVAS_STATE: 'request-canvas-state',
-  CANVAS_STATE: 'canvas-state',
-  CHANGE_SHARING_MODE: 'change-sharing-mode',
-  SHARING_MODE_CHANGED: 'sharing-mode-changed',
-};
 
 export const FABRIC_EVENTS = {
   PATH_CREATED: 'path:created',
@@ -109,7 +79,7 @@ export const FABRIC_EVENTS = {
 };
 
 export const INTERACTIVE_TYPES = [
-  'image', 'text', 'i-text', 'rect', 'circle', 'ellipse', 'triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'octagon', 'cross', 'path', 'line', 'arrow', 'group'
+  'image', 'diagram', 'text', 'i-text', 'rect', 'circle', 'ellipse', 'triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'octagon', 'cross', 'path', 'line', 'arrow', 'group'
 ];
 
 export const EXPORT_MODES = {
@@ -129,6 +99,19 @@ export const COLORS = {
   TEXT_PRIMARY: '#1F2937',
   TEXT_SECONDARY: '#6B7280',
   BORDER: '#E5E7EB',
+};
+
+export const DEFAULT_COLORS = {
+  BLACK: '#000000',
+  SELECTION: '#2196F3',
+  SELECTION_BORDER: '#2196F3',
+};
+
+export const FONT_SIZES = [12, 16, 20, 24, 32, 48, 64];
+
+export const LAYOUT = {
+  MIN_WIDTH_PERCENT: 30,
+  MAX_WIDTH_PERCENT: 70,
 };
 
 export const BRUSH_COLORS = [
@@ -167,7 +150,29 @@ export const TIMING = {
   RECONNECT_MAX_DELAY: 10000,
   COPY_SUCCESS_DURATION: 2000,
   SOCKET_TIMEOUT: 20000,
+  CURSOR_THROTTLE: 50,
+  CURSOR_TIMEOUT: 5000,
 };
+
+export const CURSOR_COLORS = [
+  { color: '#3b82f6', name: 'Blue' },
+  { color: '#10b981', name: 'Green' },
+  { color: '#f59e0b', name: 'Amber' },
+  { color: '#ef4444', name: 'Red' },
+  { color: '#8b5cf6', name: 'Purple' },
+  { color: '#ec4899', name: 'Pink' },
+  { color: '#06b6d4', name: 'Cyan' },
+  { color: '#84cc16', name: 'Lime' },
+  { color: '#f97316', name: 'Orange' },
+  { color: '#6366f1', name: 'Indigo' },
+];
+
+export const CURSOR_ANIMALS = [
+  'fox', 'owl', 'wolf', 'bear', 'deer',
+  'eagle', 'rabbit', 'tiger', 'lion', 'panda',
+  'koala', 'dolphin', 'penguin', 'otter', 'hedgehog',
+  'raccoon', 'squirrel', 'falcon', 'lynx', 'beaver',
+];
 
 export const SOCKET = {
   MAX_RECONNECT_ATTEMPTS: 5,
@@ -186,13 +191,15 @@ export const CANVAS = {
   DEFAULT_FONT_SIZE: 20,
   MIN_FONT_SIZE: 8,
   MAX_FONT_SIZE: 200,
-  DEFAULT_FONT_FAMILY: 'Arial',
+  DEFAULT_FONT_FAMILY: 'Inter',
   DEFAULT_BRUSH_WIDTH: 2,
   MAX_BRUSH_WIDTH: 20,
   MIN_BRUSH_WIDTH: 1,
   AUTO_PAN_EDGE: 40,
   AUTO_PAN_SPEED: 10,
   AUTO_PAN_INTERVAL: 16,
+  EXPORT_PADDING: 50,
+  CUSTOM_CURSOR: "url(\"data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.48 0 .72-.58.38-.92L6.35 2.85a.5.5 0 0 0-.85.36Z' fill='%233b82f6' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E\") 5 3, auto",
 };
 
 export const STORAGE_KEYS = {

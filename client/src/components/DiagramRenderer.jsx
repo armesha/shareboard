@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
+import DOMPurify from 'dompurify';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
   theme: 'base',
   logLevel: 'error',
-  securityLevel: 'loose',
+  securityLevel: 'strict',
   flowchart: {
     curve: 'linear',
     htmlLabels: true
@@ -72,7 +73,10 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      diagramRef.current.innerHTML = svgWithAttrs;
+      diagramRef.current.innerHTML = DOMPurify.sanitize(svgWithAttrs, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ['use'],
+      });
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {

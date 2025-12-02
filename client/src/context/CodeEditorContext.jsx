@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { getWorkspaceId } from '../utils';
 import { SOCKET_EVENTS } from '../constants';
@@ -39,6 +39,10 @@ export function CodeEditorProvider({ children }) {
   );
 
   useEffect(() => {
+    return () => debouncedEmit.cancel();
+  }, [debouncedEmit]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleCodeUpdate = ({ language: newLanguage, content: newContent }) => {
@@ -52,19 +56,20 @@ export function CodeEditorProvider({ children }) {
       }
     };
 
-    socket.on(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
-
-    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, (state) => {
+    const handleWorkspaceState = (state) => {
       if (state.codeSnippets) {
         setLanguage(state.codeSnippets.language);
         setContent(state.codeSnippets.content);
         setLastEmittedContent(state.codeSnippets.content);
       }
-    });
+    };
+
+    socket.on(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
 
     return () => {
-      socket.off(SOCKET_EVENTS.CODE_UPDATE);
-      socket.off(SOCKET_EVENTS.WORKSPACE_STATE);
+      socket.off(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
   }, [socket, isEditing, content]);
 
@@ -86,14 +91,14 @@ export function CodeEditorProvider({ children }) {
     emitCodeChange(workspaceId, newLanguage, content);
   }, [content, emitCodeChange]);
 
-  const value = {
+  const value = useMemo(() => ({
     content,
     language,
     setContent: updateCode,
     setLanguage: updateLanguage,
     isEditing,
     setIsEditing
-  };
+  }), [content, language, updateCode, updateLanguage, isEditing]);
 
   return (
     <CodeEditorContext.Provider value={value}>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
 import { getWorkspaceId } from '../utils';
@@ -51,6 +51,10 @@ export function DiagramEditorProvider({ children }) {
   );
 
   useEffect(() => {
+    return () => debouncedEmit.cancel();
+  }, [debouncedEmit]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleDiagramUpdate = ({ content: newContent }) => {
@@ -63,18 +67,19 @@ export function DiagramEditorProvider({ children }) {
       }
     };
 
-    socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
-
-    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, (state) => {
+    const handleWorkspaceState = (state) => {
       if (state.diagramContent) {
         setContent(state.diagramContent);
         setLastEmittedContent(state.diagramContent);
       }
-    });
+    };
+
+    socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
 
     return () => {
-      socket.off(SOCKET_EVENTS.DIAGRAM_UPDATE);
-      socket.off(SOCKET_EVENTS.WORKSPACE_STATE);
+      socket.off(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
   }, [socket, isEditing, content]);
 
@@ -90,14 +95,14 @@ export function DiagramEditorProvider({ children }) {
     }
   }, [content, emitDiagramChange, debouncedEmit]);
 
-  const value = {
+  const value = useMemo(() => ({
     content,
     setContent: updateContent,
     isEditing,
     setIsEditing,
     debouncedEmit,
     isReadOnly
-  };
+  }), [content, updateContent, isEditing, debouncedEmit, isReadOnly]);
 
   return (
     <DiagramEditorContext.Provider value={value}>
