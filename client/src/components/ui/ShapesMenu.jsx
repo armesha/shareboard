@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
@@ -6,6 +6,7 @@ import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import { SHAPES, TOOLS } from '../../constants';
+import { useDropdownBehavior } from '../../hooks';
 
 const StarIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -87,28 +88,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
 
   const isActive = tool === TOOLS.SHAPES || tool === TOOLS.LINE || tool === TOOLS.ARROW;
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
 
   if (disabled) return null;
 
@@ -143,7 +123,7 @@ const ShapesMenu = React.memo(function ShapesMenu({
         aria-haspopup="menu"
         title={t('tools.shapesTitle')}
       >
-        <div className={isActive ? 'text-white' : 'text-gray-700'}>
+        <div className={isActive ? 'text-white' : 'text-gray-600'}>
           <GroupedShapesIcon />
         </div>
       </button>

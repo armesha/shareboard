@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { SHAPES } from '../constants';
+import { createShape } from '../factories/shapeFactory';
 
 export function useShapeDrawing({ canvas, selectedShape, color, width, addElement, disabled }) {
   const isDrawing = useRef(false);
@@ -17,7 +17,6 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     const commonProps = {
       left: pointer.x,
       top: pointer.y,
-      fill: 'transparent',
       stroke: color,
       strokeWidth: width,
       selectable: false,
@@ -29,115 +28,10 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
       id: uuidv4(),
     };
 
-    let shapeObj;
+    const shapeObj = createShape(selectedShape, commonProps);
 
-    switch (selectedShape) {
-      case SHAPES.RECTANGLE:
-        shapeObj = new fabric.Rect({
-          ...commonProps,
-          width: 0,
-          height: 0
-        });
-        break;
-      case SHAPES.CIRCLE:
-        shapeObj = new fabric.Circle({
-          ...commonProps,
-          radius: 0
-        });
-        break;
-      case SHAPES.ELLIPSE:
-        shapeObj = new fabric.Ellipse({
-          ...commonProps,
-          rx: 0,
-          ry: 0
-        });
-        break;
-      case SHAPES.TRIANGLE:
-        shapeObj = new fabric.Polygon(
-          [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'triangle';
-        break;
-      case SHAPES.STAR:
-        shapeObj = new fabric.Polygon(
-          Array(10).fill({ x: 0, y: 0 }),
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'star';
-        break;
-      case SHAPES.DIAMOND:
-        shapeObj = new fabric.Polygon(
-          [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'diamond';
-        break;
-      case SHAPES.PENTAGON:
-        shapeObj = new fabric.Polygon(
-          Array(5).fill({ x: 0, y: 0 }),
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'pentagon';
-        break;
-      case SHAPES.HEXAGON:
-        shapeObj = new fabric.Polygon(
-          Array(6).fill({ x: 0, y: 0 }),
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'hexagon';
-        break;
-      case SHAPES.OCTAGON:
-        shapeObj = new fabric.Polygon(
-          Array(8).fill({ x: 0, y: 0 }),
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'octagon';
-        break;
-      case SHAPES.CROSS:
-        shapeObj = new fabric.Polygon(
-          Array(12).fill({ x: 0, y: 0 }),
-          {
-            ...commonProps,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          }
-        );
-        shapeObj.type = 'cross';
-        break;
-      default:
-        return;
+    if (!shapeObj) {
+      return;
     }
 
     canvas.add(shapeObj);

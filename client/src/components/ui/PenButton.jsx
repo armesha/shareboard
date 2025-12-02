@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import CreateIcon from '@mui/icons-material/Create';
 import { BRUSH_COLORS, CANVAS } from '../../constants';
+import { useDropdownBehavior } from '../../hooks';
 
 const PenButton = React.memo(function PenButton({
   isActive,
@@ -16,28 +17,7 @@ const PenButton = React.memo(function PenButton({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
 
   const handleColorSelect = useCallback((color) => {
     onActivate();
@@ -65,9 +45,12 @@ const PenButton = React.memo(function PenButton({
         aria-expanded={isOpen}
         title={t('tools.penTitle')}
       >
-        <CreateIcon className={isActive ? 'text-white' : 'text-gray-700'} />
+        <CreateIcon
+          className={isActive ? 'text-white' : 'text-gray-600'}
+          sx={{ fontSize: 22 }}
+        />
         <div
-          className="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-white"
+          className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white shadow-sm"
           style={{ backgroundColor: currentColor }}
         />
       </button>

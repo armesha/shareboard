@@ -20,7 +20,10 @@ const ToolButton = React.memo(function ToolButton({
       aria-pressed={isActive}
       disabled={disabled}
     >
-      <Icon className={isActive ? 'text-white' : 'text-gray-700'} />
+      <Icon
+        className={isActive ? 'text-white' : 'text-gray-600'}
+        sx={{ fontSize: 22 }}
+      />
     </button>
   );
 });

@@ -379,7 +379,7 @@ describe('permissionService', () => {
         currentUser: 'user-456',
         owner: 'owner-123',
         hasEditAccess: false,
-        editToken: 'edit_token123'
+        editToken: undefined
       });
     });
 
@@ -429,7 +429,7 @@ describe('permissionService', () => {
         currentUser: null,
         owner: 'owner-123',
         hasEditAccess: false,
-        editToken: 'edit_token123'
+        editToken: undefined
       });
     });
 
@@ -442,7 +442,7 @@ describe('permissionService', () => {
         currentUser: null,
         owner: 'owner-123',
         hasEditAccess: false,
-        editToken: 'edit_token123'
+        editToken: undefined
       });
     });
 

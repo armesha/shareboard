@@ -32,5 +32,27 @@
   "permissions": {
     "readOnly": "Pouze pro čtení",
     "readOnlyMode": "Režim pouze pro čtení"
+  },
+  "animals": {
+    "fox": "Liška",
+    "owl": "Sova",
+    "wolf": "Vlk",
+    "bear": "Medvěd",
+    "deer": "Jelen",
+    "eagle": "Orel",
+    "rabbit": "Králík",
+    "tiger": "Tygr",
+    "lion": "Lev",
+    "panda": "Panda",
+    "koala": "Koala",
+    "dolphin": "Delfín",
+    "penguin": "Tučňák",
+    "otter": "Vydra",
+    "hedgehog": "Ježek",
+    "raccoon": "Mýval",
+    "squirrel": "Veverka",
+    "falcon": "Sokol",
+    "lynx": "Rys",
+    "beaver": "Bobr"
   }
 }

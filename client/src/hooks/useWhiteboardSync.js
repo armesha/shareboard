@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fabric } from 'fabric';
-import { SOCKET_EVENTS } from '../constants';
+import { SOCKET_EVENTS, DEFAULT_COLORS } from '../constants';
 import { getWorkspaceId } from '../utils';
 
 function loadDiagramToCanvas(canvas, element, canWrite) {
@@ -21,8 +21,8 @@ function loadDiagramToCanvas(canvas, element, canWrite) {
       hasControls: isSelectable,
       hasBorders: isSelectable,
       evented: isSelectable,
-      cornerColor: '#2196F3',
-      borderColor: '#2196F3',
+      cornerColor: DEFAULT_COLORS.SELECTION,
+      borderColor: DEFAULT_COLORS.SELECTION_BORDER,
       cornerSize: 8,
       padding: 10,
       data: { ...element.data, isDiagram: true }
@@ -106,7 +106,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
       canvas.requestRenderAll();
       isUpdatingRef.current = false;
     }
-  }, [canvasRef, elementsMapRef, isUpdatingRef, createFabricObject, setElements]);
+  }, [canvasRef, elementsMapRef, isUpdatingRef, createFabricObject, setElements, canWrite]);
 
   useEffect(() => {
     if (!socket) return;

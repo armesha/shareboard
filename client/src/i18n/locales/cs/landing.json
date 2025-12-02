@@ -6,6 +6,11 @@
   "orJoinExisting": "Nebo se připojte k existujícímu",
   "workspaceKeyPlaceholder": "Zadejte klíč pracovního prostoru",
   "joinWorkspace": "Připojit se k pracovnímu prostoru",
+  "features": {
+    "realtime": "Real-time",
+    "noSignup": "Bez registrace",
+    "free": "Zdarma"
+  },
   "errors": {
     "createFailed": "Vytvoření pracovního prostoru selhalo. Zkuste to prosím znovu."
   }

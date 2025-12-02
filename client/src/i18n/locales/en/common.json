@@ -32,5 +32,27 @@
   "permissions": {
     "readOnly": "Read-Only",
     "readOnlyMode": "Read-Only Mode"
+  },
+  "animals": {
+    "fox": "Fox",
+    "owl": "Owl",
+    "wolf": "Wolf",
+    "bear": "Bear",
+    "deer": "Deer",
+    "eagle": "Eagle",
+    "rabbit": "Rabbit",
+    "tiger": "Tiger",
+    "lion": "Lion",
+    "panda": "Panda",
+    "koala": "Koala",
+    "dolphin": "Dolphin",
+    "penguin": "Penguin",
+    "otter": "Otter",
+    "hedgehog": "Hedgehog",
+    "raccoon": "Raccoon",
+    "squirrel": "Squirrel",
+    "falcon": "Falcon",
+    "lynx": "Lynx",
+    "beaver": "Beaver"
   }
 }

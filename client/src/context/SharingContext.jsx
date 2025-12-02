@@ -127,7 +127,12 @@ export function SharingProvider({ children, workspaceId }) {
     const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId)) ||
       new URLSearchParams(window.location.search).get('access');
 
+    const hasHandledConnectRef = { current: false };
+
     const handleConnect = () => {
+      if (hasHandledConnectRef.current) return;
+      hasHandledConnectRef.current = true;
+
       socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
         workspaceId,
         userId: persistentUserId,

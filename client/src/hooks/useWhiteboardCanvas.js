@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS } from '../constants';
+import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS, CANVAS } from '../constants';
 import { getWorkspaceId } from '../utils';
 
 export function useWhiteboardCanvas() {
@@ -24,7 +24,8 @@ export function useWhiteboardCanvas() {
       stopContextMenu: true,
       objectCaching: true,
       skipOffscreen: true,
-      preserveObjectStacking: true
+      preserveObjectStacking: true,
+      willReadFrequently: true
     });
 
     const brush = new fabric.PencilBrush(canvas);
@@ -158,7 +159,7 @@ export function useWhiteboardCanvas() {
         if (coords.top + coords.height > maxY) maxY = coords.top + coords.height;
       });
 
-      const padding = 50;
+      const padding = CANVAS.EXPORT_PADDING;
       objectsBounds = {
         left: (minX - padding) * 2,
         top: (minY - padding) * 2,

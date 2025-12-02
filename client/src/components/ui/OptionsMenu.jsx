@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
@@ -6,6 +6,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useWhiteboard } from '../../context/WhiteboardContext';
 import { ExportPreviewModal, ConfirmDialog } from './index';
 import { SOCKET_EVENTS, EXPORT } from '../../constants';
+import { useDropdownBehavior } from '../../hooks';
 
 const OptionsMenu = React.memo(function OptionsMenu({
   onClearCanvas,
@@ -27,28 +28,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
   const menuRef = useRef(null);
   const { getFullCanvasImage } = useWhiteboard();
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
 
   if (disabled) return null;
 
@@ -142,7 +122,9 @@ const OptionsMenu = React.memo(function OptionsMenu({
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 text-gray-700"
+            className="text-gray-600"
+            width="22"
+            height="22"
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden="true"
@@ -153,18 +135,18 @@ const OptionsMenu = React.memo(function OptionsMenu({
 
         {isOpen && (
           <div
-            className="dropdown-base dropdown-side py-2 w-48"
+            className="dropdown-base dropdown-side py-2 w-52"
             role="menu"
             aria-label={t('common:accessibility.moreOptions')}
           >
             <button
               type="button"
-              className="w-full px-4 py-2 hover:bg-gray-100 flex items-center text-left"
+              className="options-menu-item"
               onClick={handleExportClick}
               role="menuitem"
             >
-              <div className="w-6 flex justify-center items-center mr-2 text-blue-500">
-                <DownloadIcon className="h-5 w-5" />
+              <div className="options-menu-icon text-blue-500">
+                <DownloadIcon sx={{ fontSize: 20 }} />
               </div>
               <span>{t('options.exportAsImage')}</span>
             </button>
@@ -172,12 +154,12 @@ const OptionsMenu = React.memo(function OptionsMenu({
             {!readOnly && (
               <button
                 type="button"
-                className="w-full px-4 py-2 hover:bg-gray-100 flex items-center text-left"
+                className="options-menu-item"
                 onClick={handleClearCanvasClick}
                 role="menuitem"
               >
-                <div className="w-6 flex justify-center items-center mr-2 text-red-500">
-                  <DeleteIcon className="h-5 w-5" />
+                <div className="options-menu-icon text-red-500">
+                  <DeleteIcon sx={{ fontSize: 20 }} />
                 </div>
                 <span>{t('options.clearWhiteboard')}</span>
               </button>
@@ -186,12 +168,12 @@ const OptionsMenu = React.memo(function OptionsMenu({
             {isOwner && (
               <button
                 type="button"
-                className="w-full px-4 py-2 hover:bg-gray-100 flex items-center text-left"
+                className="options-menu-item"
                 onClick={handleEndSessionClick}
                 role="menuitem"
               >
-                <div className="w-6 flex justify-center items-center mr-2 text-red-500">
-                  <ExitToAppIcon className="h-5 w-5" />
+                <div className="options-menu-icon text-red-500">
+                  <ExitToAppIcon sx={{ fontSize: 20 }} />
                 </div>
                 <span>{t('options.endSession')}</span>
               </button>

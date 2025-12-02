@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { config, SOCKET_EVENTS } from './config.js';
@@ -60,8 +62,34 @@ setInterval(() => {
 
 setInterval(workspaceService.cleanupInactiveWorkspaces, config.cleanup.intervalMs);
 
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
 app.use(cors());
 app.use(express.json());
+
+const createWorkspaceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Too many workspaces created, please try again later' }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later' }
+});
 
 if (config.isProduction) {
   app.use(express.static(join(__dirname, '../dist')));
@@ -76,7 +104,7 @@ app.get('/', (req, res) => {
   res.sendFile(indexPath);
 });
 
-app.post('/api/workspaces', (req, res) => {
+app.post('/api/workspaces', createWorkspaceLimiter, (req, res) => {
   const workspaceId = workspaceService.generateKey();
   const userId = req.body.userId || workspaceService.generateKey(config.workspace.userIdLength);
   workspaceService.createWorkspace(workspaceId, userId);
@@ -90,7 +118,7 @@ app.get('/w/:workspaceId', (req, res) => {
   res.sendFile(indexPath);
 });
 
-app.get('/api/workspace/:workspaceId', (req, res) => {
+app.get('/api/workspace/:workspaceId', apiLimiter, (req, res) => {
   const { workspaceId } = req.params;
   if (!workspaceService.workspaceExists(workspaceId)) {
     return res.status(404).json({ error: 'Workspace not found' });
@@ -102,6 +130,30 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   const currentWorkspaceRef = { current: null };
   const currentUser = { id: socket.id, joinedAt: Date.now() };
   workspaceService.setUserSession(socket.id, currentUser);
+
+  socket.on('error', (error) => {
+    console.error(`Socket error for ${socket.id}:`, error);
+  });
+
+  const eventCounts = new Map();
+  const RATE_LIMIT_WINDOW = 1000;
+  const MAX_EVENTS_PER_WINDOW = 50;
+
+  const checkRateLimit = (eventName) => {
+    const now = Date.now();
+    const key = `${socket.id}:${eventName}`;
+    const record = eventCounts.get(key) || { count: 0, windowStart: now };
+
+    if (now - record.windowStart > RATE_LIMIT_WINDOW) {
+      record.count = 1;
+      record.windowStart = now;
+    } else {
+      record.count++;
+    }
+
+    eventCounts.set(key, record);
+    return record.count <= MAX_EVENTS_PER_WINDOW;
+  };
 
   socket.on(SOCKET_EVENTS.JOIN_WORKSPACE, (data) => {
     const result = handlers.handleJoinWorkspace(data, {
@@ -149,6 +201,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.WHITEBOARD_UPDATE, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.WHITEBOARD_UPDATE)) {
+      return;
+    }
     handlers.handleWhiteboardUpdate(data, {
       socket,
       currentUser,
@@ -157,6 +212,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.WHITEBOARD_CLEAR)) {
+      return;
+    }
     handlers.handleWhiteboardClear(data, {
       socket,
       currentUser
@@ -174,6 +232,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.DELETE_ELEMENT, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.DELETE_ELEMENT)) {
+      return;
+    }
     handlers.handleDeleteElement(data, {
       socket,
       currentUser
@@ -188,6 +249,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.CODE_UPDATE, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.CODE_UPDATE)) {
+      return;
+    }
     handlers.handleCodeUpdate(data, {
       socket,
       currentUser
@@ -195,16 +259,27 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.DIAGRAM_UPDATE)) {
+      return;
+    }
     handlers.handleDiagramUpdate(data, {
       socket,
       currentUser
     });
   });
 
-  socket.on(SOCKET_EVENTS.CURSOR_POSITION, ({ workspaceId, position }) => {
+  socket.on(SOCKET_EVENTS.CURSOR_POSITION, ({ workspaceId, position, userColor, animalKey }) => {
+    if (!checkRateLimit(SOCKET_EVENTS.CURSOR_POSITION)) {
+      return;
+    }
     try {
       if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.CURSOR_UPDATE, { userId: socket.id, position });
+        socket.to(workspaceId).emit(SOCKET_EVENTS.CURSOR_UPDATE, {
+          userId: socket.id,
+          position,
+          userColor,
+          animalKey
+        });
       }
     } catch (error) {
       console.error('CURSOR_POSITION error:', error);
@@ -250,6 +325,18 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       currentWorkspaceRef
     });
   });
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+io.on('error', (error) => {
+  console.error('Socket.io error:', error);
 });
 
 httpServer.listen(config.port, () => {

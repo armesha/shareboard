@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useCursorSync } from '../hooks';
 import { useTranslation } from 'react-i18next';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { Header, Toolbar } from './layout';
-import { Notification, ConnectionStatus, LanguageSwitcher, ZoomControls } from './ui';
+import { Notification, ConnectionStatus, LanguageSwitcher, ZoomControls, RemoteCursors } from './ui';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
@@ -45,11 +46,33 @@ export default function WorkspaceContent({
 
   const { canWrite, isOwner, sharingInfoReceived } = useSharing();
   const { content: diagramContent } = useDiagramEditor();
+  const { remoteCursors, emitCursorPosition } = useCursorSync();
 
   const [activeTab, setActiveTab] = useState('code');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' });
   const [previousEditAccess, setPreviousEditAccess] = useState(canWrite());
+  const [viewportTransform, setViewportTransform] = useState([1, 0, 0, 1, 0, 0]);
   const editAccessInitialized = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const updateViewport = () => {
+      const vpt = canvas.viewportTransform;
+      if (vpt) {
+        setViewportTransform([...vpt]);
+      }
+    };
+
+    updateViewport();
+
+    canvas.on('after:render', updateViewport);
+
+    return () => {
+      canvas.off('after:render', updateViewport);
+    };
+  }, [canvasRef]);
 
   useEffect(() => {
     const currentEditAccess = canWrite();
@@ -76,7 +99,7 @@ export default function WorkspaceContent({
         startOnLoad: false,
         securityLevel: 'loose',
         theme: 'default',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: "'Inter', sans-serif",
         fontSize: 16,
         flowchart: { htmlLabels: true, curve: 'basis', diagramPadding: 8, useMaxWidth: false },
         themeVariables: MERMAID_THEME
@@ -265,7 +288,11 @@ export default function WorkspaceContent({
           </button>
         )}
         <div className="h-full w-full whiteboard-container">
-          <Whiteboard disabled={sharingInfoReceived && !canWrite()} />
+          <Whiteboard
+            disabled={sharingInfoReceived && !canWrite()}
+            onCursorMove={emitCursorPosition}
+          />
+          <RemoteCursors cursors={remoteCursors} viewportTransform={viewportTransform} />
           <ZoomControls zoom={zoom} onZoomChange={setZoom} />
         </div>
 

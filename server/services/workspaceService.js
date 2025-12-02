@@ -168,10 +168,7 @@ export function getWorkspaceState(workspaceId) {
 }
 
 export function findWorkspaceIdByRef(workspaceRef) {
-  for (const [id, workspace] of workspaces.entries()) {
-    if (workspace === workspaceRef) return id;
-  }
-  return null;
+  return workspaceRef?.id || null;
 }
 
 export function updateSharingMode(workspaceId, newMode) {

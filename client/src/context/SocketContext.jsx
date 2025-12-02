@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
 import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING, SOCKET, TOAST } from '../constants';
@@ -16,6 +16,7 @@ export function SocketProvider({ children }) {
   const [connectionError, setConnectionError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.CONNECTING);
   const [userId, setUserId] = useState(null);
+  const socketInstanceRef = useRef(null);
   const maxReconnectAttempts = SOCKET.MAX_RECONNECT_ATTEMPTS;
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export function SocketProvider({ children }) {
         });
       });
 
+      socketInstanceRef.current = socketInstance;
       setSocket(socketInstance);
     }, TIMING.RECONNECT_DELAY);
   }, [maxReconnectAttempts]);
@@ -101,15 +103,15 @@ export function SocketProvider({ children }) {
   useEffect(() => {
     initializeSocket();
     return () => {
-      if (socket) {
-        socket.disconnect();
-        socket.off(SOCKET_EVENTS.CONNECT);
-        socket.off('connect_error');
-        socket.off(SOCKET_EVENTS.DISCONNECT);
-        socket.off(SOCKET_EVENTS.ERROR);
+      if (socketInstanceRef.current) {
+        socketInstanceRef.current.off(SOCKET_EVENTS.CONNECT);
+        socketInstanceRef.current.off('connect_error');
+        socketInstanceRef.current.off(SOCKET_EVENTS.DISCONNECT);
+        socketInstanceRef.current.off(SOCKET_EVENTS.ERROR);
+        socketInstanceRef.current.disconnect();
+        socketInstanceRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initializeSocket]);
 
   useEffect(() => {

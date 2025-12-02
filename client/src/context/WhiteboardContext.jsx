@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useCallback, useState } from 'react';
+import { createContext, useContext, useEffect, useCallback, useState, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
 import { COLORS, ZOOM } from '../constants';
@@ -104,7 +104,7 @@ export function WhiteboardProvider({ children }) {
     setColorBase(newColor, setCanvasDrawingMode);
   }, [setColorBase, setCanvasDrawingMode]);
 
-  const value = {
+  const value = useMemo(() => ({
     tool,
     color,
     width,
@@ -130,7 +130,32 @@ export function WhiteboardProvider({ children }) {
     setZoom,
     setZoomState,
     getFullCanvasImage
-  };
+  }), [
+    tool,
+    color,
+    width,
+    fontSize,
+    zoom,
+    selectedShape,
+    activeUsers,
+    elements,
+    canvasRef,
+    isConnected,
+    isLoading,
+    connectionStatus,
+    initCanvas,
+    clearCanvas,
+    addElement,
+    updateElement,
+    setTool,
+    setSelectedShape,
+    setColor,
+    setWidth,
+    setFontSize,
+    setZoom,
+    setZoomState,
+    getFullCanvasImage
+  ]);
 
   return (
     <WhiteboardContext.Provider value={value}>

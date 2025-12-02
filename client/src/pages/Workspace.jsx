@@ -7,7 +7,7 @@ import { DiagramEditorProvider } from '../context/DiagramEditorContext';
 import { SharingProvider, useSharing } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
-import { SOCKET_EVENTS, STORAGE_KEYS } from '../constants';
+import { SOCKET_EVENTS, STORAGE_KEYS, LAYOUT, CONNECTION_STATUS } from '../constants';
 import { toast } from 'react-toastify';
 import { getPersistentUserId } from '../utils';
 
@@ -28,8 +28,6 @@ function WorkspaceLayout() {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
-  const MIN_WIDTH_PERCENT = 30;
-  const MAX_WIDTH_PERCENT = 70;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,14 +35,13 @@ function WorkspaceLayout() {
     setPersistentUserId(userId);
   }, []);
 
-  // Use the most restrictive connection status between socket and whiteboard
-  const connectionStatus = whiteboardConnectionStatus === 'connected' && socketConnectionStatus === 'connected'
-    ? 'connected'
-    : socketConnectionStatus === 'error' || whiteboardConnectionStatus === 'error'
-      ? 'error'
-      : socketConnectionStatus === 'disconnected' || whiteboardConnectionStatus === 'disconnected'
-        ? 'disconnected'
-        : 'connecting';
+  const connectionStatus = whiteboardConnectionStatus === CONNECTION_STATUS.CONNECTED && socketConnectionStatus === CONNECTION_STATUS.CONNECTED
+    ? CONNECTION_STATUS.CONNECTED
+    : socketConnectionStatus === CONNECTION_STATUS.ERROR || whiteboardConnectionStatus === CONNECTION_STATUS.ERROR
+      ? CONNECTION_STATUS.ERROR
+      : socketConnectionStatus === CONNECTION_STATUS.DISCONNECTED || whiteboardConnectionStatus === CONNECTION_STATUS.DISCONNECTED
+        ? CONNECTION_STATUS.DISCONNECTED
+        : CONNECTION_STATUS.CONNECTING;
 
   const handleMouseDown = (e) => {
     e.preventDefault();
@@ -61,7 +58,7 @@ function WorkspaceLayout() {
       const mousePositionRelative = e.clientX - container.left;
       const newPositionPercent = (mousePositionRelative / container.width) * 100;
 
-      setSplitPosition(Math.min(Math.max(100 - newPositionPercent, MIN_WIDTH_PERCENT), MAX_WIDTH_PERCENT));
+      setSplitPosition(Math.min(Math.max(100 - newPositionPercent, LAYOUT.MIN_WIDTH_PERCENT), LAYOUT.MAX_WIDTH_PERCENT));
     };
 
     const handleMouseUp = () => {
@@ -142,22 +139,22 @@ function WorkspaceLayout() {
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100">
       {/* Loading overlay */}
-      {(isLoading || connectionStatus !== 'connected') && (
+      {(isLoading || connectionStatus !== CONNECTION_STATUS.CONNECTED) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white bg-opacity-80">
           <div className="text-center">
-            {connectionStatus === 'connecting' && (
+            {connectionStatus === CONNECTION_STATUS.CONNECTING && (
               <>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent mb-4"></div>
                 <p className="text-lg text-gray-700">Connecting to workspace...</p>
               </>
             )}
-            {connectionStatus === 'connected' && isLoading && (
+            {connectionStatus === CONNECTION_STATUS.CONNECTED && isLoading && (
               <>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent mb-4"></div>
                 <p className="text-lg text-gray-700">Loading drawing history...</p>
               </>
             )}
-            {connectionStatus === 'disconnected' && (
+            {connectionStatus === CONNECTION_STATUS.DISCONNECTED && (
               <>
                 <div className="inline-block h-8 w-8 text-red-500 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,7 +164,7 @@ function WorkspaceLayout() {
                 <p className="text-lg text-red-600">Connection lost. Reconnecting...</p>
               </>
             )}
-            {connectionStatus === 'error' && (
+            {connectionStatus === CONNECTION_STATUS.ERROR && (
               <>
                 <div className="inline-block h-8 w-8 text-red-500 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

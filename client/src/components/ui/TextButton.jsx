@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
-import { CANVAS } from '../../constants';
-
-const FONT_SIZES = [12, 16, 20, 24, 32, 48, 64];
+import { CANVAS, FONT_SIZES } from '../../constants';
+import { useDropdownBehavior } from '../../hooks';
 
 const TextButton = React.memo(function TextButton({
   isActive,
@@ -16,28 +15,7 @@ const TextButton = React.memo(function TextButton({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
 
   const handleSizeSelect = useCallback((size) => {
     onFontSizeChange(size);
@@ -63,8 +41,11 @@ const TextButton = React.memo(function TextButton({
         aria-expanded={isOpen}
         title={t('tools.text')}
       >
-        <TextFieldsIcon className={isActive ? 'text-white' : 'text-gray-700'} />
-        <div className="absolute bottom-0 right-0 text-[8px] font-bold bg-white text-gray-700 rounded px-0.5 leading-tight">
+        <TextFieldsIcon
+          className={isActive ? 'text-white' : 'text-gray-600'}
+          sx={{ fontSize: 22 }}
+        />
+        <div className="absolute bottom-0.5 right-0.5 text-[8px] font-bold bg-white text-gray-600 rounded px-0.5 leading-tight shadow-sm">
           {fontSize}
         </div>
       </button>

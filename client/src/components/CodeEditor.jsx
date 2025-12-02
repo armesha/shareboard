@@ -5,6 +5,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
 import { useSharing } from '../context/SharingContext';
 import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES } from '../constants';
+import { useClickOutside } from '../hooks';
 
 export default function CodeEditor() {
   const { t } = useTranslation(['editor', 'common']);
@@ -54,18 +55,7 @@ export default function CodeEditor() {
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (langMenuRef.current && !langMenuRef.current.contains(event.target)) {
-        setIsLangMenuOpen(false);
-      }
-    };
-
-    if (isLangMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isLangMenuOpen]);
+  useClickOutside(langMenuRef, () => setIsLangMenuOpen(false), isLangMenuOpen);
 
   const handleInsertExample = () => {
     if (!isReadOnly && CODE_EXAMPLES[language]) {

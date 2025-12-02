@@ -320,7 +320,7 @@ function DemoWhiteboard() {
       clearInterval(spawnInterval);
       clearInterval(cleanupInterval);
     };
-  }, [spawnShape]);
+  }, [spawnShape, windowSize]);
 
   return (
     <div className="demo-background">

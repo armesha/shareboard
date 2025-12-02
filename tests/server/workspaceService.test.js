@@ -32,11 +32,11 @@ describe('workspaceService', () => {
   });
 
   describe('generateKey', () => {
-    it('returns string of default length (6)', () => {
+    it('returns string of default length (12)', () => {
       const key = generateKey();
       expect(key).toBeDefined();
       expect(typeof key).toBe('string');
-      expect(key.length).toBeLessThanOrEqual(6);
+      expect(key.length).toBeLessThanOrEqual(12);
       expect(key.length).toBeGreaterThan(0);
     });
 
@@ -587,18 +587,23 @@ describe('workspaceService', () => {
       expect(foundId).toBe('test-find-1');
     });
 
-    it('returns null for non-existing workspace reference', () => {
+    it('returns id from workspace object even if not in Map', () => {
       createWorkspace('test-find-1', 'owner-1');
 
       const fakeWorkspace = { id: 'fake', owner: 'fake-owner' };
       const foundId = findWorkspaceIdByRef(fakeWorkspace);
 
-      expect(foundId).toBe(null);
+      expect(foundId).toBe('fake');
     });
 
-    it('returns null when no workspaces exist', () => {
-      const fakeWorkspace = { id: 'fake', owner: 'fake-owner' };
-      const foundId = findWorkspaceIdByRef(fakeWorkspace);
+    it('returns null for null or undefined reference', () => {
+      expect(findWorkspaceIdByRef(null)).toBe(null);
+      expect(findWorkspaceIdByRef(undefined)).toBe(null);
+    });
+
+    it('returns null for object without id', () => {
+      const noIdWorkspace = { owner: 'fake-owner' };
+      const foundId = findWorkspaceIdByRef(noIdWorkspace);
       expect(foundId).toBe(null);
     });
   });

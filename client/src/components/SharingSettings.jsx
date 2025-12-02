@@ -198,7 +198,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-blue-900 mb-1">{t('links.viewLink.title')}</h3>
               <p className="text-xs text-blue-700">{t('links.viewLink.description')}</p>
-              <p className="text-xs text-gray-600 mt-1 break-all font-mono">{window.location.href.split('?')[0]}</p>
+              <p className="text-xs text-gray-600 mt-1 break-all font-code">{window.location.href.split('?')[0]}</p>
             </div>
             <button
               onClick={() => copyToClipboard(window.location.href.split('?')[0])}
@@ -215,7 +215,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
               <h3 className="text-sm font-semibold text-green-900 mb-1">{t('links.editLink.title')}</h3>
               <p className="text-xs text-green-700">{t('links.editLink.description')}</p>
               {editLink && (
-                <p className="text-xs text-gray-600 mt-1 break-all font-mono">{editLink}</p>
+                <p className="text-xs text-gray-600 mt-1 break-all font-code">{editLink}</p>
               )}
             </div>
             <button

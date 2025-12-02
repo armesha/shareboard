@@ -2,6 +2,11 @@ import { SOCKET_EVENTS, SHARING_MODES } from '../config.js';
 import * as workspaceService from '../services/workspaceService.js';
 import * as permissionService from '../services/permissionService.js';
 
+const WORKSPACE_ID_REGEX = /^[a-zA-Z0-9_-]{1,32}$/;
+function isValidWorkspaceId(id) {
+  return typeof id === 'string' && WORKSPACE_ID_REGEX.test(id);
+}
+
 export const MAX_ELEMENTS_PER_UPDATE = 100;
 export const MAX_CODE_LENGTH = 500000;
 export const MAX_DIAGRAM_LENGTH = 100000;
@@ -12,6 +17,11 @@ export function handleJoinWorkspace(
   { socket, io, currentUser, currentWorkspaceRef }
 ) {
   try {
+    if (!isValidWorkspaceId(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid workspace ID' });
+      return { success: false, reason: 'invalid_workspace_id' };
+    }
+
     let workspace = workspaceService.getWorkspace(workspaceId);
     let isNewWorkspace = false;
 
@@ -69,6 +79,11 @@ export function handleWhiteboardUpdate(
   { socket, currentUser, queueUpdate }
 ) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace || !Array.isArray(elements)) {
       return { success: false, reason: 'invalid_input' };
@@ -117,6 +132,11 @@ export function handleWhiteboardUpdate(
 
 export function handleWhiteboardClear({ workspaceId }, { socket, currentUser }) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
       return { success: false, reason: 'workspace_not_found' };
@@ -144,6 +164,11 @@ export function handleWhiteboardClear({ workspaceId }, { socket, currentUser }) 
 
 export function handleDeleteElement({ workspaceId, elementId }, { socket, currentUser }) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace || !elementId) {
       return { success: false, reason: 'invalid_input' };
@@ -170,6 +195,11 @@ export function handleDeleteElement({ workspaceId, elementId }, { socket, curren
 
 export function handleDeleteDiagram({ workspaceId, diagramId }, { socket, currentUser }) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
       return { success: false, reason: 'workspace_not_found' };
@@ -194,6 +224,11 @@ export function handleDeleteDiagram({ workspaceId, diagramId }, { socket, curren
 
 export function handleCodeUpdate({ workspaceId, language, content }, { socket, currentUser }) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
       return { success: false, reason: 'workspace_not_found' };
@@ -222,6 +257,11 @@ export function handleCodeUpdate({ workspaceId, language, content }, { socket, c
 
 export function handleDiagramUpdate({ workspaceId, content }, { socket, currentUser }) {
   try {
+    if (!socket.rooms.has(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
+      return { success: false, reason: 'not_authorized' };
+    }
+
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
       return { success: false, reason: 'workspace_not_found' };

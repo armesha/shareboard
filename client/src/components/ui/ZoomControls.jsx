@@ -66,7 +66,7 @@ const ZoomControls = React.memo(function ZoomControls({ zoom, onZoomChange }) {
             <div className="space-y-2">
               {CONTROL_TIPS.map((tip) => (
                 <div key={tip.key} className="flex items-center gap-3">
-                  <kbd className="shrink-0 w-24 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs font-mono text-gray-700 text-center whitespace-nowrap">
+                  <kbd className="shrink-0 w-24 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs font-code text-gray-700 text-center whitespace-nowrap">
                     {t(`toolbar:controls.${tip.keyTranslationKey}`)}
                   </kbd>
                   <span className="text-xs text-gray-500 whitespace-nowrap">

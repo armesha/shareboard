@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { TOOLS, INTERACTIVE_TYPES, CANVAS } from '../constants';
+import { TOOLS, INTERACTIVE_TYPES, CANVAS, DEFAULT_COLORS } from '../constants';
 
 export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) {
   const [tool, setTool] = useState(TOOLS.SELECT);
   const [selectedShape, setSelectedShape] = useState(null);
-  const [color, setColor] = useState('#000000');
+  const [color, setColor] = useState(DEFAULT_COLORS.BLACK);
   const [width, setWidth] = useState(2);
   const [fontSize, setFontSize] = useState(CANVAS.DEFAULT_FONT_SIZE);
 

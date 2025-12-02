@@ -25,7 +25,7 @@ import {
   MAX_DIAGRAM_LENGTH
 } from '../../server/handlers/socketHandlers.js';
 
-function createMockSocket() {
+function createMockSocket(workspaceId = null) {
   const broadcastTo = vi.fn().mockReturnValue({
     emit: vi.fn()
   });
@@ -33,11 +33,17 @@ function createMockSocket() {
     emit: vi.fn()
   });
 
+  const rooms = new Set();
+  if (workspaceId) {
+    rooms.add(workspaceId);
+  }
+
   return {
     id: 'socket-123',
     emit: vi.fn(),
-    join: vi.fn(),
-    leave: vi.fn(),
+    join: vi.fn((roomId) => rooms.add(roomId)),
+    leave: vi.fn((roomId) => rooms.delete(roomId)),
+    rooms,
     broadcast: {
       to: broadcastTo
     },
@@ -85,7 +91,7 @@ describe('socketHandlers', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    socket = createMockSocket();
+    socket = createMockSocket('ws-1');
     io = createMockIo();
     currentUser = { id: 'socket-123', joinedAt: Date.now() };
     currentWorkspaceRef = { current: null };

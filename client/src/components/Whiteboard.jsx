@@ -8,13 +8,14 @@ import { useShapeDrawing } from '../hooks/useShapeDrawing';
 import { useLineDrawing } from '../hooks/useLineDrawing';
 import { useTextEditing } from '../hooks/useTextEditing';
 
-const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
+const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMove }) {
   const canvasRef = useRef(null);
   const isUpdatingRef = useRef(false);
   const lastEmitTimeRef = useRef(0);
   const isPanningRef = useRef(false);
   const lastPanPointRef = useRef(null);
   const isSpacePressedRef = useRef(false);
+  const modificationTimeoutsRef = useRef(new Set());
   const { socket } = useSocket();
   const {
     tool,
@@ -78,6 +79,17 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   useEffect(() => {
     if (!canvas) return;
 
+    const timeoutsSet = modificationTimeoutsRef.current;
+
+    const getAbsolutePosition = (item, group) => {
+      const groupMatrix = group.calcTransformMatrix();
+      const point = fabric.util.transformPoint(
+        { x: item.left, y: item.top },
+        groupMatrix
+      );
+      return { left: point.x, top: point.y };
+    };
+
     const handleObjectModification = (e) => {
       if (disabled) {
         if (e.target?.originalState) {
@@ -88,37 +100,59 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       }
 
       const obj = e.target;
-      if (!obj || !obj.id || isUpdatingRef.current) return;
+      if (!obj || isUpdatingRef.current) return;
 
-      if (obj.modificationTimeout) {
-        clearTimeout(obj.modificationTimeout);
-      }
+      const isActiveSelection = obj.type === 'activeSelection';
+      const objectsToUpdate = isActiveSelection ? obj.getObjects() : [obj];
 
-      obj.modificationTimeout = setTimeout(() => {
-        canvas.suspendDrawing = true;
+      objectsToUpdate.forEach(item => {
+        if (!item.id) return;
 
-        try {
-          if (obj.type === 'image' && obj.data?.isDiagram) {
-            updateElement(obj.id, {
-              type: 'diagram',
-              data: { ...obj.data, left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle }
-            });
-          } else if (obj.type === 'text' || obj.type === 'i-text') {
-            updateElement(obj.id, {
-              type: 'text',
-              data: { text: obj.text, left: obj.left, top: obj.top, fontSize: obj.fontSize, fill: obj.fill, angle: obj.angle, scaleX: obj.scaleX, scaleY: obj.scaleY }
-            });
-          } else {
-            updateElement(obj.id, {
-              type: obj.type,
-              data: { ...obj.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']), stroke: obj.stroke, strokeWidth: obj.strokeWidth, fill: obj.fill }
-            });
-          }
-        } finally {
-          canvas.suspendDrawing = false;
-          canvas.requestRenderAll();
+        if (item.modificationTimeout) {
+          clearTimeout(item.modificationTimeout);
         }
-      }, TIMING.MOVEMENT_TIMEOUT);
+
+        let absoluteLeft = item.left;
+        let absoluteTop = item.top;
+
+        if (isActiveSelection) {
+          const absPos = getAbsolutePosition(item, obj);
+          absoluteLeft = absPos.left;
+          absoluteTop = absPos.top;
+        }
+
+        const capturedLeft = absoluteLeft;
+        const capturedTop = absoluteTop;
+
+        const timeoutId = setTimeout(() => {
+          modificationTimeoutsRef.current.delete(timeoutId);
+          canvas.suspendDrawing = true;
+
+          try {
+            if (item.type === 'diagram' || (item.type === 'image' && item.data?.isDiagram)) {
+              updateElement(item.id, {
+                type: 'diagram',
+                data: { ...item.data, left: capturedLeft, top: capturedTop, scaleX: item.scaleX, scaleY: item.scaleY, angle: item.angle }
+              });
+            } else if (item.type === 'text' || item.type === 'i-text') {
+              updateElement(item.id, {
+                type: 'text',
+                data: { text: item.text, left: capturedLeft, top: capturedTop, fontSize: item.fontSize, fill: item.fill, angle: item.angle, scaleX: item.scaleX, scaleY: item.scaleY }
+              });
+            } else {
+              updateElement(item.id, {
+                type: item.type,
+                data: { ...item.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']), left: capturedLeft, top: capturedTop, stroke: item.stroke, strokeWidth: item.strokeWidth, fill: item.fill }
+              });
+            }
+          } finally {
+            canvas.suspendDrawing = false;
+            canvas.requestRenderAll();
+          }
+        }, TIMING.MOVEMENT_TIMEOUT);
+        item.modificationTimeout = timeoutId;
+        modificationTimeoutsRef.current.add(timeoutId);
+      });
     };
 
     canvas.on(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModification);
@@ -133,6 +167,8 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       canvas.off(FABRIC_EVENTS.OBJECT_SCALING, handleObjectModification);
       canvas.off(FABRIC_EVENTS.OBJECT_ROTATING, handleObjectModification);
       canvas.off(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModification);
+      timeoutsSet.forEach(clearTimeout);
+      timeoutsSet.clear();
     };
   }, [canvas, updateElement, disabled]);
 
@@ -145,7 +181,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       const obj = e.target;
       if (!obj) return;
 
-      if (obj.type === 'image' && obj.data?.isDiagram) {
+      if (obj.type === 'diagram' || (obj.type === 'image' && obj.data?.isDiagram)) {
         obj.lockMovementX = false;
         obj.lockMovementY = false;
       }
@@ -231,9 +267,15 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   }, [canvas, tool, selectedShape, disabled, addText, startShape, startLine]);
 
   const handleMouseMove = useCallback((e) => {
-    if (disabled || !canvas) return;
+    if (!canvas) return;
 
     const pointer = canvas.getPointer(e.e);
+
+    if (onCursorMove) {
+      onCursorMove(pointer.x, pointer.y);
+    }
+
+    if (disabled) return;
 
     if (isDrawing.current) {
       updateShape(pointer, e.e.ctrlKey);
@@ -243,7 +285,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     if (isDrawingLine.current) {
       updateLine(pointer, e.e.shiftKey);
     }
-  }, [canvas, disabled, isDrawing, isDrawingLine, updateShape, updateLine]);
+  }, [canvas, disabled, isDrawing, isDrawingLine, updateShape, updateLine, onCursorMove]);
 
   const handleMouseUp = useCallback(() => {
     if (disabled || !canvas) return;
@@ -290,9 +332,18 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   useEffect(() => {
     if (!canvas || !socket) return;
 
+    const getAbsolutePosition = (item, group) => {
+      const groupMatrix = group.calcTransformMatrix();
+      const point = fabric.util.transformPoint(
+        { x: item.left, y: item.top },
+        groupMatrix
+      );
+      return { left: point.x, top: point.y };
+    };
+
     const handleSocketEmit = (e) => {
       const obj = e.target;
-      if (!obj || !obj.id) return;
+      if (!obj) return;
 
       const now = Date.now();
       if (now - lastEmitTimeRef.current < TIMING.MOVEMENT_TIMEOUT) {
@@ -301,11 +352,40 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       lastEmitTimeRef.current = now;
 
       const workspaceId = getWorkspaceId();
-      const elementData = obj.type === 'image' && obj.data?.isDiagram
-        ? { id: obj.id, type: 'diagram', data: { ...obj.data, left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle } }
-        : { id: obj.id, type: obj.type, data: obj.toObject(['id']) };
 
-      socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, { workspaceId, elements: [elementData] });
+      const isActiveSelection = obj.type === 'activeSelection';
+      const objectsToSync = isActiveSelection ? obj.getObjects() : [obj];
+
+      const elements = objectsToSync
+        .filter(item => item.id)
+        .map(item => {
+          let absoluteLeft = item.left;
+          let absoluteTop = item.top;
+
+          if (isActiveSelection) {
+            const absPos = getAbsolutePosition(item, obj);
+            absoluteLeft = absPos.left;
+            absoluteTop = absPos.top;
+          }
+
+          const isDiagram = item.type === 'diagram' || (item.type === 'image' && item.data?.isDiagram);
+          if (isDiagram) {
+            return {
+              id: item.id,
+              type: 'diagram',
+              data: { ...item.data, left: absoluteLeft, top: absoluteTop, scaleX: item.scaleX, scaleY: item.scaleY, angle: item.angle }
+            };
+          }
+
+          const objData = item.toObject(['id']);
+          objData.left = absoluteLeft;
+          objData.top = absoluteTop;
+          return { id: item.id, type: item.type, data: objData };
+        });
+
+      if (elements.length > 0) {
+        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, { workspaceId, elements });
+      }
     };
 
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleSocketEmit);
@@ -327,8 +407,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       if (e.code === 'Space') {
         isSpacePressedRef.current = false;
         isPanningRef.current = false;
-        canvas.defaultCursor = 'default';
-        canvas.hoverCursor = 'move';
+        const cursorValue = tool === TOOLS.SELECT ? CANVAS.CUSTOM_CURSOR : 'crosshair';
+        canvas.defaultCursor = cursorValue;
+        canvas.hoverCursor = cursorValue;
       }
     };
 
@@ -361,7 +442,8 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     const handleMouseUp = () => {
       if (isPanningRef.current) {
         isPanningRef.current = false;
-        canvas.defaultCursor = isSpacePressedRef.current ? 'grab' : 'default';
+        const defaultCursor = tool === TOOLS.SELECT ? CANVAS.CUSTOM_CURSOR : 'crosshair';
+        canvas.defaultCursor = isSpacePressedRef.current ? 'grab' : defaultCursor;
         canvas.selection = true;
       }
     };
@@ -402,11 +484,18 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       canvas.off(FABRIC_EVENTS.MOUSE_WHEEL, handleWheel);
       canvas.upperCanvasEl?.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [canvas, setZoomState]);
+  }, [canvas, setZoomState, tool]);
+
+  useEffect(() => {
+    if (!canvas) return;
+    const cursorValue = tool === TOOLS.SELECT ? CANVAS.CUSTOM_CURSOR : 'crosshair';
+    canvas.defaultCursor = cursorValue;
+    canvas.hoverCursor = cursorValue;
+  }, [canvas, tool]);
 
   return (
     <>
-      <div className={`relative w-full h-full canvas-grid ${disabled ? 'cursor-not-allowed' : ''}`}>
+      <div className="relative w-full h-full canvas-grid">
         <canvas
           ref={canvasRef}
           style={{

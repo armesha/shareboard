@@ -81,6 +81,6 @@ export function getSharingInfo(workspace, user) {
     currentUser: user?.userId || null,
     owner: workspace.owner,
     hasEditAccess,
-    editToken: workspace.editToken
+    editToken: isOwner ? workspace.editToken : undefined
   };
 }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BRUSH_COLORS, COLOR_PICKER } from '../../constants';
+import { useDropdownBehavior } from '../../hooks';
 
 const { RECENT_COLORS_KEY, MAX_RECENT_COLORS, BASIC_COLORS } = COLOR_PICKER;
 
@@ -44,28 +45,7 @@ const ColorPicker = React.memo(function ColorPicker({
   const [recentColors, setRecentColors] = useState(getRecentColors);
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
 
   const handleColorSelect = useCallback((color, fromPanel = false) => {
     onColorChange(color);

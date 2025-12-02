@@ -6,6 +6,11 @@
   "orJoinExisting": "Or join existing",
   "workspaceKeyPlaceholder": "Enter workspace key",
   "joinWorkspace": "Join Workspace",
+  "features": {
+    "realtime": "Real-time",
+    "noSignup": "No signup",
+    "free": "Free"
+  },
   "errors": {
     "createFailed": "Failed to create workspace. Please try again."
   }

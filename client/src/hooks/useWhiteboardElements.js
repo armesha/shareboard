@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { SOCKET_EVENTS } from '../constants';
+import { SOCKET_EVENTS, DEFAULT_COLORS } from '../constants';
 import { getWorkspaceId } from '../utils';
+import { createShapeFromData } from '../factories/shapeFactory';
 import '../utils/fabricArrow';
 
 export function useWhiteboardElements() {
@@ -15,7 +16,7 @@ export function useWhiteboardElements() {
       case 'path':
         obj = new fabric.Path(element.data.path, {
           ...element.data,
-          stroke: element.data.stroke || '#000000',
+          stroke: element.data.stroke || DEFAULT_COLORS.BLACK,
           strokeWidth: element.data.strokeWidth || 2,
           fill: null,
           strokeLineCap: 'round',
@@ -41,59 +42,15 @@ export function useWhiteboardElements() {
         break;
 
       case 'rect':
-        obj = new fabric.Rect(element.data);
-        break;
       case 'circle':
-        obj = new fabric.Circle(element.data);
-        break;
       case 'triangle':
-        if (element.data.points) {
-          obj = new fabric.Polygon(element.data.points, {
-            ...element.data,
-            strokeLineJoin: 'round',
-            strokeLineCap: 'round',
-            strokeUniform: true
-          });
-          obj.type = 'triangle';
-        } else {
-          obj = new fabric.Triangle(element.data);
-        }
-        break;
       case 'star':
-        obj = new fabric.Polygon(element.data.points, {
-          ...element.data,
-          strokeLineJoin: 'round',
-          strokeLineCap: 'round',
-          strokeUniform: true
-        });
-        obj.type = 'star';
-        break;
       case 'diamond':
-        obj = new fabric.Polygon(element.data.points, {
-          ...element.data,
-          strokeLineJoin: 'round',
-          strokeLineCap: 'round',
-          strokeUniform: true
-        });
-        obj.type = 'diamond';
-        break;
       case 'pentagon':
-        obj = new fabric.Polygon(element.data.points, {
-          ...element.data,
-          strokeLineJoin: 'round',
-          strokeLineCap: 'round',
-          strokeUniform: true
-        });
-        obj.type = 'pentagon';
-        break;
       case 'hexagon':
-        obj = new fabric.Polygon(element.data.points, {
-          ...element.data,
-          strokeLineJoin: 'round',
-          strokeLineCap: 'round',
-          strokeUniform: true
-        });
-        obj.type = 'hexagon';
+      case 'octagon':
+      case 'cross':
+        obj = createShapeFromData(element.type, element.data);
         break;
       case 'line': {
         const { left: _left1, top: _top1, ...lineOptions } = element.data;
@@ -159,8 +116,8 @@ export function useWhiteboardElements() {
             selectable: true,
             hasControls: true,
             hasBorders: true,
-            cornerColor: '#2196F3',
-            borderColor: '#2196F3',
+            cornerColor: DEFAULT_COLORS.SELECTION,
+            borderColor: DEFAULT_COLORS.SELECTION_BORDER,
             cornerSize: 8,
             padding: 10,
             data: { ...element.data, isDiagram: true }
@@ -185,7 +142,7 @@ export function useWhiteboardElements() {
         }
       }
     }, 0);
-  }, [createFabricObject]);
+  }, []);
 
   const updateElement = useCallback((id, element, isMoving, elementsMapRef, socketRef, isUpdatingRef, emitThrottled) => {
     if (!id || !elementsMapRef.current.has(id)) return;
