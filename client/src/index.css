@@ -327,6 +327,10 @@ body {
 .demo-background {
   @apply fixed inset-0 overflow-hidden pointer-events-none;
   z-index: 0;
+  background-image:
+    linear-gradient(to right, rgba(200, 200, 200, 0.3) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(200, 200, 200, 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 .demo-svg {
