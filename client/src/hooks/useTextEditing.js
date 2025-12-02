@@ -3,15 +3,18 @@ import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { TOOLS, CANVAS } from '../constants';
 
-export function useTextEditing({ canvas, color, addElement, setTool }) {
+export function useTextEditing({ canvas, color, fontSize, addElement, setTool }) {
   const addText = useCallback((position) => {
     if (!canvas) return;
+
+    const currentZoom = canvas.getZoom();
+    const adaptiveFontSize = fontSize / currentZoom;
 
     const textId = uuidv4();
     const textObj = new fabric.IText('', {
       left: position.x,
       top: position.y,
-      fontSize: CANVAS.DEFAULT_FONT_SIZE,
+      fontSize: adaptiveFontSize,
       fill: color,
       id: textId,
       selectable: true,
@@ -25,7 +28,6 @@ export function useTextEditing({ canvas, color, addElement, setTool }) {
     textObj.enterEditing();
     textObj.hiddenTextarea.focus();
 
-    // Add initial element state
     addElement({
       id: textId,
       type: 'i-text',
@@ -33,7 +35,7 @@ export function useTextEditing({ canvas, color, addElement, setTool }) {
         text: '',
         left: position.x,
         top: position.y,
-        fontSize: CANVAS.DEFAULT_FONT_SIZE,
+        fontSize: adaptiveFontSize,
         fill: color,
         fontFamily: CANVAS.DEFAULT_FONT_FAMILY,
         selectable: true,
@@ -44,7 +46,7 @@ export function useTextEditing({ canvas, color, addElement, setTool }) {
 
     setTool(TOOLS.SELECT);
     canvas.requestRenderAll();
-  }, [canvas, color, addElement, setTool]);
+  }, [canvas, color, fontSize, addElement, setTool]);
 
   return {
     addText

@@ -1,13 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import MouseIcon from '@mui/icons-material/Mouse';
-import TextFieldsIcon from '@mui/icons-material/TextFields';
 import { TOOLS } from '../../constants';
 import {
   ToolButton,
   ShapesMenu,
   OptionsMenu,
-  PenButton
+  PenButton,
+  TextButton
 } from '../ui';
 
 const Toolbar = React.memo(function Toolbar({
@@ -19,6 +19,8 @@ const Toolbar = React.memo(function Toolbar({
   setColor,
   width,
   setWidth,
+  fontSize,
+  setFontSize,
   canWrite,
   isOwner,
   onShareClick,
@@ -64,14 +66,14 @@ const Toolbar = React.memo(function Toolbar({
             vertical
           />
 
-          <ToolButton
-            icon={TextFieldsIcon}
+          <TextButton
             isActive={tool === TOOLS.TEXT}
-            onClick={() => {
-              setTool(tool === TOOLS.TEXT ? TOOLS.SELECT : TOOLS.TEXT);
+            onActivate={() => {
+              setTool(TOOLS.TEXT);
               setSelectedShape(null);
             }}
-            title={t('tools.text')}
+            fontSize={fontSize}
+            onFontSizeChange={setFontSize}
           />
         </>
       )}

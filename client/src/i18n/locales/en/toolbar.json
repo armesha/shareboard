@@ -42,6 +42,11 @@
     "ariaLabel": "Pen tool",
     "settings": "Pen settings"
   },
+  "text": {
+    "fontSize": "Font Size",
+    "custom": "Custom",
+    "settings": "Text settings"
+  },
   "colorPicker": {
     "moreColors": "More colors",
     "colorPalette": "Color palette",

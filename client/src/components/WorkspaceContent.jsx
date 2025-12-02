@@ -34,10 +34,13 @@ export default function WorkspaceContent({
     addElement,
     width,
     setWidth,
+    fontSize,
+    setFontSize,
     color,
     setColor,
     zoom,
-    setZoom
+    setZoom,
+    canvasRef
   } = useWhiteboard();
 
   const { canWrite, isOwner, sharingInfoReceived } = useSharing();
@@ -108,19 +111,37 @@ export default function WorkspaceContent({
 
         const pngUrl = tempCanvas.toDataURL('image/png', 1.0);
 
-        const container = document.querySelector('.whiteboard-container') || document.body;
-        const containerWidth = container.clientWidth || window.innerWidth;
-        const containerHeight = container.clientHeight || window.innerHeight;
-        const targetWidth = containerWidth * 0.15;
-        const scaleX = targetWidth / tempCanvas.width;
+        const canvas = canvasRef?.current;
+        let centerX, centerY, scaleX;
+
+        if (canvas) {
+          const vpt = canvas.viewportTransform;
+          const currentZoom = canvas.getZoom();
+          const canvasWidth = canvas.getWidth();
+          const canvasHeight = canvas.getHeight();
+
+          centerX = (-vpt[4] + canvasWidth / 2) / currentZoom;
+          centerY = (-vpt[5] + canvasHeight / 2) / currentZoom;
+
+          const targetWidth = (canvasWidth * 0.2) / currentZoom;
+          scaleX = targetWidth / tempCanvas.width;
+        } else {
+          const container = document.querySelector('.whiteboard-container') || document.body;
+          const containerWidth = container.clientWidth || window.innerWidth;
+          const containerHeight = container.clientHeight || window.innerHeight;
+          centerX = containerWidth / 2;
+          centerY = containerHeight / 4;
+          const targetWidth = containerWidth * 0.15;
+          scaleX = targetWidth / tempCanvas.width;
+        }
 
         const elementData = {
           id: uuidv4(),
           type: 'diagram',
           data: {
             src: pngUrl,
-            left: containerWidth / 2,
-            top: containerHeight / 4,
+            left: centerX,
+            top: centerY,
             scaleX,
             scaleY: scaleX,
             angle: 0,
@@ -144,7 +165,7 @@ export default function WorkspaceContent({
     } catch {
       setNotification({ visible: true, message: t('messages:errors.diagramAddFailed'), type: 'error' });
     }
-  }, [addElement, setTool, diagramContent, socket, workspaceId, t]);
+  }, [addElement, setTool, diagramContent, socket, workspaceId, t, canvasRef]);
 
   const renderCodeEditor = useMemo(() => (
     <div className="h-full flex flex-col">
@@ -160,18 +181,6 @@ export default function WorkspaceContent({
           )}
         </div>
         <div className="flex space-x-2 items-center">
-          {activeTab === 'diagram' && canWrite() && (
-            <button
-              onClick={handleAddImageToWhiteboard}
-              className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded-md text-sm mr-3 flex items-center shadow-md transition-all duration-200 font-medium"
-              aria-label={t('codeboard.addToWhiteboard')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {t('codeboard.addToWhiteboard')}
-            </button>
-          )}
           <button
             onClick={() => setActiveTab('code')}
             className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'code' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -200,7 +209,14 @@ export default function WorkspaceContent({
           </button>
         </div>
       </div>
-      {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer />}
+      {activeTab === 'code' ? (
+        <CodeEditor />
+      ) : (
+        <DiagramRenderer
+          onAddToWhiteboard={handleAddImageToWhiteboard}
+          canAddToWhiteboard={canWrite()}
+        />
+      )}
     </div>
   ), [activeTab, canWrite, handleAddImageToWhiteboard, cycleViewMode, t]);
 
@@ -222,6 +238,8 @@ export default function WorkspaceContent({
               setColor={setColor}
               width={width}
               setWidth={setWidth}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
               canWrite={canWrite}
               isOwner={isOwner}
               onShareClick={onShareClick}

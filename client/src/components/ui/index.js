@@ -8,5 +8,6 @@ export { default as Notification } from './Notification';
 export { default as ZoomControls } from './ZoomControls';
 export { default as ExportPreviewModal } from './ExportPreviewModal';
 export { default as PenButton } from './PenButton';
+export { default as TextButton } from './TextButton';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as LanguageSwitcher } from './LanguageSwitcher';

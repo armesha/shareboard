@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { TOOLS, INTERACTIVE_TYPES } from '../constants';
+import { TOOLS, INTERACTIVE_TYPES, CANVAS } from '../constants';
 
 export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) {
   const [tool, setTool] = useState(TOOLS.SELECT);
   const [selectedShape, setSelectedShape] = useState(null);
   const [color, setColor] = useState('#000000');
   const [width, setWidth] = useState(2);
+  const [fontSize, setFontSize] = useState(CANVAS.DEFAULT_FONT_SIZE);
 
   const handleColorChange = useCallback((newColor, setCanvasDrawingMode) => {
     setColor(newColor);
@@ -98,9 +99,11 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
     selectedShape,
     color,
     width,
+    fontSize,
     setTool,
     setSelectedShape,
     setColor: handleColorChange,
-    setWidth: handleWidthChange
+    setWidth: handleWidthChange,
+    setFontSize
   };
 }

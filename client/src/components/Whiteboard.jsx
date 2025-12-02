@@ -20,6 +20,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     tool,
     color,
     width,
+    fontSize,
     selectedShape,
     initCanvas,
     canvasRef: fabricCanvasRef,
@@ -64,6 +65,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   } = useTextEditing({
     canvas,
     color,
+    fontSize,
     addElement,
     setTool
   });

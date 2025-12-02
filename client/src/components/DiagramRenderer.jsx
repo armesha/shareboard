@@ -4,8 +4,8 @@ import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
 
-export default function DiagramRenderer() {
-  const { t } = useTranslation(['editor', 'common']);
+export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }) {
+  const { t } = useTranslation(['editor', 'common', 'workspace']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
   const diagramRef = useRef(null);
@@ -163,12 +163,24 @@ export default function DiagramRenderer() {
             </div>
           )}
         </div>
-        <div className="w-1/2 h-full p-4 overflow-auto">
-          <div 
-            ref={diagramRef} 
+        <div className="w-1/2 h-full p-4 overflow-auto relative">
+          <div
+            ref={diagramRef}
             className="flex items-center justify-center h-full diagram-container"
             style={{ minHeight: '200px' }}
           ></div>
+          {canAddToWhiteboard && !error && content.trim() && (
+            <button
+              onClick={onAddToWhiteboard}
+              className="absolute bottom-6 right-6 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm flex items-center shadow-lg transition-all duration-200 font-medium hover:scale-105"
+              title={t('workspace:codeboard.addToWhiteboard')}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {t('workspace:codeboard.addToWhiteboard')}
+            </button>
+          )}
         </div>
       </div>
     </div>

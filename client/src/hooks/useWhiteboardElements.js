@@ -110,53 +110,7 @@ export function useWhiteboardElements() {
           console.warn('Diagram element has no src');
           return null;
         }
-
-        obj = new fabric.Rect({
-          ...element.data,
-          fill: 'rgba(240, 240, 240, 0.5)',
-          stroke: '#ccc',
-          strokeDashArray: [5, 5],
-          strokeWidth: 1,
-          width: 200,
-          height: 150
-        });
-
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        img.onload = () => {
-          const fabricImage = new fabric.Image(img, {
-            ...element.data,
-            id: element.id,
-            left: element.data.left || 50,
-            top: element.data.top || 50,
-            scaleX: element.data.scaleX || 0.5,
-            scaleY: element.data.scaleY || 0.5,
-            angle: element.data.angle || 0,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            cornerColor: '#2196F3',
-            borderColor: '#2196F3',
-            cornerSize: 8,
-            padding: 10,
-            lockMovementX: false,
-            lockMovementY: false,
-            lockRotation: false,
-            lockScalingX: false,
-            lockScalingY: false,
-            data: { ...element.data, isDiagram: true }
-          });
-
-          img.fabricImage = fabricImage;
-        };
-
-        img.onerror = (error) => {
-          console.error('Error loading diagram image:', error);
-        };
-
-        img.src = element.data.src;
-        break;
+        return null;
       }
       default:
         return null;
@@ -189,13 +143,35 @@ export function useWhiteboardElements() {
 
     if (element.type === 'diagram') {
       const canvas = canvasRef.current;
-      if (canvas && !canvas.getObjects().some(o => o.id === element.id)) {
-        const obj = createFabricObject(element);
-        if (obj) {
-          canvas.add(obj);
-          obj.bringToFront();
-          canvas.requestRenderAll();
-        }
+      if (canvas && element.data.src && !canvas.getObjects().some(o => o.id === element.id)) {
+        fabric.Image.fromURL(element.data.src, (fabricImage) => {
+          if (!fabricImage) {
+            console.error('Failed to load diagram image');
+            return;
+          }
+          fabricImage.set({
+            id: element.id,
+            left: element.data.left || 50,
+            top: element.data.top || 50,
+            scaleX: element.data.scaleX || 0.5,
+            scaleY: element.data.scaleY || 0.5,
+            angle: element.data.angle || 0,
+            selectable: true,
+            hasControls: true,
+            hasBorders: true,
+            cornerColor: '#2196F3',
+            borderColor: '#2196F3',
+            cornerSize: 8,
+            padding: 10,
+            data: { ...element.data, isDiagram: true }
+          });
+          fabricImage.type = 'diagram';
+          if (!canvas.getObjects().some(o => o.id === element.id)) {
+            canvas.add(fabricImage);
+            fabricImage.bringToFront();
+            canvas.requestRenderAll();
+          }
+        }, { crossOrigin: 'anonymous' });
       }
     }
 

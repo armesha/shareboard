@@ -52,10 +52,12 @@ export function WhiteboardProvider({ children }) {
     selectedShape,
     color,
     width,
+    fontSize,
     setTool,
     setSelectedShape,
     setColor: setColorBase,
-    setWidth
+    setWidth,
+    setFontSize
   } = useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite);
 
   const [zoom, setZoomState] = useState(1);
@@ -106,6 +108,7 @@ export function WhiteboardProvider({ children }) {
     tool,
     color,
     width,
+    fontSize,
     zoom,
     WHITEBOARD_BG_COLOR: COLORS.BG_WHITEBOARD,
     selectedShape,
@@ -123,6 +126,7 @@ export function WhiteboardProvider({ children }) {
     setSelectedShape,
     setColor,
     setWidth,
+    setFontSize,
     setZoom,
     setZoomState,
     getFullCanvasImage

@@ -19,7 +19,7 @@ import {
   findWorkspaceIdByRef,
   updateSharingMode
 } from '../../server/services/workspaceService.js';
-import { SHARING_MODES } from '../../server/config.js';
+import { SHARING_MODES, config } from '../../server/config.js';
 
 describe('workspaceService', () => {
   beforeEach(() => {
@@ -471,7 +471,7 @@ describe('workspaceService', () => {
 
     it('removes workspaces with 0 connections older than threshold', () => {
       const now = Date.now();
-      const threshold = 24 * 60 * 60 * 1000;
+      const threshold = config.cleanup.inactiveThresholdMs;
 
       vi.setSystemTime(now - threshold - 1000);
       createWorkspace('inactive-ws-1', 'owner-1');
@@ -494,7 +494,7 @@ describe('workspaceService', () => {
 
     it('keeps workspaces with active connections regardless of age', () => {
       const now = Date.now();
-      const threshold = 24 * 60 * 60 * 1000;
+      const threshold = config.cleanup.inactiveThresholdMs;
 
       vi.setSystemTime(now - threshold - 1000);
       createWorkspace('old-but-active', 'owner-1');
@@ -509,7 +509,7 @@ describe('workspaceService', () => {
 
     it('keeps inactive workspaces younger than threshold', () => {
       const now = Date.now();
-      const threshold = 24 * 60 * 60 * 1000;
+      const threshold = config.cleanup.inactiveThresholdMs;
 
       vi.setSystemTime(now - threshold + 1000);
       createWorkspace('recent-ws', 'owner-1');
