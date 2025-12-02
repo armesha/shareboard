@@ -5,6 +5,7 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useWhiteboard } from '../../context/WhiteboardContext';
 import { ExportPreviewModal, ConfirmDialog } from './index';
+import { SOCKET_EVENTS, EXPORT } from '../../constants';
 
 const OptionsMenu = React.memo(function OptionsMenu({
   onClearCanvas,
@@ -58,7 +59,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
 
   const handleClearCanvasConfirm = () => {
     if (socket) {
-      socket.emit('whiteboard-clear', { workspaceId });
+      socket.emit(SOCKET_EVENTS.WHITEBOARD_CLEAR, { workspaceId });
     }
     onClearCanvas();
   };
@@ -70,7 +71,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
 
   const handleEndSessionConfirm = () => {
     if (socket) {
-      socket.emit('end-session', { workspaceId });
+      socket.emit(SOCKET_EVENTS.END_SESSION, { workspaceId });
     }
     onEndSession?.();
   };
@@ -92,7 +93,7 @@ const OptionsMenu = React.memo(function OptionsMenu({
 
     const link = document.createElement('a');
     link.href = imageData;
-    link.download = `shareboard-export-${Date.now()}.png`;
+    link.download = `${EXPORT.FILENAME_PREFIX}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

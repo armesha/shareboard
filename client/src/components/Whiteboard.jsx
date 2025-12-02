@@ -387,19 +387,19 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    canvas.on('mouse:down', handleMouseDown);
-    canvas.on('mouse:move', handleMouseMove);
-    canvas.on('mouse:up', handleMouseUp);
-    canvas.on('mouse:wheel', handleWheel);
+    canvas.on(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
+    canvas.on(FABRIC_EVENTS.MOUSE_MOVE, handleMouseMove);
+    canvas.on(FABRIC_EVENTS.MOUSE_UP, handleMouseUp);
+    canvas.on(FABRIC_EVENTS.MOUSE_WHEEL, handleWheel);
     canvas.upperCanvasEl?.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      canvas.off('mouse:down', handleMouseDown);
-      canvas.off('mouse:move', handleMouseMove);
-      canvas.off('mouse:up', handleMouseUp);
-      canvas.off('mouse:wheel', handleWheel);
+      canvas.off(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
+      canvas.off(FABRIC_EVENTS.MOUSE_MOVE, handleMouseMove);
+      canvas.off(FABRIC_EVENTS.MOUSE_UP, handleMouseUp);
+      canvas.off(FABRIC_EVENTS.MOUSE_WHEEL, handleWheel);
       canvas.upperCanvasEl?.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [canvas, setZoomState]);

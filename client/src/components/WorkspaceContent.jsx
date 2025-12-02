@@ -120,17 +120,20 @@ export default function WorkspaceContent({
           const canvasWidth = canvas.getWidth();
           const canvasHeight = canvas.getHeight();
 
-          centerX = (-vpt[4] + canvasWidth / 2) / currentZoom;
-          centerY = (-vpt[5] + canvasHeight / 2) / currentZoom;
+          const visibleCenterX = (-vpt[4] + canvasWidth / 2) / currentZoom;
+          const visibleCenterY = (-vpt[5] + canvasHeight / 2) / currentZoom;
 
-          const targetWidth = (canvasWidth * 0.2) / currentZoom;
+          centerX = visibleCenterX - (canvasWidth * 0.15) / currentZoom;
+          centerY = visibleCenterY - (canvasHeight * 0.2) / currentZoom;
+
+          const targetWidth = (canvasWidth * 0.18) / currentZoom;
           scaleX = targetWidth / tempCanvas.width;
         } else {
           const container = document.querySelector('.whiteboard-container') || document.body;
           const containerWidth = container.clientWidth || window.innerWidth;
           const containerHeight = container.clientHeight || window.innerHeight;
-          centerX = containerWidth / 2;
-          centerY = containerHeight / 4;
+          centerX = containerWidth * 0.3;
+          centerY = containerHeight * 0.2;
           const targetWidth = containerWidth * 0.15;
           scaleX = targetWidth / tempCanvas.width;
         }

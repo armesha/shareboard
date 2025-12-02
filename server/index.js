@@ -20,7 +20,6 @@ const io = new Server(httpServer, {
 });
 
 const updateQueues = new Map();
-const BATCH_INTERVAL = 50;
 
 function queueUpdate(workspaceId, elements, senderSocketId) {
   if (!updateQueues.has(workspaceId)) {
@@ -57,7 +56,7 @@ setInterval(() => {
       }
     }
   }
-}, BATCH_INTERVAL);
+}, config.batch.interval);
 
 setInterval(workspaceService.cleanupInactiveWorkspaces, config.cleanup.intervalMs);
 

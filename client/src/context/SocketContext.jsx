@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
-import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING } from '../constants';
+import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING, SOCKET, TOAST } from '../constants';
 import { getPersistentUserId } from '../utils';
 
 const SocketContext = createContext(null);
@@ -16,7 +16,7 @@ export function SocketProvider({ children }) {
   const [connectionError, setConnectionError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.CONNECTING);
   const [userId, setUserId] = useState(null);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = SOCKET.MAX_RECONNECT_ATTEMPTS;
 
   useEffect(() => {
     const persistentUserId = getPersistentUserId();
@@ -32,7 +32,7 @@ export function SocketProvider({ children }) {
         reconnectionAttempts: maxReconnectAttempts,
         reconnectionDelay: TIMING.RECONNECT_DELAY,
         reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
-        timeout: 20000,
+        timeout: TIMING.SOCKET_TIMEOUT,
         transports: ['websocket', 'polling']
       });
 
@@ -44,8 +44,8 @@ export function SocketProvider({ children }) {
         setConnectionStatus(CONNECTION_STATUS.CONNECTED);
 
         toast.success('Connected to server successfully!', {
-          position: 'bottom-right',
-          autoClose: 3000
+          position: TOAST.POSITION,
+          autoClose: TIMING.NOTIFICATION_DURATION
         });
       });
 
@@ -59,14 +59,14 @@ export function SocketProvider({ children }) {
             socketInstance.disconnect();
             
             toast.error(`Failed to connect to server after ${maxReconnectAttempts} attempts. Please check your internet connection or try again later.`, {
-              position: 'bottom-right',
+              position: TOAST.POSITION,
               autoClose: false,
               closeOnClick: false,
               draggable: true
             });
           } else {
             toast.warning(`Connection error: ${error.message}. Retrying... (${newAttempts}/${maxReconnectAttempts})`, {
-              position: 'bottom-right',
+              position: TOAST.POSITION,
               autoClose: 5000
             });
           }
@@ -79,7 +79,7 @@ export function SocketProvider({ children }) {
         setSocket(null);
 
         toast.info('Disconnected from server. Attempting to reconnect...', {
-          position: 'bottom-right',
+          position: TOAST.POSITION,
           autoClose: 5000
         });
       });
@@ -89,7 +89,7 @@ export function SocketProvider({ children }) {
         setConnectionError(error.message || 'Unknown socket error');
 
         toast.error(`Socket error: ${error.message || 'Unknown error'}`, {
-          position: 'bottom-right',
+          position: TOAST.POSITION,
           autoClose: 5000
         });
       });

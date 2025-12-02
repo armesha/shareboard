@@ -1,137 +1,117 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
+
+const MERMAID_CONFIG = {
+  startOnLoad: false,
+  theme: 'base',
+  logLevel: 'error',
+  securityLevel: 'loose',
+  flowchart: {
+    curve: 'linear',
+    htmlLabels: true
+  },
+  fontFamily: 'sans-serif',
+  themeVariables: {
+    primaryColor: 'transparent',
+    primaryBorderColor: '#333',
+    primaryTextColor: '#333',
+    secondaryColor: 'transparent',
+    tertiaryColor: 'transparent',
+    lineColor: '#333',
+    textColor: '#333',
+    nodeBorder: '#333',
+    nodeBkg: 'transparent',
+    mainBkg: 'transparent',
+    clusterBkg: 'transparent',
+    clusterBorder: '#333',
+    defaultLinkColor: '#333',
+    titleColor: '#333',
+    edgeLabelBackground: 'transparent',
+    nodeTextColor: '#333'
+  }
+};
+
+let mermaidInitialized = false;
 
 export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }) {
   const { t } = useTranslation(['editor', 'common', 'workspace']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
   const diagramRef = useRef(null);
+  const renderIdRef = useRef(0);
+  const isRenderingRef = useRef(false);
 
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'base',
-      logLevel: 'error',
-      securityLevel: 'loose',
-      flowchart: {
-        curve: 'linear',
-        htmlLabels: true
-      },
-      fontFamily: 'sans-serif',
-      themeVariables: {
-        primaryColor: 'transparent',
-        primaryBorderColor: '#333',
-        primaryTextColor: '#333',
-        secondaryColor: 'transparent',
-        tertiaryColor: 'transparent',
-        lineColor: '#333',
-        textColor: '#333',
-        nodeBorder: '#333',
-        nodeBkg: 'transparent',
-        mainBkg: 'transparent',
-        clusterBkg: 'transparent',
-        clusterBorder: '#333',
-        defaultLinkColor: '#333',
-        titleColor: '#333',
-        edgeLabelBackground: 'transparent',
-        nodeTextColor: '#333'
-      }
-    });
+    if (!mermaidInitialized) {
+      mermaid.initialize(MERMAID_CONFIG);
+      mermaidInitialized = true;
+    }
   }, []);
 
-  const renderIdRef = useRef(0);
+  const renderDiagram = useCallback(async (diagramContent) => {
+    if (!diagramRef.current || !diagramContent.trim() || isRenderingRef.current) return;
 
-  const renderDiagram = async (diagramContent) => {
-    if (!diagramRef.current) return;
+    isRenderingRef.current = true;
 
     try {
       renderIdRef.current += 1;
-      const renderId = `diagram-${renderIdRef.current}`;
-
-      const oldTempSvg = document.getElementById(renderId);
-      if (oldTempSvg) oldTempSvg.remove();
+      const renderId = `mermaid-render-${renderIdRef.current}`;
 
       const { svg } = await mermaid.render(renderId, diagramContent);
 
       const tempSvg = document.getElementById(renderId);
       if (tempSvg) tempSvg.remove();
 
-      let svgWithId = svg;
-      if (!svgWithId.includes('id="diagram"')) {
-        svgWithId = svg.replace('<svg ', '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" ');
-      }
+      if (!diagramRef.current) return;
 
-      while (diagramRef.current.firstChild) {
-        diagramRef.current.removeChild(diagramRef.current.firstChild);
-      }
-      diagramRef.current.innerHTML = svgWithId;
+      const svgWithAttrs = svg.replace(
+        '<svg ',
+        '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
+      );
+
+      diagramRef.current.innerHTML = svgWithAttrs;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {
-        if (!svgElement.id) {
-          svgElement.id = 'diagram';
-          svgElement.classList.add('mermaid-diagram');
-        }
-
-        svgElement.setAttribute('data-exportable', 'true');
-        svgElement.setAttribute('data-name', 'diagram');
         svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-        const allForeignObjectElements = svgElement.querySelectorAll('foreignObject, foreignObject *, .nodeLabel, .flowchart-label, .label');
-        allForeignObjectElements.forEach(el => {
+        svgElement.querySelectorAll('foreignObject, foreignObject *, .nodeLabel, .flowchart-label, .label').forEach(el => {
           el.style.backgroundColor = 'transparent';
           el.style.background = 'transparent';
-          if (el.tagName === 'foreignObject') {
-            el.querySelectorAll('*').forEach(child => {
-              child.style.backgroundColor = 'transparent';
-              child.style.background = 'transparent';
-            });
-          }
         });
 
-        const labelContainers = svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container, .edgeLabel');
-        labelContainers.forEach(el => {
+        svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container, .edgeLabel').forEach(el => {
           el.setAttribute('fill', 'transparent');
           el.style.fill = 'transparent';
-          el.style.backgroundColor = 'transparent';
         });
 
-        const nodeRects = svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse, .node path');
-        nodeRects.forEach(el => {
+        svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse, .node path').forEach(el => {
           el.setAttribute('fill', 'transparent');
-          el.style.fill = 'transparent';
         });
       }
 
       setError(null);
     } catch (err) {
       setError(err.message || 'Failed to render diagram');
+    } finally {
+      isRenderingRef.current = false;
     }
-  };
+  }, []);
 
-  const debouncedRenderRef = useRef(null);
-
-  useEffect(() => {
-    if (!debouncedRenderRef.current) {
-      debouncedRenderRef.current = debounce((diagramContent) => {
-        renderDiagram(diagramContent);
-      }, 500);
-    }
-  });
+  const debouncedRender = useMemo(
+    () => debounce((diagramContent) => renderDiagram(diagramContent), 400),
+    [renderDiagram]
+  );
 
   useEffect(() => {
-    if (debouncedRenderRef.current) {
-      debouncedRenderRef.current(content);
+    if (content.trim()) {
+      debouncedRender(content);
     }
-    return () => {
-      if (debouncedRenderRef.current) {
-        debouncedRenderRef.current.cancel();
-      }
-    };
-  }, [content]);
+    return () => debouncedRender.cancel();
+  }, [content, debouncedRender]);
 
   const handleContentChange = (e) => {
     if (isReadOnly) return;
@@ -140,12 +120,25 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
 
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
-      <div className="border-b border-gray-200 p-2 flex items-center space-x-4">
-        <h2 className="text-lg font-medium">{t('diagram.title')}</h2>
-        {isReadOnly && (
-          <div className="ml-4 badge-readonly">
-            {t('common:permissions.readOnlyMode')}
-          </div>
+      <div className="border-b border-gray-200 p-2 flex items-center justify-between">
+        <div className="flex items-center">
+          {isReadOnly && (
+            <div className="badge-readonly">
+              {t('common:permissions.readOnlyMode')}
+            </div>
+          )}
+        </div>
+        {canAddToWhiteboard && !error && content.trim() && (
+          <button
+            onClick={onAddToWhiteboard}
+            className="px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm flex items-center shadow transition-all duration-200 font-medium hover:scale-105"
+            title={t('workspace:codeboard.addToWhiteboard')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {t('workspace:codeboard.addToWhiteboard')}
+          </button>
         )}
       </div>
       <div className="flex-1 flex">
@@ -163,24 +156,12 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
             </div>
           )}
         </div>
-        <div className="w-1/2 h-full p-4 overflow-auto relative">
+        <div className="w-1/2 h-full p-4 overflow-auto">
           <div
             ref={diagramRef}
             className="flex items-center justify-center h-full diagram-container"
             style={{ minHeight: '200px' }}
           ></div>
-          {canAddToWhiteboard && !error && content.trim() && (
-            <button
-              onClick={onAddToWhiteboard}
-              className="absolute bottom-6 right-6 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm flex items-center shadow-lg transition-all duration-200 font-medium hover:scale-105"
-              title={t('workspace:codeboard.addToWhiteboard')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {t('workspace:codeboard.addToWhiteboard')}
-            </button>
-          )}
         </div>
       </div>
     </div>

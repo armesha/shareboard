@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING } from '../constants';
+import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS } from '../constants';
 import { getWorkspaceId } from '../utils';
 
 export function useWhiteboardCanvas() {
@@ -104,10 +104,10 @@ export function useWhiteboardCanvas() {
       }
     };
 
-    canvas.on('path:created', handlePathCreated);
-    canvas.on('object:modified', handleObjectModified);
-    canvas.on('object:moving', handleObjectMoving);
-    canvas.on('text:changed', handleObjectModified);
+    canvas.on(FABRIC_EVENTS.PATH_CREATED, handlePathCreated);
+    canvas.on(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified);
+    canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
+    canvas.on(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified);
 
     const handleResize = () => {
       canvas.setDimensions({
@@ -121,10 +121,10 @@ export function useWhiteboardCanvas() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      canvas.off('path:created', handlePathCreated);
-      canvas.off('object:modified', handleObjectModified);
-      canvas.off('object:moving', handleObjectMoving);
-      canvas.off('text:changed', handleObjectModified);
+      canvas.off(FABRIC_EVENTS.PATH_CREATED, handlePathCreated);
+      canvas.off(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified);
+      canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
+      canvas.off(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified);
       canvas.dispose();
     };
   }, []);

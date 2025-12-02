@@ -14,12 +14,15 @@ export const config = {
     maxHttpBufferSize: 1e6,
   },
   cleanup: {
-    intervalMs: 60 * 60 * 1000,
-    inactiveThresholdMs: 24 * 60 * 60 * 1000
+    intervalMs: 5 * 60 * 1000,
+    inactiveThresholdMs: 15 * 60 * 1000
   },
   workspace: {
     keyLength: 6,
     userIdLength: 10
+  },
+  batch: {
+    interval: 50
   }
 };
 

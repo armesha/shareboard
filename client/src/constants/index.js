@@ -101,6 +101,7 @@ export const FABRIC_EVENTS = {
   MOUSE_DOWN: 'mouse:down',
   MOUSE_MOVE: 'mouse:move',
   MOUSE_UP: 'mouse:up',
+  MOUSE_WHEEL: 'mouse:wheel',
   MOUSE_DBLCLICK: 'mouse:dblclick',
   SELECTION_CREATED: 'selection:created',
   SELECTION_UPDATED: 'selection:updated',
@@ -165,6 +166,19 @@ export const TIMING = {
   RECONNECT_DELAY: 2000,
   RECONNECT_MAX_DELAY: 10000,
   COPY_SUCCESS_DURATION: 2000,
+  SOCKET_TIMEOUT: 20000,
+};
+
+export const SOCKET = {
+  MAX_RECONNECT_ATTEMPTS: 5,
+};
+
+export const TOAST = {
+  POSITION: 'bottom-right',
+};
+
+export const EXPORT = {
+  FILENAME_PREFIX: 'shareboard-export',
 };
 
 export const CANVAS = {
