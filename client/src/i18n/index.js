@@ -47,7 +47,6 @@ i18n
         validation: csValidation
       }
     },
-    lng: 'cs',
     fallbackLng: 'cs',
     defaultNS: 'common',
     ns: ['common', 'landing', 'workspace', 'sharing', 'toolbar', 'editor', 'messages', 'validation'],
