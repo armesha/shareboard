@@ -50,6 +50,7 @@ const ExportPreviewModal = ({
                 y: containerHeight / 2 - centerY
             });
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, objectsBounds, canvasDimensions]);
 
     const handleZoomIn = useCallback(() => {

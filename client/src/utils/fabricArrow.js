@@ -1,4 +1,5 @@
 import { fabric } from 'fabric';
+import { ARROW } from '../constants';
 
 fabric.Arrow = fabric.util.createClass(fabric.Line, {
   type: 'arrow',
@@ -6,8 +7,8 @@ fabric.Arrow = fabric.util.createClass(fabric.Line, {
   initialize: function(points, options) {
     options = options || {};
     this.callSuper('initialize', points, options);
-    this.set('headLength', options.headLength || 15);
-    this.set('headAngle', options.headAngle || Math.PI / 6);
+    this.set('headLength', options.headLength || ARROW.HEAD_LENGTH);
+    this.set('headAngle', options.headAngle || ARROW.HEAD_ANGLE);
   },
 
   _render: function(ctx) {
@@ -18,8 +19,8 @@ fabric.Arrow = fabric.util.createClass(fabric.Line, {
     const yDiff = p.y2 - p.y1;
     const angle = Math.atan2(yDiff, xDiff);
 
-    const headLength = this.headLength || 15;
-    const headAngle = this.headAngle || Math.PI / 6;
+    const headLength = this.headLength || ARROW.HEAD_LENGTH;
+    const headAngle = this.headAngle || ARROW.HEAD_ANGLE;
 
     ctx.moveTo(p.x1, p.y1);
     ctx.lineTo(p.x2, p.y2);

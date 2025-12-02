@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Editor from '@monaco-editor/react';
+import { Editor } from '@monaco-editor/react';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
 import { useSharing } from '../context/SharingContext';
@@ -30,7 +30,7 @@ export default function CodeEditor() {
     if (!content && language) {
       setContent(CODE_EXAMPLES[language] || '');
     }
-  }, []);
+  }, [content, language, setContent]);
 
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;

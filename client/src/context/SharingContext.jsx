@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSocket } from './SocketContext';
-import { SOCKET_EVENTS, STORAGE_KEYS, SHARING_MODES, TIMING } from '../constants';
+import { SOCKET_EVENTS, STORAGE_KEYS, SHARING_MODES } from '../constants';
+import { getPersistentUserId } from '../utils';
 
 const SharingContext = createContext(null);
 
@@ -19,13 +20,8 @@ export function SharingProvider({ children, workspaceId }) {
   const [workspaceOwner, setWorkspaceOwner] = useState(null);
   const [sharingInfoReceived, setSharingInfoReceived] = useState(false);
 
-  // Initialize persistent user ID
   useEffect(() => {
-    let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
-    if (!userId) {
-      userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
-    }
+    const userId = getPersistentUserId();
     setPersistentUserId(userId);
     setCurrentUser(userId);
 

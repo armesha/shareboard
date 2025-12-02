@@ -13,8 +13,8 @@ const getRecentColors = () => {
         return parsed.slice(0, MAX_RECENT_COLORS);
       }
     }
-  } catch (_e) {
-    // ignore
+  } catch {
+    return [];
   }
   return [];
 };
@@ -27,8 +27,8 @@ const saveRecentColor = (color, recentColors) => {
   const updated = [color, ...filtered].slice(0, MAX_RECENT_COLORS);
   try {
     localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(updated));
-  } catch (_e) {
-    // ignore
+  } catch {
+    return recentColors;
   }
   return updated;
 };

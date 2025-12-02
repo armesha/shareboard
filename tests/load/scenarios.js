@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { SimulatedUser } from './SimulatedUser.js';
-import { TIMING, TEST_PROFILES } from './config.js';
+import { TIMING } from './config.js';
 
 export async function runScenario(profile, metrics, options = {}) {
   const workspaceId = options.workspaceId || `load-test-${uuidv4().slice(0, 8)}`;

@@ -9,7 +9,7 @@ export const MAX_DRAWINGS = 5000;
 
 export function handleJoinWorkspace(
   { workspaceId, userId, accessToken },
-  { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
+  { socket, io, currentUser, currentWorkspaceRef }
 ) {
   try {
     let workspace = workspaceService.getWorkspace(workspaceId);
@@ -390,9 +390,9 @@ export function handleInviteUser({ workspaceId, email }, callback) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    const odUserId = email.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    callback?.({ userId: odUserId });
-    return { success: true, odUserId };
+    const userId = email.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    callback?.({ userId });
+    return { success: true, userId };
   } catch (error) {
     callback?.({ error: 'Failed to invite user' });
     return { success: false, error };

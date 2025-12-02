@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSharing } from '../context/SharingContext';
 import { useSocket } from '../context/SocketContext';
-import { SOCKET_EVENTS, SHARING_MODES, STORAGE_KEYS } from '../constants';
+import { SOCKET_EVENTS, SHARING_MODES, STORAGE_KEYS, TIMING } from '../constants';
 
 export default function SharingSettings({ workspaceId, onClose }) {
   const { t } = useTranslation(['sharing', 'common']);
@@ -74,7 +74,7 @@ export default function SharingSettings({ workspaceId, onClose }) {
     } else {
       setCopySuccess('view');
     }
-    setTimeout(() => setCopySuccess(''), 2000);
+    setTimeout(() => setCopySuccess(''), TIMING.COPY_SUCCESS_DURATION);
   };
 
   if (!isOwner) {

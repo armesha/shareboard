@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
+import { getWorkspaceId } from '../utils';
+import { SOCKET_EVENTS } from '../constants';
 import debounce from 'lodash/debounce';
 
 const CodeEditorContext = createContext(null);
@@ -19,7 +21,7 @@ export function CodeEditorProvider({ children }) {
 
   const emitCodeChange = useCallback((workspaceId, language, newContent) => {
     if (socket && newContent !== lastEmittedContent) {
-      socket.emit('code-update', {
+      socket.emit(SOCKET_EVENTS.CODE_UPDATE, {
         workspaceId,
         language,
         content: newContent
@@ -28,6 +30,7 @@ export function CodeEditorProvider({ children }) {
     }
   }, [socket, lastEmittedContent]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedEmit = useCallback(
     debounce((workspaceId, language, content) => {
       emitCodeChange(workspaceId, language, content);
@@ -49,9 +52,9 @@ export function CodeEditorProvider({ children }) {
       }
     };
 
-    socket.on('code-update', handleCodeUpdate);
+    socket.on(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
 
-    socket.on('workspace-state', (state) => {
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, (state) => {
       if (state.codeSnippets) {
         setLanguage(state.codeSnippets.language);
         setContent(state.codeSnippets.content);
@@ -60,15 +63,15 @@ export function CodeEditorProvider({ children }) {
     });
 
     return () => {
-      socket.off('code-update');
-      socket.off('workspace-state');
+      socket.off(SOCKET_EVENTS.CODE_UPDATE);
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE);
     };
   }, [socket, isEditing, content]);
 
   const updateCode = useCallback((newContent) => {
     lastLocalChangeRef.current = Date.now();
     setContent(newContent);
-    const workspaceId = window.location.pathname.split('/')[2];
+    const workspaceId = getWorkspaceId();
 
     if (Math.abs(newContent.length - content.length) <= 1) {
       emitCodeChange(workspaceId, language, newContent);
@@ -79,7 +82,7 @@ export function CodeEditorProvider({ children }) {
 
   const updateLanguage = useCallback((newLanguage) => {
     setLanguage(newLanguage);
-    const workspaceId = window.location.pathname.split('/')[2];
+    const workspaceId = getWorkspaceId();
     emitCodeChange(workspaceId, newLanguage, content);
   }, [content, emitCodeChange]);
 

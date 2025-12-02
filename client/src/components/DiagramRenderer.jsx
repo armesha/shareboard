@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
@@ -44,7 +44,7 @@ export default function DiagramRenderer() {
 
   const renderIdRef = useRef(0);
 
-  const renderDiagram = useCallback(async (diagramContent) => {
+  const renderDiagram = async (diagramContent) => {
     if (!diagramRef.current) return;
 
     try {
@@ -110,19 +110,28 @@ export default function DiagramRenderer() {
     } catch (err) {
       setError(err.message || 'Failed to render diagram');
     }
-  }, []);
+  };
 
-  const debouncedRender = useCallback(
-    debounce((diagramContent) => {
-      renderDiagram(diagramContent);
-    }, 500),
-    [renderDiagram]
-  );
+  const debouncedRenderRef = useRef(null);
 
   useEffect(() => {
-    debouncedRender(content);
-    return () => debouncedRender.cancel();
-  }, [content, debouncedRender]);
+    if (!debouncedRenderRef.current) {
+      debouncedRenderRef.current = debounce((diagramContent) => {
+        renderDiagram(diagramContent);
+      }, 500);
+    }
+  });
+
+  useEffect(() => {
+    if (debouncedRenderRef.current) {
+      debouncedRenderRef.current(content);
+    }
+    return () => {
+      if (debouncedRenderRef.current) {
+        debouncedRenderRef.current.cancel();
+      }
+    };
+  }, [content]);
 
   const handleContentChange = (e) => {
     if (isReadOnly) return;

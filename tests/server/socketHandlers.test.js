@@ -91,31 +91,31 @@ describe('socketHandlers', () => {
     currentWorkspaceRef = { current: null };
     queueUpdate = vi.fn();
 
-    workspaceService.getWorkspace = vi.fn();
-    workspaceService.createWorkspace = vi.fn();
-    workspaceService.addConnection = vi.fn();
-    workspaceService.removeConnection = vi.fn();
-    workspaceService.getActiveUserCount = vi.fn().mockReturnValue(1);
-    workspaceService.updateLastActivity = vi.fn();
-    workspaceService.getWorkspaceState = vi.fn().mockReturnValue({ drawings: [], code: null });
-    workspaceService.findWorkspaceIdByRef = vi.fn();
-    workspaceService.setUserSession = vi.fn();
-    workspaceService.removeUserSession = vi.fn();
-    workspaceService.updateSharingMode = vi.fn().mockReturnValue(true);
-    workspaceService.getActiveConnections = vi.fn().mockReturnValue([]);
+    vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
+    vi.mocked(workspaceService.createWorkspace).mockReturnValue(null);
+    vi.mocked(workspaceService.addConnection).mockReturnValue(undefined);
+    vi.mocked(workspaceService.removeConnection).mockReturnValue(undefined);
+    vi.mocked(workspaceService.getActiveUserCount).mockReturnValue(1);
+    vi.mocked(workspaceService.updateLastActivity).mockReturnValue(undefined);
+    vi.mocked(workspaceService.getWorkspaceState).mockReturnValue({ drawings: [], code: null });
+    vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue(null);
+    vi.mocked(workspaceService.setUserSession).mockReturnValue(undefined);
+    vi.mocked(workspaceService.removeUserSession).mockReturnValue(undefined);
+    vi.mocked(workspaceService.updateSharingMode).mockReturnValue(true);
+    vi.mocked(workspaceService.getActiveConnections).mockReturnValue([]);
 
-    permissionService.calculateEditAccess = vi.fn().mockReturnValue({ hasEditAccess: true, isOwner: false });
-    permissionService.checkWritePermission = vi.fn().mockReturnValue(true);
-    permissionService.checkOwnership = vi.fn().mockReturnValue(false);
-    permissionService.validateAndSetToken = vi.fn();
-    permissionService.getSharingInfo = vi.fn().mockReturnValue({});
+    vi.mocked(permissionService.calculateEditAccess).mockReturnValue({ hasEditAccess: true, isOwner: false });
+    vi.mocked(permissionService.checkWritePermission).mockReturnValue(true);
+    vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
+    vi.mocked(permissionService.validateAndSetToken).mockReturnValue(undefined);
+    vi.mocked(permissionService.getSharingInfo).mockReturnValue({});
   });
 
   describe('handleJoinWorkspace', () => {
     it('should create new workspace if not exists', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(null);
-      workspaceService.createWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
+      vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
       const result = handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -129,7 +129,7 @@ describe('socketHandlers', () => {
 
     it('should join existing workspace', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -143,8 +143,8 @@ describe('socketHandlers', () => {
 
     it('should set owner for new workspace', () => {
       const workspace = createMockWorkspace({ owner: null });
-      workspaceService.getWorkspace.mockReturnValue(null);
-      workspaceService.createWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
+      vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
       handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -158,7 +158,7 @@ describe('socketHandlers', () => {
 
     it('should emit WORKSPACE_STATE and SHARING_INFO', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -173,7 +173,7 @@ describe('socketHandlers', () => {
       const prevWorkspace = createMockWorkspace();
       const newWorkspace = createMockWorkspace();
       currentWorkspaceRef.current = prevWorkspace;
-      workspaceService.findWorkspaceIdByRef.mockReturnValue('prev-ws');
+      vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue('prev-ws');
       workspaceService.getWorkspace.mockReturnValue(newWorkspace);
 
       handleJoinWorkspace(
@@ -187,7 +187,7 @@ describe('socketHandlers', () => {
 
     it('should validate access token', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: 'edit_token123' },
@@ -198,7 +198,7 @@ describe('socketHandlers', () => {
     });
 
     it('should emit error on exception', () => {
-      workspaceService.getWorkspace.mockImplementation(() => { throw new Error('Test error'); });
+      vi.mocked(workspaceService.getWorkspace).mockImplementation(() => { throw new Error('Test error'); });
 
       const result = handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -211,8 +211,8 @@ describe('socketHandlers', () => {
 
     it('should use socket.id as userId if not provided', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(null);
-      workspaceService.createWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
+      vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
       handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: null, accessToken: null },
@@ -224,8 +224,8 @@ describe('socketHandlers', () => {
 
     it('should broadcast USER_JOINED event', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      workspaceService.getActiveUserCount.mockReturnValue(5);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(workspaceService.getActiveUserCount).mockReturnValue(5);
 
       handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
@@ -240,7 +240,7 @@ describe('socketHandlers', () => {
   describe('handleWhiteboardUpdate', () => {
     it('should update whiteboard with valid elements', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect' }] },
@@ -253,7 +253,7 @@ describe('socketHandlers', () => {
     });
 
     it('should reject if workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
 
       const result = handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1' }] },
@@ -266,7 +266,7 @@ describe('socketHandlers', () => {
 
     it('should reject if elements is not array', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: 'not-array' },
@@ -279,7 +279,7 @@ describe('socketHandlers', () => {
 
     it('should reject if too many elements', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const tooManyElements = Array(MAX_ELEMENTS_PER_UPDATE + 1).fill({ id: 'el' });
 
       const result = handleWhiteboardUpdate(
@@ -294,8 +294,8 @@ describe('socketHandlers', () => {
 
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1' }] },
@@ -309,7 +309,7 @@ describe('socketHandlers', () => {
 
     it('should add timestamp to elements', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect' }] },
@@ -323,7 +323,7 @@ describe('socketHandlers', () => {
 
     it('should skip elements without id', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ type: 'rect' }, { id: 'el-1' }] },
@@ -337,7 +337,7 @@ describe('socketHandlers', () => {
     it('should update existing elements', () => {
       const workspace = createMockWorkspace();
       workspace.drawingsMap.set('el-1', { id: 'el-1', x: 0 });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1', x: 100 }] },
@@ -350,7 +350,7 @@ describe('socketHandlers', () => {
     it('should add to drawingOrder for new elements only', () => {
       const workspace = createMockWorkspace();
       workspace.drawingsMap.set('el-1', { id: 'el-1' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1' }, { id: 'el-2' }] },
@@ -368,7 +368,7 @@ describe('socketHandlers', () => {
       workspace.drawingsMap.set('el-1', { id: 'el-1' });
       workspace.allDrawingsMap.set('el-1', { id: 'el-1' });
       workspace.drawingOrder.push('el-1');
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleWhiteboardClear({ workspaceId: 'ws-1' }, { socket, currentUser });
 
@@ -381,7 +381,7 @@ describe('socketHandlers', () => {
 
     it('should broadcast WHITEBOARD_CLEAR event', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardClear({ workspaceId: 'ws-1' }, { socket, currentUser });
 
@@ -389,7 +389,7 @@ describe('socketHandlers', () => {
     });
 
     it('should reject if workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
 
       const result = handleWhiteboardClear({ workspaceId: 'ws-1' }, { socket, currentUser });
 
@@ -399,8 +399,8 @@ describe('socketHandlers', () => {
 
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleWhiteboardClear({ workspaceId: 'ws-1' }, { socket, currentUser });
 
@@ -415,7 +415,7 @@ describe('socketHandlers', () => {
       const workspace = createMockWorkspace();
       workspace.drawingsMap.set('el-1', { id: 'el-1' });
       workspace.allDrawingsMap.set('el-1', { id: 'el-1' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDeleteElement({ workspaceId: 'ws-1', elementId: 'el-1' }, { socket, currentUser });
 
@@ -427,7 +427,7 @@ describe('socketHandlers', () => {
     it('should broadcast DELETE_ELEMENT event', () => {
       const workspace = createMockWorkspace();
       workspace.drawingsMap.set('el-1', { id: 'el-1' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleDeleteElement({ workspaceId: 'ws-1', elementId: 'el-1' }, { socket, currentUser });
 
@@ -435,7 +435,7 @@ describe('socketHandlers', () => {
     });
 
     it('should reject if workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
 
       const result = handleDeleteElement({ workspaceId: 'ws-1', elementId: 'el-1' }, { socket, currentUser });
 
@@ -445,7 +445,7 @@ describe('socketHandlers', () => {
 
     it('should reject if elementId is missing', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDeleteElement({ workspaceId: 'ws-1', elementId: null }, { socket, currentUser });
 
@@ -456,8 +456,8 @@ describe('socketHandlers', () => {
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
       workspace.drawingsMap.set('el-1', { id: 'el-1' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleDeleteElement({ workspaceId: 'ws-1', elementId: 'el-1' }, { socket, currentUser });
 
@@ -471,7 +471,7 @@ describe('socketHandlers', () => {
       const workspace = createMockWorkspace();
       workspace.diagrams.set('diag-1', { id: 'diag-1' });
       workspace.drawings = [{ id: 'diag-1' }, { id: 'el-1' }];
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDeleteDiagram({ workspaceId: 'ws-1', diagramId: 'diag-1' }, { socket, currentUser });
 
@@ -483,7 +483,7 @@ describe('socketHandlers', () => {
     it('should broadcast DELETE_DIAGRAM event', () => {
       const workspace = createMockWorkspace();
       workspace.diagrams.set('diag-1', { id: 'diag-1' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleDeleteDiagram({ workspaceId: 'ws-1', diagramId: 'diag-1' }, { socket, currentUser });
 
@@ -492,8 +492,8 @@ describe('socketHandlers', () => {
 
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleDeleteDiagram({ workspaceId: 'ws-1', diagramId: 'diag-1' }, { socket, currentUser });
 
@@ -505,7 +505,7 @@ describe('socketHandlers', () => {
   describe('handleCodeUpdate', () => {
     it('should update code with valid content', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleCodeUpdate(
         { workspaceId: 'ws-1', language: 'javascript', content: 'console.log("test")' },
@@ -518,7 +518,7 @@ describe('socketHandlers', () => {
 
     it('should broadcast CODE_UPDATE event', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleCodeUpdate(
         { workspaceId: 'ws-1', language: 'javascript', content: 'code' },
@@ -530,7 +530,7 @@ describe('socketHandlers', () => {
 
     it('should reject if content is not string', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleCodeUpdate(
         { workspaceId: 'ws-1', language: 'javascript', content: 12345 },
@@ -544,7 +544,7 @@ describe('socketHandlers', () => {
 
     it('should reject if content exceeds MAX_CODE_LENGTH', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const hugeContent = 'x'.repeat(MAX_CODE_LENGTH + 1);
 
       const result = handleCodeUpdate(
@@ -558,8 +558,8 @@ describe('socketHandlers', () => {
 
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleCodeUpdate(
         { workspaceId: 'ws-1', language: 'javascript', content: 'code' },
@@ -572,7 +572,7 @@ describe('socketHandlers', () => {
 
     it('should accept content at exactly MAX_CODE_LENGTH', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const maxContent = 'x'.repeat(MAX_CODE_LENGTH);
 
       const result = handleCodeUpdate(
@@ -587,7 +587,7 @@ describe('socketHandlers', () => {
   describe('handleDiagramUpdate', () => {
     it('should update diagram with valid content', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDiagramUpdate(
         { workspaceId: 'ws-1', content: 'graph TD\n  A-->B' },
@@ -600,7 +600,7 @@ describe('socketHandlers', () => {
 
     it('should emit to room (excluding sender)', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleDiagramUpdate(
         { workspaceId: 'ws-1', content: 'graph' },
@@ -612,7 +612,7 @@ describe('socketHandlers', () => {
 
     it('should reject if content exceeds MAX_DIAGRAM_LENGTH', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const hugeContent = 'x'.repeat(MAX_DIAGRAM_LENGTH + 1);
 
       const result = handleDiagramUpdate(
@@ -626,7 +626,7 @@ describe('socketHandlers', () => {
 
     it('should reject if content is not string', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDiagramUpdate(
         { workspaceId: 'ws-1', content: { mermaid: 'graph' } },
@@ -639,8 +639,8 @@ describe('socketHandlers', () => {
 
     it('should reject if no write permission', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       const result = handleDiagramUpdate(
         { workspaceId: 'ws-1', content: 'graph' },
@@ -655,9 +655,9 @@ describe('socketHandlers', () => {
   describe('handleGetEditToken', () => {
     it('should return edit token for owner', () => {
       const workspace = createMockWorkspace({ editToken: 'edit_secret' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       currentUser.userId = 'owner-123';
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
       const callback = vi.fn();
 
       const result = handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -668,9 +668,9 @@ describe('socketHandlers', () => {
 
     it('should return edit token for user with isOwner flag', () => {
       const workspace = createMockWorkspace({ editToken: 'edit_secret' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       currentUser.isOwner = true;
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
       const callback = vi.fn();
 
       const result = handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -681,9 +681,9 @@ describe('socketHandlers', () => {
 
     it('should reject if not owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       currentUser.isOwner = false;
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
       const callback = vi.fn();
 
       const result = handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -694,7 +694,7 @@ describe('socketHandlers', () => {
     });
 
     it('should handle workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       const callback = vi.fn();
 
       const result = handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -706,8 +706,8 @@ describe('socketHandlers', () => {
 
     it('should handle null edit token', () => {
       const workspace = createMockWorkspace({ editToken: null });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
       const callback = vi.fn();
 
       handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -719,8 +719,8 @@ describe('socketHandlers', () => {
   describe('handleSetEditToken', () => {
     it('should set edit token for owner', () => {
       const workspace = createMockWorkspace({ editToken: null });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const result = handleSetEditToken(
         { workspaceId: 'ws-1', editToken: 'edit_newtoken' },
@@ -733,8 +733,8 @@ describe('socketHandlers', () => {
 
     it('should broadcast EDIT_TOKEN_UPDATED event', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       handleSetEditToken(
         { workspaceId: 'ws-1', editToken: 'edit_newtoken' },
@@ -747,9 +747,9 @@ describe('socketHandlers', () => {
 
     it('should reject if not owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       currentUser.isOwner = false;
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
 
       const result = handleSetEditToken(
         { workspaceId: 'ws-1', editToken: 'edit_token' },
@@ -762,8 +762,8 @@ describe('socketHandlers', () => {
 
     it('should reject token not starting with edit_', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const result = handleSetEditToken(
         { workspaceId: 'ws-1', editToken: 'invalid_token' },
@@ -776,8 +776,8 @@ describe('socketHandlers', () => {
 
     it('should reject null token', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const result = handleSetEditToken(
         { workspaceId: 'ws-1', editToken: null },
@@ -792,8 +792,8 @@ describe('socketHandlers', () => {
   describe('handleChangeSharingMode', () => {
     it('should change sharing mode for owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const result = handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: SHARING_MODES.READ_WRITE_ALL },
@@ -806,8 +806,8 @@ describe('socketHandlers', () => {
 
     it('should broadcast SHARING_MODE_CHANGED event', () => {
       const workspace = createMockWorkspace({ editToken: 'edit_token' });
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: SHARING_MODES.READ_ONLY },
@@ -823,8 +823,8 @@ describe('socketHandlers', () => {
 
     it('should reject if not owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
 
       const result = handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: SHARING_MODES.READ_ONLY },
@@ -838,8 +838,8 @@ describe('socketHandlers', () => {
 
     it('should reject invalid sharing mode', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const result = handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: 'invalid-mode' },
@@ -852,7 +852,7 @@ describe('socketHandlers', () => {
     });
 
     it('should handle workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
 
       const result = handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: SHARING_MODES.READ_ONLY },
@@ -865,8 +865,8 @@ describe('socketHandlers', () => {
 
     it('should accept all valid sharing modes', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       for (const mode of Object.values(SHARING_MODES)) {
         const result = handleChangeSharingMode(
@@ -881,9 +881,9 @@ describe('socketHandlers', () => {
   describe('handleEndSession', () => {
     it('should end session for owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
-      workspaceService.getActiveConnections.mockReturnValue([]);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
+      vi.mocked(workspaceService.getActiveConnections).mockReturnValue([]);
 
       const result = handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -892,8 +892,8 @@ describe('socketHandlers', () => {
 
     it('should emit SESSION_ENDED to all clients', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -903,12 +903,12 @@ describe('socketHandlers', () => {
 
     it('should disconnect other clients from workspace', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const otherSocket = { id: 'other-socket', leave: vi.fn() };
       io.sockets.sockets.set('other-socket', otherSocket);
-      workspaceService.getActiveConnections.mockReturnValue(['other-socket', 'socket-123']);
+      vi.mocked(workspaceService.getActiveConnections).mockReturnValue(['other-socket', 'socket-123']);
 
       const result = handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -918,12 +918,12 @@ describe('socketHandlers', () => {
 
     it('should not disconnect owner socket', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(true);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
 
       const ownerSocketInMap = { id: 'socket-123', leave: vi.fn() };
       io.sockets.sockets.set('socket-123', ownerSocketInMap);
-      workspaceService.getActiveConnections.mockReturnValue(['socket-123']);
+      vi.mocked(workspaceService.getActiveConnections).mockReturnValue(['socket-123']);
 
       handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -932,8 +932,8 @@ describe('socketHandlers', () => {
 
     it('should reject if not owner', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
 
       const result = handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -943,7 +943,7 @@ describe('socketHandlers', () => {
     });
 
     it('should handle workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
 
       const result = handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -965,7 +965,7 @@ describe('socketHandlers', () => {
     it('should remove connection from workspace', () => {
       const workspace = createMockWorkspace();
       currentWorkspaceRef.current = workspace;
-      workspaceService.findWorkspaceIdByRef.mockReturnValue('ws-1');
+      vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue('ws-1');
 
       handleDisconnect({ socket, io, currentWorkspaceRef });
 
@@ -975,8 +975,8 @@ describe('socketHandlers', () => {
     it('should emit USER_LEFT event', () => {
       const workspace = createMockWorkspace();
       currentWorkspaceRef.current = workspace;
-      workspaceService.findWorkspaceIdByRef.mockReturnValue('ws-1');
-      workspaceService.getActiveUserCount.mockReturnValue(3);
+      vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue('ws-1');
+      vi.mocked(workspaceService.getActiveUserCount).mockReturnValue(3);
 
       handleDisconnect({ socket, io, currentWorkspaceRef });
 
@@ -996,7 +996,7 @@ describe('socketHandlers', () => {
     it('should handle workspace not found by ref', () => {
       const workspace = createMockWorkspace();
       currentWorkspaceRef.current = workspace;
-      workspaceService.findWorkspaceIdByRef.mockReturnValue(null);
+      vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue(null);
 
       const result = handleDisconnect({ socket, io, currentWorkspaceRef });
 
@@ -1008,7 +1008,7 @@ describe('socketHandlers', () => {
   describe('handleInviteUser', () => {
     it('should generate userId from email', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const callback = vi.fn();
 
       const result = handleInviteUser({ workspaceId: 'ws-1', email: 'Test.User@Example.com' }, callback);
@@ -1028,7 +1028,7 @@ describe('socketHandlers', () => {
     });
 
     it('should handle workspace not found', () => {
-      workspaceService.getWorkspace.mockReturnValue(null);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       const callback = vi.fn();
 
       const result = handleInviteUser({ workspaceId: 'ws-1', email: 'test@example.com' }, callback);
@@ -1040,7 +1040,7 @@ describe('socketHandlers', () => {
 
     it('should handle special characters in email', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       const callback = vi.fn();
 
       handleInviteUser({ workspaceId: 'ws-1', email: 'user+tag@example.com' }, callback);
@@ -1052,8 +1052,8 @@ describe('socketHandlers', () => {
   describe('security: permission checks', () => {
     it('should always check write permission before whiteboard update', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       handleWhiteboardUpdate(
         { workspaceId: 'ws-1', elements: [{ id: 'el-1' }] },
@@ -1066,8 +1066,8 @@ describe('socketHandlers', () => {
 
     it('should always check write permission before code update', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkWritePermission.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkWritePermission).mockReturnValue(false);
 
       handleCodeUpdate(
         { workspaceId: 'ws-1', language: 'js', content: 'code' },
@@ -1080,8 +1080,8 @@ describe('socketHandlers', () => {
 
     it('should always check ownership before changing sharing mode', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
 
       handleChangeSharingMode(
         { workspaceId: 'ws-1', sharingMode: SHARING_MODES.READ_ONLY },
@@ -1094,8 +1094,8 @@ describe('socketHandlers', () => {
 
     it('should always check ownership before ending session', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
-      permissionService.checkOwnership.mockReturnValue(false);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
 
       handleEndSession({ workspaceId: 'ws-1' }, { socket, io, currentUser });
 
@@ -1106,7 +1106,7 @@ describe('socketHandlers', () => {
   describe('input validation', () => {
     it('should validate elements array in whiteboard update', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result1 = handleWhiteboardUpdate({ workspaceId: 'ws-1', elements: null }, { socket, currentUser, queueUpdate });
       expect(result1.success).toBe(false);
@@ -1120,7 +1120,7 @@ describe('socketHandlers', () => {
 
     it('should validate content type in code update', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result1 = handleCodeUpdate({ workspaceId: 'ws-1', language: 'js', content: null }, { socket, currentUser });
       expect(result1.success).toBe(false);
@@ -1134,7 +1134,7 @@ describe('socketHandlers', () => {
 
     it('should validate content length in diagram update', () => {
       const workspace = createMockWorkspace();
-      workspaceService.getWorkspace.mockReturnValue(workspace);
+      vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const validContent = 'x'.repeat(MAX_DIAGRAM_LENGTH);
       const result1 = handleDiagramUpdate({ workspaceId: 'ws-1', content: validContent }, { socket, currentUser });

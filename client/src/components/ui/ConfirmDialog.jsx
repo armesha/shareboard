@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 const ConfirmDialog = React.memo(function ConfirmDialog({
   isOpen,
@@ -98,7 +97,9 @@ const ConfirmDialog = React.memo(function ConfirmDialog({
         <div className="p-5 pb-4">
           <div className="flex items-start gap-3">
             <div className={`flex-shrink-0 ${styles.icon}`}>
-              <WarningAmberIcon className="w-5 h-5" />
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
             </div>
             <div className="flex-1">
               <h3

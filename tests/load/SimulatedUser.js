@@ -31,7 +31,7 @@ export class SimulatedUser {
     const rand = Math.random();
     let cumulative = 0;
 
-    for (const [name, behavior] of Object.entries(USER_BEHAVIOR)) {
+    for (const behavior of Object.values(USER_BEHAVIOR)) {
       cumulative += behavior.weight;
       if (rand <= cumulative) {
         return behavior;

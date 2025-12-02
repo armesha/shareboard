@@ -9,6 +9,7 @@ import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
 import { SOCKET_EVENTS, STORAGE_KEYS } from '../constants';
 import { toast } from 'react-toastify';
+import { getPersistentUserId } from '../utils';
 
 function WorkspaceLayout() {
   const { workspaceId } = useParams();
@@ -24,8 +25,6 @@ function WorkspaceLayout() {
   const [initialMouseX, setInitialMouseX] = useState(null);
   const [initialWidth, setInitialWidth] = useState(null);
   const [showSharingSettings, setShowSharingSettings] = useState(false);
-  const [status, setStatus] = useState('connecting');
-  const [isConnected, setIsConnected] = useState(false);
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
@@ -33,13 +32,8 @@ function WorkspaceLayout() {
   const MAX_WIDTH_PERCENT = 70;
   const navigate = useNavigate();
 
-  // Get persistent userId from localStorage
   useEffect(() => {
-    let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
-    if (!userId) {
-      userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
-    }
+    const userId = getPersistentUserId();
     setPersistentUserId(userId);
   }, []);
 
@@ -105,27 +99,6 @@ function WorkspaceLayout() {
     setShowSharingSettings(!showSharingSettings);
   };
 
-  useEffect(() => {
-    if (!socket || !persistentUserId) return;
-
-    const handleConnect = () => {
-      setIsConnected(true);
-    };
-
-    const handleDisconnect = () => {
-      setIsConnected(false);
-    };
-
-    setIsConnected(socket.connected);
-
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-
-    return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-    };
-  }, [socket, persistentUserId]);
 
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
@@ -136,17 +109,6 @@ function WorkspaceLayout() {
       }
     };
 
-    const handleConnectStatus = () => {
-      setStatus('connected');
-    };
-
-    const handleDisconnectStatus = () => {
-      setStatus('disconnected');
-    };
-
-    const handleErrorStatus = () => {
-      setStatus('error');
-    };
 
     const handleSessionEnded = (data) => {
       toast.info(data.message, {
@@ -163,23 +125,13 @@ function WorkspaceLayout() {
     };
 
     socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
-    socket.on('connect', handleConnectStatus);
-    socket.on('disconnect', handleDisconnectStatus);
-    socket.on('error', handleErrorStatus);
     socket.on(SOCKET_EVENTS.SESSION_ENDED, handleSessionEnded);
-
-    if (socket.connected) {
-      setStatus('connected');
-    }
 
     return () => {
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
-      socket.off('connect', handleConnectStatus);
-      socket.off('disconnect', handleDisconnectStatus);
-      socket.off('error', handleErrorStatus);
       socket.off(SOCKET_EVENTS.SESSION_ENDED, handleSessionEnded);
     };
-  }, [socket, workspaceId, persistentUserId, setStatus, navigate]);
+  }, [socket, workspaceId, persistentUserId, navigate]);
 
   useEffect(() => {
     if (isOwner && isNewWorkspace && !showSharingSettings) {

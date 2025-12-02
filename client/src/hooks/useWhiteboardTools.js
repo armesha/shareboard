@@ -1,0 +1,106 @@
+import { useState, useCallback, useEffect } from 'react';
+import { TOOLS, INTERACTIVE_TYPES } from '../constants';
+
+export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) {
+  const [tool, setTool] = useState(TOOLS.SELECT);
+  const [selectedShape, setSelectedShape] = useState(null);
+  const [color, setColor] = useState('#000000');
+  const [width, setWidth] = useState(2);
+
+  const handleColorChange = useCallback((newColor, setCanvasDrawingMode) => {
+    setColor(newColor);
+
+    const canvas = canvasRef.current;
+    if (canvas && canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = newColor;
+    }
+
+    if (setCanvasDrawingMode) {
+      setCanvasDrawingMode(tool === TOOLS.PEN && canWrite(), newColor, width);
+    }
+  }, [tool, canvasRef, canWrite, width]);
+
+  const handleWidthChange = useCallback((newWidth) => {
+    setWidth(newWidth);
+
+    const canvas = canvasRef.current;
+    if (canvas && canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.width = newWidth;
+    }
+  }, [canvasRef]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const shouldBeDrawingMode = tool === TOOLS.PEN && canWrite();
+
+    if (canvas.isDrawingMode !== shouldBeDrawingMode) {
+      canvas.isDrawingMode = shouldBeDrawingMode;
+
+      if (shouldBeDrawingMode && canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.color = color;
+        canvas.freeDrawingBrush.width = width;
+        canvas.freeDrawingBrush.strokeLineCap = 'round';
+        canvas.freeDrawingBrush.strokeLineJoin = 'round';
+      }
+
+      canvas.requestRenderAll();
+    }
+
+    const userCanDraw = !isLoading && isConnected && canWrite();
+    canvas.selection = userCanDraw && (tool === TOOLS.SELECT);
+
+    canvas.getObjects().forEach(obj => {
+      const isInteractive = INTERACTIVE_TYPES.includes(obj.type);
+      const isSelectable = userCanDraw && (tool === TOOLS.SELECT || tool === TOOLS.TEXT || tool === TOOLS.SHAPES) && isInteractive;
+
+      obj.set({
+        selectable: isSelectable,
+        hasControls: isSelectable,
+        hasBorders: isSelectable,
+        evented: isSelectable,
+        lockMovementX: !isSelectable,
+        lockMovementY: !isSelectable,
+        lockRotation: !isSelectable,
+        lockScalingX: !isSelectable,
+        lockScalingY: !isSelectable
+      });
+    });
+
+    canvas.skipTargetFind = !userCanDraw || (tool !== TOOLS.SELECT);
+    canvas.requestRenderAll();
+  }, [tool, isLoading, isConnected, canWrite, canvasRef, color, width]);
+
+  useEffect(() => {
+    if (!canWrite() && (tool !== TOOLS.SELECT || selectedShape !== null)) {
+      setTool(TOOLS.SELECT);
+      setSelectedShape(null);
+    }
+  }, [canWrite, tool, selectedShape]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (tool === TOOLS.PEN) {
+      const hasPermission = canWrite();
+      canvas.isDrawingMode = hasPermission;
+
+      if (!hasPermission) {
+        setTool(TOOLS.SELECT);
+      }
+    }
+  }, [canWrite, tool, canvasRef]);
+
+  return {
+    tool,
+    selectedShape,
+    color,
+    width,
+    setTool,
+    setSelectedShape,
+    setColor: handleColorChange,
+    setWidth: handleWidthChange
+  };
+}

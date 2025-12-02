@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
-import { ZoomControls } from './ui';
 import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
@@ -13,7 +12,6 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
   const canvasRef = useRef(null);
   const isUpdatingRef = useRef(false);
   const lastEmitTimeRef = useRef(0);
-  const [zoom, setZoom] = useState(1);
   const isPanningRef = useRef(false);
   const lastPanPointRef = useRef(null);
   const isSpacePressedRef = useRef(false);
@@ -28,6 +26,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
     addElement,
     updateElement,
     setTool,
+    setZoomState,
   } = useWhiteboard();
 
   const canvas = fabricCanvasRef.current;
@@ -377,7 +376,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
       canvas.zoomToPoint(point, newZoom);
       canvas.requestRenderAll();
-      setZoom(newZoom);
+      setZoomState(newZoom);
     };
 
     const handleContextMenu = (e) => {
@@ -401,16 +400,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
       canvas.off('mouse:wheel', handleWheel);
       canvas.upperCanvasEl?.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [canvas]);
-
-  const handleZoomChange = useCallback((newZoom) => {
-    setZoom(newZoom);
-    if (canvas) {
-      const center = canvas.getCenter();
-      canvas.zoomToPoint({ x: center.left, y: center.top }, newZoom);
-      canvas.requestRenderAll();
-    }
-  }, [canvas]);
+  }, [canvas, setZoomState]);
 
   return (
     <>
@@ -421,7 +411,6 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false }) {
             userSelect: disabled ? 'none' : 'auto'
           }}
         />
-        <ZoomControls zoom={zoom} onZoomChange={handleZoomChange} />
       </div>
     </>
   );

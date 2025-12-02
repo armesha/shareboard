@@ -1,24 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { STORAGE_KEYS } from '../constants';
 import { LanguageSwitcher } from '../components/ui';
+import { getPersistentUserId } from '../utils';
 
 export default function LandingPage() {
   const { t } = useTranslation('landing');
   const [workspaceKey, setWorkspaceKey] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const createWorkspace = async () => {
     try {
-      let userId = localStorage.getItem(STORAGE_KEYS.USER_ID);
-      if (!userId) {
-        userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
-      }
-      
+      const userId = getPersistentUserId();
+
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
@@ -26,11 +22,11 @@ export default function LandingPage() {
         },
         body: JSON.stringify({ userId })
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to create workspace');
       }
-      
+
       const data = await response.json();
       navigate(`/w/${data.workspaceId}`);
     } catch {

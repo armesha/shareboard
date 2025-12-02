@@ -12,6 +12,11 @@ export const GRID = {
   COLOR: 'rgba(200, 200, 200, 0.3)',
 };
 
+export const ARROW = {
+  HEAD_LENGTH: 15,
+  HEAD_ANGLE: Math.PI / 6,
+};
+
 export const ZOOM = {
   WHEEL_OUT_MULTIPLIER: 0.95,
   WHEEL_IN_MULTIPLIER: 1.05,
@@ -159,6 +164,7 @@ export const TIMING = {
   STATE_REFRESH_INTERVAL: 30000,
   RECONNECT_DELAY: 2000,
   RECONNECT_MAX_DELAY: 10000,
+  COPY_SUCCESS_DURATION: 2000,
 };
 
 export const CANVAS = {
@@ -175,6 +181,7 @@ export const CANVAS = {
 
 export const STORAGE_KEYS = {
   USER_ID: 'shareboardUserId',
+  LANGUAGE: 'shareboardLanguage',
   SPLIT_POSITION: 'shareboardSplitPosition',
   accessToken: (workspaceId) => `accessToken_${workspaceId}`,
   editToken: (workspaceId) => `editToken_${workspaceId}`,

@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
-import { SOCKET_EVENTS, STORAGE_KEYS, CONNECTION_STATUS, TIMING } from '../constants';
+import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING } from '../constants';
+import { getPersistentUserId } from '../utils';
 
 const SocketContext = createContext(null);
 
@@ -18,11 +19,7 @@ export function SocketProvider({ children }) {
   const maxReconnectAttempts = 5;
 
   useEffect(() => {
-    let persistentUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
-    if (!persistentUserId) {
-      persistentUserId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem(STORAGE_KEYS.USER_ID, persistentUserId);
-    }
+    const persistentUserId = getPersistentUserId();
     setUserId(persistentUserId);
   }, []);
 
@@ -112,6 +109,7 @@ export function SocketProvider({ children }) {
         socket.off(SOCKET_EVENTS.ERROR);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initializeSocket]);
 
   useEffect(() => {

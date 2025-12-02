@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
+import { getWorkspaceId } from '../utils';
+import { SOCKET_EVENTS } from '../constants';
 import debounce from 'lodash/debounce';
 
 const DiagramEditorContext = createContext(null);
@@ -18,7 +20,7 @@ const SAMPLE_DIAGRAM = `graph TD
 export function DiagramEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
-  const { canWrite } = useSharing() || { canWrite: () => true };
+  const { canWrite } = useSharing() || { canWrite: () => false };
   const [content, setContent] = useState(SAMPLE_DIAGRAM);
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
@@ -32,7 +34,7 @@ export function DiagramEditorProvider({ children }) {
 
   const emitDiagramChange = useCallback((workspaceId, newContent) => {
     if (socket && newContent !== lastEmittedContent && !isReadOnly) {
-      socket.emit('diagram-update', {
+      socket.emit(SOCKET_EVENTS.DIAGRAM_UPDATE, {
         workspaceId,
         content: newContent
       });
@@ -40,6 +42,7 @@ export function DiagramEditorProvider({ children }) {
     }
   }, [socket, lastEmittedContent, isReadOnly]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedEmit = useCallback(
     debounce((workspaceId, content) => {
       emitDiagramChange(workspaceId, content);
@@ -60,9 +63,9 @@ export function DiagramEditorProvider({ children }) {
       }
     };
 
-    socket.on('diagram-update', handleDiagramUpdate);
+    socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
 
-    socket.on('workspace-state', (state) => {
+    socket.on(SOCKET_EVENTS.WORKSPACE_STATE, (state) => {
       if (state.diagramContent) {
         setContent(state.diagramContent);
         setLastEmittedContent(state.diagramContent);
@@ -70,15 +73,15 @@ export function DiagramEditorProvider({ children }) {
     });
 
     return () => {
-      socket.off('diagram-update');
-      socket.off('workspace-state');
+      socket.off(SOCKET_EVENTS.DIAGRAM_UPDATE);
+      socket.off(SOCKET_EVENTS.WORKSPACE_STATE);
     };
   }, [socket, isEditing, content]);
 
   const updateContent = useCallback((newContent) => {
     lastLocalChangeRef.current = Date.now();
     setContent(newContent);
-    const workspaceId = window.location.pathname.split('/')[2];
+    const workspaceId = getWorkspaceId();
 
     if (Math.abs(newContent.length - content.length) <= 1) {
       emitDiagramChange(workspaceId, newContent);

@@ -5,13 +5,13 @@ import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { Header, Toolbar } from './layout';
-import { Notification, ConnectionStatus, LanguageSwitcher } from './ui';
+import { Notification, ConnectionStatus, LanguageSwitcher, ZoomControls } from './ui';
 import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
 import { v4 as uuidv4 } from 'uuid';
 import mermaid from 'mermaid';
-import { MERMAID_THEME, SOCKET_EVENTS } from '../constants';
+import { MERMAID_THEME, SOCKET_EVENTS, TOOLS } from '../constants';
 
 export default function WorkspaceContent({
   workspaceId,
@@ -35,7 +35,9 @@ export default function WorkspaceContent({
     width,
     setWidth,
     color,
-    setColor
+    setColor,
+    zoom,
+    setZoom
   } = useWhiteboard();
 
   const { canWrite, isOwner, sharingInfoReceived } = useSharing();
@@ -134,7 +136,7 @@ export default function WorkspaceContent({
           socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, { workspaceId, elements: [elementData] });
         }
 
-        setTool('select');
+        setTool(TOOLS.SELECT);
         setNotification({ visible: true, message: t('messages:notifications.diagramAdded'), type: 'success' });
       };
 
@@ -200,7 +202,7 @@ export default function WorkspaceContent({
       </div>
       {activeTab === 'code' ? <CodeEditor /> : <DiagramRenderer />}
     </div>
-  ), [activeTab, canWrite, handleAddImageToWhiteboard, workspaceId, cycleViewMode, t]);
+  ), [activeTab, canWrite, handleAddImageToWhiteboard, cycleViewMode, t]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
@@ -243,6 +245,7 @@ export default function WorkspaceContent({
         )}
         <div className="h-full w-full whiteboard-container">
           <Whiteboard disabled={sharingInfoReceived && !canWrite()} />
+          <ZoomControls zoom={zoom} onZoomChange={setZoom} />
         </div>
 
         {viewMode === 'split' && (

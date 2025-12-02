@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { STORAGE_KEYS } from '../../constants';
 
 const LanguageSwitcher = React.memo(function LanguageSwitcher() {
   const { i18n } = useTranslation();
@@ -10,7 +11,7 @@ const LanguageSwitcher = React.memo(function LanguageSwitcher() {
 
   const handleToggle = () => {
     i18n.changeLanguage(nextLang);
-    localStorage.setItem('shareboardLanguage', nextLang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, nextLang);
   };
 
   return (

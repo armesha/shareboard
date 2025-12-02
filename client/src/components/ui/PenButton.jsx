@@ -40,8 +40,8 @@ const PenButton = React.memo(function PenButton({
   }, [isOpen]);
 
   const handleColorSelect = useCallback((color) => {
-    onColorChange(color);
     onActivate();
+    onColorChange(color);
     setIsOpen(false);
   }, [onColorChange, onActivate]);
 
