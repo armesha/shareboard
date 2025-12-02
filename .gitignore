@@ -49,4 +49,4 @@ logs/
 *.txt
 rules.mdc
 CLAUDE.md
-.claude/settings.local.json
+.claude/settings.local.jsonpackage-lock.json
