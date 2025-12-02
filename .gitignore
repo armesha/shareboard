@@ -11,6 +11,8 @@ yarn-error.log*
 Thumbs.db
 *.bak
 *.tmp
+nul
+NUL
 
 # Python files (own script for collect all code and anylyze it)
 *.py
@@ -46,3 +48,5 @@ logs/
 
 *.txt
 rules.mdc
+CLAUDE.md
+.claude/settings.local.json

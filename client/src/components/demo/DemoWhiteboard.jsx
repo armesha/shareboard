@@ -26,9 +26,12 @@ const SHAPE_TYPES = [
   'cross',
 ];
 
-const SHAPE_LIFETIME = 15000;
-const FADE_DURATION = 1500;
-const SPAWN_INTERVAL = 250;
+const SHAPE_LIFETIME = 12000;
+const FADE_DURATION = 1000;
+const SPAWN_INTERVAL = 120;
+const INITIAL_SHAPES = 25;
+const GRID_COLS = 6;
+const GRID_ROWS = 5;
 
 function generatePolygonPoints(cx, cy, radius, sides, startAngle = -Math.PI / 2) {
   const points = [];
@@ -218,19 +221,29 @@ function DemoShape({ shape }) {
   }
 }
 
-function createRandomShape(id, windowSize) {
-  const padding = 100;
-  const minX = -padding;
-  const maxX = windowSize.width + padding;
-  const minY = -padding;
-  const maxY = windowSize.height + padding;
+function createRandomShape(id, windowSize, gridIndex = null) {
+  const cellWidth = windowSize.width / GRID_COLS;
+  const cellHeight = windowSize.height / GRID_ROWS;
+
+  let x, y;
+  if (gridIndex !== null) {
+    const col = gridIndex % GRID_COLS;
+    const row = Math.floor(gridIndex / GRID_COLS) % GRID_ROWS;
+    x = col * cellWidth + Math.random() * cellWidth;
+    y = row * cellHeight + Math.random() * cellHeight;
+  } else {
+    const col = Math.floor(Math.random() * GRID_COLS);
+    const row = Math.floor(Math.random() * GRID_ROWS);
+    x = col * cellWidth + Math.random() * cellWidth;
+    y = row * cellHeight + Math.random() * cellHeight;
+  }
 
   return {
     id,
     type: SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)],
-    x: minX + Math.random() * (maxX - minX),
-    y: minY + Math.random() * (maxY - minY),
-    size: 50 + Math.random() * 80,
+    x,
+    y,
+    size: 45 + Math.random() * 70,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     opacity: 0,
     createdAt: Date.now(),
@@ -275,6 +288,16 @@ function DemoWhiteboard() {
     if (prefersReducedMotion) return;
 
     isRunning.current = true;
+
+    const initialShapes = [];
+    for (let i = 0; i < INITIAL_SHAPES; i++) {
+      initialShapes.push(createRandomShape(idCounter.current++, windowSize, i));
+    }
+    setShapes(initialShapes);
+
+    requestAnimationFrame(() => {
+      setShapes(prev => prev.map(s => ({ ...s, opacity: 1 })));
+    });
 
     const spawnInterval = setInterval(spawnShape, SPAWN_INTERVAL);
 
