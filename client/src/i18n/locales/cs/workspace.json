@@ -6,7 +6,10 @@
     "online": "Online",
     "connecting": "Připojování...",
     "offline": "Offline",
-    "error": "Chyba"
+    "error": "Chyba",
+    "participants_one": "{{count}} uživatel",
+    "participants_few": "{{count}} uživatelé",
+    "participants_other": "{{count}} uživatelů"
   },
   "zoom": {
     "tips": "Tipy"

@@ -15,7 +15,10 @@
     "diagramRenderFailed": "Failed to render diagram",
     "connectionError": "Connection error occurred",
     "permissionDenied": "Permission denied",
-    "diagramAddFailed": "Failed to add diagram"
+    "diagramAddFailed": "Failed to add diagram",
+    "socketError": "Socket error: {{message}}",
+    "connectionFailed": "Failed to connect to server after {{attempts}} attempts. Please check your internet connection or try again later.",
+    "workspaceNotFound": "Workspace not found"
   },
   "notifications": {
     "whiteboardCleared": "Whiteboard cleared",
@@ -24,6 +27,9 @@
     "copySuccess": "Copied to clipboard",
     "diagramAdded": "Diagram added to whiteboard",
     "editAccessGranted": "You've been granted edit access",
-    "editAccessRevoked": "Edit access revoked"
+    "editAccessRevoked": "Edit access revoked",
+    "connected": "Connected to server successfully!",
+    "disconnected": "Disconnected from server. Attempting to reconnect...",
+    "connectionRetrying": "Connection error: {{message}}. Retrying... ({{current}}/{{max}})"
   }
 }

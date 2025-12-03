@@ -15,8 +15,8 @@ function CursorIcon({ color }) {
 
 function RemoteCursor({ cursor, viewportTransform = [1, 0, 0, 1, 0, 0] }) {
   const vpt = viewportTransform;
-  const screenX = vpt[0] * cursor.x + vpt[4];
-  const screenY = vpt[3] * cursor.y + vpt[5];
+  const screenX = vpt[0] * cursor.x + vpt[2] * cursor.y + vpt[4];
+  const screenY = vpt[1] * cursor.x + vpt[3] * cursor.y + vpt[5];
 
   return (
     <div

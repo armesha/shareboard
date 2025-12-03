@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING, SOCKET, TOAST } from '../constants';
 import { getPersistentUserId } from '../utils';
 
@@ -11,6 +12,7 @@ export function useSocket() {
 }
 
 export function SocketProvider({ children }) {
+  const { t } = useTranslation('messages');
   const [socket, setSocket] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(null);
@@ -25,80 +27,78 @@ export function SocketProvider({ children }) {
   }, []);
 
   const initializeSocket = useCallback(() => {
-    setTimeout(() => {
-      const serverUrl = import.meta.env.DEV ? 'http://localhost:3000' : undefined;
-      const socketInstance = io(serverUrl, {
-        autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: maxReconnectAttempts,
-        reconnectionDelay: TIMING.RECONNECT_DELAY,
-        reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
-        timeout: TIMING.SOCKET_TIMEOUT,
-        transports: ['websocket', 'polling']
+    const serverUrl = import.meta.env.DEV ? 'http://localhost:3000' : undefined;
+    const socketInstance = io(serverUrl, {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: maxReconnectAttempts,
+      reconnectionDelay: TIMING.RECONNECT_DELAY,
+      reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
+      timeout: TIMING.SOCKET_TIMEOUT,
+      transports: ['websocket', 'polling']
+    });
+
+    setConnectionStatus(CONNECTION_STATUS.CONNECTING);
+
+    socketInstance.on('connect', () => {
+      setConnectionAttempts(0);
+      setConnectionError(null);
+      setConnectionStatus(CONNECTION_STATUS.CONNECTED);
+
+      toast.success(t('notifications.connected'), {
+        position: TOAST.POSITION,
+        autoClose: TIMING.NOTIFICATION_DURATION
       });
+    });
 
-      setConnectionStatus(CONNECTION_STATUS.CONNECTING);
+    socketInstance.on('connect_error', (error) => {
+      setConnectionStatus(CONNECTION_STATUS.ERROR);
+      setConnectionError(error.message);
 
-      socketInstance.on('connect', () => {
-        setConnectionAttempts(0);
-        setConnectionError(null);
-        setConnectionStatus(CONNECTION_STATUS.CONNECTED);
+      setConnectionAttempts(prev => {
+        const newAttempts = prev + 1;
+        if (newAttempts >= maxReconnectAttempts) {
+          socketInstance.disconnect();
 
-        toast.success('Connected to server successfully!', {
-          position: TOAST.POSITION,
-          autoClose: TIMING.NOTIFICATION_DURATION
-        });
+          toast.error(t('errors.connectionFailed', { attempts: maxReconnectAttempts }), {
+            position: TOAST.POSITION,
+            autoClose: false,
+            closeOnClick: false,
+            draggable: true
+          });
+        } else {
+          toast.warning(t('notifications.connectionRetrying', { message: error.message, current: newAttempts, max: maxReconnectAttempts }), {
+            position: TOAST.POSITION,
+            autoClose: 5000
+          });
+        }
+        return newAttempts;
       });
+    });
 
-      socketInstance.on('connect_error', (error) => {
-        setConnectionStatus(CONNECTION_STATUS.ERROR);
-        setConnectionError(error.message);
+    socketInstance.on(SOCKET_EVENTS.DISCONNECT, () => {
+      setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
+      setSocket(null);
 
-        setConnectionAttempts(prev => {
-          const newAttempts = prev + 1;
-          if (newAttempts >= maxReconnectAttempts) {
-            socketInstance.disconnect();
-            
-            toast.error(`Failed to connect to server after ${maxReconnectAttempts} attempts. Please check your internet connection or try again later.`, {
-              position: TOAST.POSITION,
-              autoClose: false,
-              closeOnClick: false,
-              draggable: true
-            });
-          } else {
-            toast.warning(`Connection error: ${error.message}. Retrying... (${newAttempts}/${maxReconnectAttempts})`, {
-              position: TOAST.POSITION,
-              autoClose: 5000
-            });
-          }
-          return newAttempts;
-        });
+      toast.info(t('notifications.disconnected'), {
+        position: TOAST.POSITION,
+        autoClose: 5000
       });
+    });
 
-      socketInstance.on(SOCKET_EVENTS.DISCONNECT, () => {
-        setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
-        setSocket(null);
 
-        toast.info('Disconnected from server. Attempting to reconnect...', {
-          position: TOAST.POSITION,
-          autoClose: 5000
-        });
+    socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
+      setConnectionError(error.message || 'Unknown socket error');
+
+      toast.error(t('errors.socketError', { message: error.message || 'Unknown error' }), {
+        position: TOAST.POSITION,
+        autoClose: 5000
       });
+    });
 
-
-      socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
-        setConnectionError(error.message || 'Unknown socket error');
-
-        toast.error(`Socket error: ${error.message || 'Unknown error'}`, {
-          position: TOAST.POSITION,
-          autoClose: 5000
-        });
-      });
-
-      socketInstanceRef.current = socketInstance;
-      setSocket(socketInstance);
-    }, TIMING.RECONNECT_DELAY);
-  }, [maxReconnectAttempts]);
+    socketInstanceRef.current = socketInstance;
+    setSocket(socketInstance);
+  }, [maxReconnectAttempts, t]);
 
   useEffect(() => {
     initializeSocket();

@@ -155,6 +155,16 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     return record.count <= MAX_EVENTS_PER_WINDOW;
   };
 
+  socket.on(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, ({ workspaceId }) => {
+    try {
+      const exists = workspaceService.workspaceExists(workspaceId);
+      socket.emit(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, { workspaceId, exists });
+    } catch (error) {
+      console.error('CHECK_WORKSPACE_EXISTS error:', error);
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to check workspace' });
+    }
+  });
+
   socket.on(SOCKET_EVENTS.JOIN_WORKSPACE, (data) => {
     const result = handlers.handleJoinWorkspace(data, {
       socket,

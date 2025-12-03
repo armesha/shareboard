@@ -17,18 +17,20 @@ export function CodeEditorProvider({ children }) {
   const [language, setLanguage] = useState('javascript');
   const [isEditing, setIsEditing] = useState(false);
   const [lastEmittedContent, setLastEmittedContent] = useState('');
+  const [lastEmittedLanguage, setLastEmittedLanguage] = useState('javascript');
   const lastLocalChangeRef = useRef(0);
 
-  const emitCodeChange = useCallback((workspaceId, language, newContent) => {
-    if (socket && newContent !== lastEmittedContent) {
+  const emitCodeChange = useCallback((workspaceId, newLanguage, newContent) => {
+    if (socket && (newContent !== lastEmittedContent || newLanguage !== lastEmittedLanguage)) {
       socket.emit(SOCKET_EVENTS.CODE_UPDATE, {
         workspaceId,
-        language,
+        language: newLanguage,
         content: newContent
       });
       setLastEmittedContent(newContent);
+      setLastEmittedLanguage(newLanguage);
     }
-  }, [socket, lastEmittedContent]);
+  }, [socket, lastEmittedContent, lastEmittedLanguage]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedEmit = useCallback(
@@ -49,11 +51,10 @@ export function CodeEditorProvider({ children }) {
       const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
       if (timeSinceLastLocal < 500) return;
 
-      if (newContent !== content) {
-        setLanguage(newLanguage);
-        setContent(newContent);
-        setLastEmittedContent(newContent);
-      }
+      setLanguage(newLanguage);
+      setContent(newContent);
+      setLastEmittedContent(newContent);
+      setLastEmittedLanguage(newLanguage);
     };
 
     const handleWorkspaceState = (state) => {
@@ -61,6 +62,7 @@ export function CodeEditorProvider({ children }) {
         setLanguage(state.codeSnippets.language);
         setContent(state.codeSnippets.content);
         setLastEmittedContent(state.codeSnippets.content);
+        setLastEmittedLanguage(state.codeSnippets.language);
       }
     };
 

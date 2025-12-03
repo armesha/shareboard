@@ -1,9 +1,11 @@
-import { useState, Suspense, lazy, useMemo } from 'react';
+import { useState, Suspense, lazy, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/ui';
+import { useSocket } from '../context/SocketContext';
 import { getPersistentUserId } from '../utils';
-import { CURSOR_ANIMALS, CURSOR_COLORS } from '../constants';
+import { CURSOR_ANIMALS, CURSOR_COLORS, SOCKET_EVENTS } from '../constants';
+import { toast } from 'react-toastify';
 
 const DemoWhiteboard = lazy(() => import('../components/demo/DemoWhiteboard'));
 
@@ -40,10 +42,13 @@ function ArrowRightIcon() {
 export default function LandingPage() {
   const { t } = useTranslation('landing');
   const { t: tCommon } = useTranslation('common');
+  const { t: tMessages } = useTranslation('messages');
   const [workspaceKey, setWorkspaceKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { socket } = useSocket();
 
   const demoCursors = useMemo(() => [
     { animalKey: CURSOR_ANIMALS[0], color: CURSOR_COLORS[0].color, className: 'cursor-1', style: { top: '15%', left: '10%' } },
@@ -78,12 +83,43 @@ export default function LandingPage() {
     }
   };
 
-  const joinWorkspace = (e) => {
+  const joinWorkspace = useCallback((e) => {
     e.preventDefault();
-    if (workspaceKey.trim()) {
-      navigate(`/w/${workspaceKey.trim()}`);
+    const key = workspaceKey.trim();
+    if (!key) return;
+
+    if (!socket || !socket.connected) {
+      toast.error(tMessages('errors.connectionError'), {
+        position: 'bottom-left',
+        autoClose: 3000
+      });
+      return;
     }
-  };
+
+    setIsJoining(true);
+
+    const handleResult = ({ exists }) => {
+      socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
+      setIsJoining(false);
+
+      if (exists) {
+        navigate(`/w/${key}`);
+      } else {
+        toast.error(tMessages('errors.workspaceNotFound'), {
+          position: 'bottom-left',
+          autoClose: 3000
+        });
+      }
+    };
+
+    socket.on(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
+    socket.emit(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, { workspaceId: key });
+
+    setTimeout(() => {
+      socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
+      setIsJoining(false);
+    }, 5000);
+  }, [socket, workspaceKey, navigate, tMessages]);
 
   return (
     <>
@@ -165,9 +201,19 @@ export default function LandingPage() {
               </div>
               <button
                 type="submit"
+                disabled={isJoining}
                 className="landing-btn-secondary"
               >
-                {t('joinWorkspace')}
+                {isJoining ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </span>
+                ) : (
+                  t('joinWorkspace')
+                )}
               </button>
             </form>
           </div>

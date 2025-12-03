@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
@@ -12,10 +13,12 @@ import { toast } from 'react-toastify';
 import { getPersistentUserId } from '../utils';
 
 function WorkspaceLayout() {
+  const { t } = useTranslation('workspace');
   const { workspaceId } = useParams();
   const { socket, connectionStatus: socketConnectionStatus } = useSocket();
   const { isLoading, connectionStatus: whiteboardConnectionStatus } = useWhiteboard();
   const { isOwner } = useSharing();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('whiteboard');
   const [splitPosition, setSplitPosition] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SPLIT_POSITION);
@@ -28,7 +31,6 @@ function WorkspaceLayout() {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const userId = getPersistentUserId();
@@ -205,18 +207,48 @@ function WorkspaceLayout() {
   );
 }
 
+function WorkspaceGate() {
+  const { t } = useTranslation('messages');
+  const navigate = useNavigate();
+  const { isCheckingWorkspace, workspaceNotFound } = useSharing();
+  const hasNavigatedRef = useRef(false);
+
+  useEffect(() => {
+    if (workspaceNotFound && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      toast.error(t('errors.workspaceNotFound'), {
+        position: 'bottom-left',
+        autoClose: 3000
+      });
+      navigate('/', { replace: true });
+    }
+  }, [workspaceNotFound, navigate, t]);
+
+  if (isCheckingWorkspace || workspaceNotFound) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  return (
+    <WhiteboardProvider>
+      <CodeEditorProvider>
+        <DiagramEditorProvider>
+          <WorkspaceLayout />
+        </DiagramEditorProvider>
+      </CodeEditorProvider>
+    </WhiteboardProvider>
+  );
+}
+
 export default function Workspace() {
   const { workspaceId } = useParams();
 
   return (
     <SharingProvider workspaceId={workspaceId}>
-      <WhiteboardProvider>
-        <CodeEditorProvider>
-          <DiagramEditorProvider>
-            <WorkspaceLayout />
-          </DiagramEditorProvider>
-        </CodeEditorProvider>
-      </WhiteboardProvider>
+      <WorkspaceGate />
     </SharingProvider>
   );
 }

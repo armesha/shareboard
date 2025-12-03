@@ -41,7 +41,8 @@ export default function WorkspaceContent({
     setColor,
     zoom,
     setZoom,
-    canvasRef
+    canvasRef,
+    activeUsers
   } = useWhiteboard();
 
   const { canWrite, isOwner, sharingInfoReceived } = useSharing();
@@ -346,6 +347,7 @@ export default function WorkspaceContent({
             <ConnectionStatus
               status={connectionStatus}
               error={connectionError}
+              participantCount={activeUsers}
             />
           </div>
           <LanguageSwitcher />

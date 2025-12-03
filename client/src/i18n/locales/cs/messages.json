@@ -15,7 +15,10 @@
     "diagramRenderFailed": "Vykreslení diagramu selhalo",
     "connectionError": "Došlo k chybě připojení",
     "permissionDenied": "Přístup odepřen",
-    "diagramAddFailed": "Přidání diagramu selhalo"
+    "diagramAddFailed": "Přidání diagramu selhalo",
+    "socketError": "Chyba soketu: {{message}}",
+    "connectionFailed": "Nepodařilo se připojit k serveru po {{attempts}} pokusech. Zkontrolujte připojení k internetu.",
+    "workspaceNotFound": "Pracovní prostor nenalezen"
   },
   "notifications": {
     "whiteboardCleared": "Tabule vymazána",
@@ -24,6 +27,9 @@
     "copySuccess": "Zkopírováno do schránky",
     "diagramAdded": "Diagram přidán na tabuli",
     "editAccessGranted": "Bylo vám uděleno právo úprav",
-    "editAccessRevoked": "Právo úprav bylo odebráno"
+    "editAccessRevoked": "Právo úprav bylo odebráno",
+    "connected": "Připojeno k serveru!",
+    "disconnected": "Odpojeno od serveru. Pokus o opětovné připojení...",
+    "connectionRetrying": "Chyba připojení: {{message}}. Opakování... ({{current}}/{{max}})"
   }
 }

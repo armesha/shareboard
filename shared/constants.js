@@ -3,6 +3,8 @@ export const SOCKET_EVENTS = {
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',
   ERROR: 'error',
+  CHECK_WORKSPACE_EXISTS: 'check-workspace-exists',
+  WORKSPACE_EXISTS_RESULT: 'workspace-exists-result',
   JOIN_WORKSPACE: 'join-workspace',
   LEAVE_WORKSPACE: 'leave-workspace',
   USER_JOINED: 'user-joined',

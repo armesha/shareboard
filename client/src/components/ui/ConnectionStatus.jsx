@@ -4,7 +4,8 @@ import { CONNECTION_STATUS } from '../../constants';
 
 const ConnectionStatus = React.memo(function ConnectionStatus({
   status = CONNECTION_STATUS.CONNECTING,
-  error = null
+  error = null,
+  participantCount = 0
 }) {
   const { t } = useTranslation('workspace');
 
@@ -32,6 +33,7 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
   };
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG[CONNECTION_STATUS.CONNECTING];
+  const showParticipants = status === CONNECTION_STATUS.CONNECTED && participantCount > 0;
 
   return (
     <div
@@ -46,6 +48,11 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
       />
       <span className="text-sm font-medium whitespace-nowrap">
         {config.text}
+        {showParticipants && (
+          <span className="text-gray-500 ml-1">
+            ({t('connection.participants', { count: participantCount })})
+          </span>
+        )}
       </span>
     </div>
   );

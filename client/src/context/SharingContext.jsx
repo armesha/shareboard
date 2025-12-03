@@ -19,6 +19,8 @@ export function SharingProvider({ children, workspaceId }) {
   const [hasEditAccess, setHasEditAccess] = useState(false);
   const [workspaceOwner, setWorkspaceOwner] = useState(null);
   const [sharingInfoReceived, setSharingInfoReceived] = useState(false);
+  const [workspaceNotFound, setWorkspaceNotFound] = useState(false);
+  const [isCheckingWorkspace, setIsCheckingWorkspace] = useState(true);
 
   useEffect(() => {
     const userId = getPersistentUserId();
@@ -120,33 +122,48 @@ export function SharingProvider({ children, workspaceId }) {
     };
   }, [socket, workspaceId]);
 
-  // Join workspace and request info - depends on persistentUserId
-  useEffect(() => {
+  const joinWorkspace = useCallback(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
 
     const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId)) ||
       new URLSearchParams(window.location.search).get('access');
 
+    socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
+      workspaceId,
+      userId: persistentUserId,
+      accessToken
+    });
+
+    socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
+      workspaceId,
+      userId: persistentUserId,
+      accessToken
+    });
+  }, [socket, workspaceId, persistentUserId]);
+
+  useEffect(() => {
+    if (!socket || !workspaceId || !persistentUserId) return;
+
     const hasHandledConnectRef = { current: false };
+
+    const handleWorkspaceExistsResult = ({ exists }) => {
+      setIsCheckingWorkspace(false);
+      if (exists) {
+        joinWorkspace();
+      } else {
+        setWorkspaceNotFound(true);
+      }
+    };
 
     const handleConnect = () => {
       if (hasHandledConnectRef.current) return;
       hasHandledConnectRef.current = true;
 
-      socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
-
-      socket.emit(SOCKET_EVENTS.JOIN_WORKSPACE, {
-        workspaceId,
-        userId: persistentUserId,
-        accessToken
-      });
+      socket.emit(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, { workspaceId });
     };
 
     socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
+    socket.on(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleWorkspaceExistsResult);
 
     if (socket.connected) {
       handleConnect();
@@ -154,8 +171,9 @@ export function SharingProvider({ children, workspaceId }) {
 
     return () => {
       socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
+      socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleWorkspaceExistsResult);
     };
-  }, [socket, workspaceId, persistentUserId]);
+  }, [socket, workspaceId, persistentUserId, joinWorkspace]);
 
   // Fallback check for ownership
   useEffect(() => {
@@ -204,7 +222,9 @@ export function SharingProvider({ children, workspaceId }) {
       canWrite,
       changeMode,
       workspaceOwner,
-      sharingInfoReceived
+      sharingInfoReceived,
+      workspaceNotFound,
+      isCheckingWorkspace
     }}>
       {children}
     </SharingContext.Provider>
