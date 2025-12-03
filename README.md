@@ -10,7 +10,7 @@ npm run dev:all
 
 - Frontend: http://localhost:5173
 - Backend: port 3000
-
+- prod: https://shareboard.live/
 ## Funkce
 - Interaktivní kreslící plocha (tvary, čáry, text, volné kreslení)
 - Editor kódu se zvýrazněním syntaxe
