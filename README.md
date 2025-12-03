@@ -2,31 +2,32 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
-![ShareBoard Demo](./other/demo.gif)
-
 ## Spuštění projektu
 ```bash
 npm install
 npm run dev:all
 ```
 
-## Použité technologie
+- Frontend: http://localhost:5173
+- Backend: port 3000
+
+## Funkce
+- Interaktivní kreslící plocha (tvary, čáry, text, volné kreslení)
+- Editor kódu se zvýrazněním syntaxe
+- Mermaid diagramy s náhledem
+- Real-time synchronizace mezi uživateli
+- Podpora 30+ současných uživatelů
+- Jazyky: CZ / EN
+
+## Technologie
 
 ### Frontend
-- `React` - knihovna pro tvorbu uživatelského rozhraní
-- `Socket.IO Client` - real-time komunikace
-- `Fabric.js` - implementace interaktivní kreslící plochy
-- `Monaco Editor` - pokročilý editor kódu
-- `Material-UI` - knihovna UI komponent
-- `TailwindCSS` - CSS framework
+- React + Vite + TailwindCSS
+- Fabric.js - kreslící plocha
+- Monaco Editor - editor kódu
+- Socket.IO Client - real-time komunikace
+- Mermaid - diagramy
 
 ### Backend
-- `Node.js` + `Express` - serverová část aplikace
-- `Socket.IO` - WebSocket server pro real-time komunikaci
-- `Crypto` - generování bezpečných klíčů pro workspace
-
-### Nástroje pro diagramy
-- `Mermaid` - generování vývojových diagramů
-
-### Build nástroje
-- `Vite` - build systém a vývojový server
+- Node.js + Express
+- Socket.IO - WebSocket server
