@@ -9,10 +9,10 @@ const MERMAID_CONFIG = {
   startOnLoad: false,
   theme: 'base',
   logLevel: 'error',
-  securityLevel: 'strict',
+  securityLevel: 'loose',
   flowchart: {
     curve: 'linear',
-    htmlLabels: true
+    htmlLabels: false
   },
   fontFamily: 'sans-serif',
   themeVariables: {
@@ -73,10 +73,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      diagramRef.current.innerHTML = DOMPurify.sanitize(svgWithAttrs, {
-        USE_PROFILES: { svg: true, svgFilters: true },
-        ADD_TAGS: ['use'],
-      });
+      diagramRef.current.innerHTML = svgWithAttrs;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {
@@ -94,6 +91,18 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
 
         svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse, .node path').forEach(el => {
           el.setAttribute('fill', 'transparent');
+        });
+
+        svgElement.querySelectorAll('text, tspan, .nodeLabel span, .edgeLabel span').forEach(el => {
+          el.style.fill = '#333';
+          el.style.color = '#333';
+          el.style.fillOpacity = '1';
+          el.style.opacity = '1';
+        });
+
+        svgElement.querySelectorAll('foreignObject div, foreignObject span, foreignObject p').forEach(el => {
+          el.style.color = '#333';
+          el.style.opacity = '1';
         });
       }
 
@@ -152,7 +161,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
             onChange={handleContentChange}
             className="flex-1 p-2 font-mono text-sm focus:outline-none resize-none"
             disabled={isReadOnly}
-            placeholder={isReadOnly ? t('diagram.readOnlyPlaceholder') : t('diagram.placeholder')}
+            placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
           />
           {error && (
             <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200">

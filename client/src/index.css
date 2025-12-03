@@ -375,13 +375,15 @@ body {
 .diagram-container svg .node polygon,
 .diagram-container svg .node path,
 .diagram-container svg .cluster rect,
-.diagram-container svg .label-container,
-.diagram-container svg .nodeLabel,
 .diagram-container svg .edgeLabel rect,
 .diagram-container svg .label foreignObject div {
   fill: transparent !important;
   background: transparent !important;
   background-color: transparent !important;
+}
+
+.diagram-container svg .label-container {
+  fill: transparent !important;
 }
 
 .diagram-container svg .node rect,
@@ -396,6 +398,15 @@ body {
 .diagram-container svg .edgeLabel,
 .diagram-container svg text {
   fill: #333 !important;
+}
+
+.diagram-container svg foreignObject,
+.diagram-container svg foreignObject *,
+.diagram-container svg .nodeLabel,
+.diagram-container svg .edgeLabel,
+.diagram-container svg .flowchart-label,
+.diagram-container svg .label {
+  color: #333 !important;
 }
 
 .diagram-container svg .edgePath path,
