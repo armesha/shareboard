@@ -16,7 +16,7 @@ if [ ! -f "node_modules/@rollup/rollup-win32-x64-msvc/rollup.win32-x64-msvc.node
     echo "Installing @rollup/rollup-win32-x64-msvc..."
     mkdir -p node_modules/@rollup/rollup-win32-x64-msvc
     cd node_modules/@rollup/rollup-win32-x64-msvc
-    curl -sL https://registry.npmjs.org/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.28.1.tgz | tar xz --strip-components=1
+    curl -sL https://registry.npmjs.org/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.53.3.tgz | tar xz --strip-components=1
     cd ../../..
 fi
 

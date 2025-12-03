@@ -72,9 +72,9 @@
     "vitest": "^4.0.14"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.28.1",
-    "@rollup/rollup-linux-x64-musl": "^4.28.1",
-    "@rollup/rollup-win32-x64-msvc": "^4.28.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.53.3",
+    "@rollup/rollup-linux-x64-musl": "^4.53.3",
+    "@rollup/rollup-win32-x64-msvc": "^4.53.3",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.1.17",
     "@tailwindcss/oxide-linux-x64-musl": "^4.1.17",
     "@tailwindcss/oxide-win32-x64-msvc": "^4.1.17",
