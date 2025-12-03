@@ -9,7 +9,7 @@ import { SharingProvider, useSharing } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
 import { SOCKET_EVENTS, STORAGE_KEYS, LAYOUT, CONNECTION_STATUS } from '../constants';
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 import { getPersistentUserId } from '../utils';
 
 function WorkspaceLayout() {

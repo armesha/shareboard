@@ -5,7 +5,7 @@ import { LanguageSwitcher } from '../components/ui';
 import { useSocket } from '../context/SocketContext';
 import { getPersistentUserId } from '../utils';
 import { CURSOR_ANIMALS, CURSOR_COLORS, SOCKET_EVENTS } from '../constants';
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 
 const DemoWhiteboard = lazy(() => import('../components/demo/DemoWhiteboard'));
 

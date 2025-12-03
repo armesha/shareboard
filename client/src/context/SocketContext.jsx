@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 import { useTranslation } from 'react-i18next';
 import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING, SOCKET, TOAST } from '../constants';
 import { getPersistentUserId } from '../utils';
@@ -62,8 +62,8 @@ export function SocketProvider({ children }) {
 
           toast.error(t('errors.connectionFailed', { attempts: maxReconnectAttempts }), {
             position: TOAST.POSITION,
-            autoClose: false,
-            closeOnClick: false,
+            autoClose: 10000,
+            closeOnClick: true,
             draggable: true
           });
         } else {

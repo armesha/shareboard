@@ -8,6 +8,7 @@ import Workspace from './pages/Workspace';
 import { SocketProvider } from './context/SocketContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { TOAST } from './constants';
 
 const router = createBrowserRouter(
   [
@@ -41,7 +42,10 @@ function App() {
     <SocketProvider>
       <div className="min-h-screen bg-gray-100">
         <RouterProvider router={router} future={{ v7_startTransition: true }} />
-        <ToastContainer position="bottom-right" />
+        <ToastContainer
+          position={TOAST.POSITION}
+          newestOnTop={false}
+        />
       </div>
     </SocketProvider>
   );

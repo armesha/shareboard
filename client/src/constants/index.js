@@ -180,6 +180,7 @@ export const SOCKET = {
 
 export const TOAST = {
   POSITION: 'bottom-right',
+  MAX_TOASTS: 3,
 };
 
 export const EXPORT = {
