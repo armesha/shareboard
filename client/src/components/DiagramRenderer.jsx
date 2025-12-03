@@ -3,35 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
-import DOMPurify from 'dompurify';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
-  theme: 'base',
+  theme: 'neutral',
   logLevel: 'error',
   securityLevel: 'loose',
   flowchart: {
     curve: 'linear',
-    htmlLabels: false
-  },
-  fontFamily: 'sans-serif',
-  themeVariables: {
-    primaryColor: 'transparent',
-    primaryBorderColor: '#333',
-    primaryTextColor: '#333',
-    secondaryColor: 'transparent',
-    tertiaryColor: 'transparent',
-    lineColor: '#333',
-    textColor: '#333',
-    nodeBorder: '#333',
-    nodeBkg: 'transparent',
-    mainBkg: 'transparent',
-    clusterBkg: 'transparent',
-    clusterBorder: '#333',
-    defaultLinkColor: '#333',
-    titleColor: '#333',
-    edgeLabelBackground: 'transparent',
-    nodeTextColor: '#333'
+    useMaxWidth: false,
+    padding: 15
   }
 };
 
@@ -41,9 +22,18 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   const { t } = useTranslation(['editor', 'common', 'workspace']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState(null);
+  const [editorHeight, setEditorHeight] = useState(50);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const diagramRef = useRef(null);
+  const previewRef = useRef(null);
   const renderIdRef = useRef(0);
   const isRenderingRef = useRef(false);
+  const containerRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const panOffsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!mermaidInitialized) {
@@ -79,31 +69,12 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
       if (svgElement) {
         svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-        svgElement.querySelectorAll('foreignObject, foreignObject *, .nodeLabel, .flowchart-label, .label').forEach(el => {
-          el.style.backgroundColor = 'transparent';
-          el.style.background = 'transparent';
-        });
-
-        svgElement.querySelectorAll('.label-container, .edgeLabel rect, rect.label-container, .edgeLabel').forEach(el => {
-          el.setAttribute('fill', 'transparent');
-          el.style.fill = 'transparent';
-        });
-
-        svgElement.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse, .node path').forEach(el => {
-          el.setAttribute('fill', 'transparent');
-        });
-
-        svgElement.querySelectorAll('text, tspan, .nodeLabel span, .edgeLabel span').forEach(el => {
-          el.style.fill = '#333';
-          el.style.color = '#333';
-          el.style.fillOpacity = '1';
-          el.style.opacity = '1';
-        });
-
-        svgElement.querySelectorAll('foreignObject div, foreignObject span, foreignObject p').forEach(el => {
-          el.style.color = '#333';
-          el.style.opacity = '1';
-        });
+        const viewBox = svgElement.getAttribute('viewBox');
+        if (viewBox) {
+          const [x, y, w, h] = viewBox.split(' ').map(Number);
+          const padding = 10;
+          svgElement.setAttribute('viewBox', `${x - padding} ${y - padding} ${w + padding * 2} ${h + padding * 2}`);
+        }
       }
 
       setError(null);
@@ -131,9 +102,98 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     setContent(e.target.value);
   };
 
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleResizeMove = useCallback((e) => {
+    if (!isDraggingRef.current || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const headerHeight = 45;
+    const availableHeight = containerRect.height - headerHeight;
+    const mouseY = e.clientY - containerRect.top - headerHeight;
+
+    const newHeightPercent = Math.max(20, Math.min(80, (mouseY / availableHeight) * 100));
+    setEditorHeight(newHeightPercent);
+  }, []);
+
+  const handleResizeEnd = useCallback(() => {
+    isDraggingRef.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  const handleWheelRef = useRef(null);
+  handleWheelRef.current = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(prev => Math.max(0.1, Math.min(5, prev * delta)));
+  };
+
+  useEffect(() => {
+    const previewEl = previewRef.current;
+    if (!previewEl) return;
+
+    const handler = (e) => handleWheelRef.current(e);
+    previewEl.addEventListener('wheel', handler, { passive: false });
+    return () => previewEl.removeEventListener('wheel', handler);
+  }, []);
+
+  const handlePanStart = useCallback((e) => {
+    e.preventDefault();
+    isPanningRef.current = true;
+    panStartRef.current = { x: e.clientX, y: e.clientY };
+    panOffsetRef.current = { x: pan.x, y: pan.y };
+    document.body.style.cursor = 'grabbing';
+  }, [pan]);
+
+  const handlePanMove = useCallback((e) => {
+    if (!isPanningRef.current) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPan({
+      x: panOffsetRef.current.x + dx,
+      y: panOffsetRef.current.y + dy
+    });
+  }, []);
+
+  const handlePanEnd = useCallback(() => {
+    if (isPanningRef.current) {
+      isPanningRef.current = false;
+      document.body.style.cursor = '';
+    }
+  }, []);
+
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+  }, []);
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.addEventListener('mousemove', handlePanMove);
+    document.addEventListener('mouseup', handlePanEnd);
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.removeEventListener('mousemove', handlePanMove);
+      document.removeEventListener('mouseup', handlePanEnd);
+    };
+  }, [handleResizeMove, handleResizeEnd, handlePanMove, handlePanEnd]);
+
   return (
-    <div className="h-full flex flex-col bg-white overflow-hidden">
-      <div className="border-b border-gray-200 p-2 flex items-center justify-between">
+    <div ref={containerRef} className="h-full flex flex-col bg-white overflow-hidden">
+      <div className="border-b border-gray-200 p-2 flex items-center justify-between shrink-0">
         <div className="flex items-center">
           {isReadOnly && (
             <div className="badge-readonly">
@@ -154,8 +214,11 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
           </button>
         )}
       </div>
-      <div className="flex-1 flex">
-        <div className="w-1/2 h-full border-r border-gray-200 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div
+          className="border-b border-gray-200 flex flex-col overflow-hidden"
+          style={{ height: `${editorHeight}%` }}
+        >
           <textarea
             value={content}
             onChange={handleContentChange}
@@ -164,16 +227,52 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
             placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
           />
           {error && (
-            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200">
+            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200 shrink-0">
               {error}
             </div>
           )}
         </div>
-        <div className="w-1/2 h-full p-4 overflow-auto">
+        <div
+          onMouseDown={handleResizeStart}
+          className="h-2 bg-gray-100 hover:bg-blue-200 cursor-row-resize flex items-center justify-center shrink-0 transition-colors"
+        >
+          <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+        <div
+          ref={previewRef}
+          className="overflow-hidden relative"
+          style={{ height: `calc(${100 - editorHeight}% - 8px)` }}
+          onMouseDown={handlePanStart}
+          onContextMenu={handleContextMenu}
+        >
+          <style>{`
+            .diagram-container,
+            .diagram-container svg,
+            .diagram-container svg * {
+              overflow: visible !important;
+            }
+          `}</style>
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-white/80 rounded px-2 py-1 text-xs text-gray-500">
+            <span>{Math.round(zoom * 100)}%</span>
+            {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
+              <button
+                onClick={resetView}
+                className="text-blue-600 hover:text-blue-800"
+                title={t('common:reset')}
+              >
+                Reset
+              </button>
+            )}
+          </div>
           <div
             ref={diagramRef}
-            className="flex items-center justify-center h-full diagram-container"
-            style={{ minHeight: '200px' }}
+            className="flex items-center justify-center h-full diagram-container p-8"
+            style={{
+              minHeight: '100px',
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              cursor: isPanningRef.current ? 'grabbing' : 'grab'
+            }}
           ></div>
         </div>
       </div>

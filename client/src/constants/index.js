@@ -115,9 +115,10 @@ export const LAYOUT = {
 };
 
 export const BRUSH_COLORS = [
-  '#000000', '#FFFFFF', '#FF0000', '#00FF00',
-  '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
-  '#FFA500', '#808080', '#8B4513', '#800080'
+  '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00',
+  '#FF00FF', '#00FFFF', '#FFA500', '#808080', '#8B4513', '#800080',
+  '#FF69B4', '#4169E1', '#228B22', '#DC143C', '#FFD700', '#40E0D0',
+  '#708090', '#F5DEB3', '#2F4F4F', '#B22222', '#9370DB', '#20B2AA'
 ];
 
 export const MERMAID_THEME = {
@@ -194,7 +195,7 @@ export const CANVAS = {
   MAX_FONT_SIZE: 200,
   DEFAULT_FONT_FAMILY: 'Inter',
   DEFAULT_BRUSH_WIDTH: 2,
-  MAX_BRUSH_WIDTH: 20,
+  MAX_BRUSH_WIDTH: 50,
   MIN_BRUSH_WIDTH: 1,
   AUTO_PAN_EDGE: 40,
   AUTO_PAN_SPEED: 10,

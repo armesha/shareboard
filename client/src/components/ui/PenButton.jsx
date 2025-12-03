@@ -57,12 +57,11 @@ const PenButton = React.memo(function PenButton({
 
       {isOpen && (
         <div
-          className="dropdown-base dropdown-side rounded-2xl p-5 animate-fadeIn ml-3"
+          className="dropdown-base dropdown-side rounded-2xl p-3 animate-fadeIn ml-3"
           role="menu"
           aria-label={t('pen.settings')}
-          style={{ minWidth: '200px' }}
         >
-          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-200">
             <span className="text-sm text-gray-500">{t('pen.size')}</span>
             <input
               type="range"
@@ -73,13 +72,26 @@ const PenButton = React.memo(function PenButton({
               className="flex-1"
               aria-label={`Brush width: ${width}px`}
             />
-            <span className="text-sm text-gray-700 w-8 text-right tabular-nums">{width}px</span>
+            <input
+              type="number"
+              min={CANVAS.MIN_BRUSH_WIDTH}
+              max={CANVAS.MAX_BRUSH_WIDTH}
+              value={width}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (val >= CANVAS.MIN_BRUSH_WIDTH && val <= CANVAS.MAX_BRUSH_WIDTH) {
+                  onWidthChange(val);
+                }
+              }}
+              className="w-14 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+            />
+            <span className="text-sm text-gray-400">px</span>
           </div>
 
           <div
-            className="grid gap-4 mb-4"
+            className="grid gap-1.5 mb-3"
             style={{
-              gridTemplateColumns: 'repeat(4, 36px)',
+              gridTemplateColumns: 'repeat(6, 36px)',
               justifyContent: 'center'
             }}
           >
@@ -101,13 +113,16 @@ const PenButton = React.memo(function PenButton({
             ))}
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
             <span className="text-sm text-gray-500">{t('pen.custom')}</span>
             <input
               type="color"
               value={currentColor}
-              onChange={(e) => handleColorSelect(e.target.value)}
-              className="w-9 h-9 cursor-pointer rounded-lg border border-gray-200"
+              onChange={(e) => {
+                onActivate();
+                onColorChange(e.target.value);
+              }}
+              className="w-7 h-7 cursor-pointer rounded-md border border-gray-200"
               title={t('colorPicker.customColor')}
             />
           </div>
