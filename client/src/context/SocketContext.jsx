@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from '../utils/toast';
-import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { SOCKET_EVENTS, CONNECTION_STATUS, TIMING, SOCKET, TOAST } from '../constants';
 import { getPersistentUserId } from '../utils';
 
@@ -12,7 +12,6 @@ export function useSocket() {
 }
 
 export function SocketProvider({ children }) {
-  const { t } = useTranslation('messages');
   const [socket, setSocket] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(null);
@@ -45,7 +44,7 @@ export function SocketProvider({ children }) {
       setConnectionError(null);
       setConnectionStatus(CONNECTION_STATUS.CONNECTED);
 
-      toast.success(t('notifications.connected'), {
+      toast.success(i18n.t('messages:notifications.connected'), {
         position: TOAST.POSITION,
         autoClose: TIMING.NOTIFICATION_DURATION
       });
@@ -60,14 +59,14 @@ export function SocketProvider({ children }) {
         if (newAttempts >= maxReconnectAttempts) {
           socketInstance.disconnect();
 
-          toast.error(t('errors.connectionFailed', { attempts: maxReconnectAttempts }), {
+          toast.error(i18n.t('messages:errors.connectionFailed', { attempts: maxReconnectAttempts }), {
             position: TOAST.POSITION,
             autoClose: 10000,
             closeOnClick: true,
             draggable: true
           });
         } else {
-          toast.warning(t('notifications.connectionRetrying', { message: error.message, current: newAttempts, max: maxReconnectAttempts }), {
+          toast.warning(i18n.t('messages:notifications.connectionRetrying', { message: error.message, current: newAttempts, max: maxReconnectAttempts }), {
             position: TOAST.POSITION,
             autoClose: 5000
           });
@@ -80,7 +79,7 @@ export function SocketProvider({ children }) {
       setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
       setSocket(null);
 
-      toast.info(t('notifications.disconnected'), {
+      toast.info(i18n.t('messages:notifications.disconnected'), {
         position: TOAST.POSITION,
         autoClose: 5000
       });
@@ -90,7 +89,7 @@ export function SocketProvider({ children }) {
     socketInstance.on(SOCKET_EVENTS.ERROR, (error) => {
       setConnectionError(error.message || 'Unknown socket error');
 
-      toast.error(t('errors.socketError', { message: error.message || 'Unknown error' }), {
+      toast.error(i18n.t('messages:errors.socketError', { message: error.message || 'Unknown error' }), {
         position: TOAST.POSITION,
         autoClose: 5000
       });
@@ -98,7 +97,7 @@ export function SocketProvider({ children }) {
 
     socketInstanceRef.current = socketInstance;
     setSocket(socketInstance);
-  }, [maxReconnectAttempts, t]);
+  }, [maxReconnectAttempts]);
 
   useEffect(() => {
     initializeSocket();

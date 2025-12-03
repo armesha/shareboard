@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
 import { STORAGE_KEYS } from '../constants';
 
 import enCommon from './locales/en/common.json';
@@ -21,8 +20,10 @@ import csEditor from './locales/cs/editor.json';
 import csMessages from './locales/cs/messages.json';
 import csValidation from './locales/cs/validation.json';
 
+const savedLanguage = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+const initialLanguage = savedLanguage || 'cs';
+
 i18n
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
@@ -47,17 +48,12 @@ i18n
         validation: csValidation
       }
     },
+    lng: initialLanguage,
     fallbackLng: 'cs',
     defaultNS: 'common',
     ns: ['common', 'landing', 'workspace', 'sharing', 'toolbar', 'editor', 'messages', 'validation'],
     interpolation: {
       escapeValue: false
-    },
-    detection: {
-      order: ['querystring', 'localStorage', 'navigator'],
-      lookupQuerystring: 'lang',
-      caches: ['localStorage'],
-      lookupLocalStorage: STORAGE_KEYS.LANGUAGE
     }
   });
 
