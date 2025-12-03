@@ -23,8 +23,7 @@
     "load-test:70": "node tests/load/index.js 70",
     "load-test:100": "node tests/load/index.js 100",
     "load-test:ramp": "node tests/load/index.js ramp",
-    "load-test:burst": "node tests/load/index.js burst",
-    "setup:win": "bash scripts/postinstall-win.sh"
+    "load-test:burst": "node tests/load/index.js burst"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
