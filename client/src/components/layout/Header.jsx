@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from '../../utils/toast';
 
 const Header = React.memo(function Header({
   workspaceId,
@@ -8,6 +9,24 @@ const Header = React.memo(function Header({
 }) {
   const { t } = useTranslation(['workspace', 'common']);
   const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyWorkspaceId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(workspaceId);
+      setCopied(true);
+      toast.success(t('workspace:header.copiedToClipboard'), {
+        toastId: 'workspace-id-copied',
+        autoClose: 2000
+      });
+      setTimeout(() => setCopied(false), 300);
+    } catch {
+      toast.error(t('workspace:header.copyFailed'), {
+        toastId: 'workspace-id-copy-failed',
+        autoClose: 2000
+      });
+    }
+  }, [workspaceId, t]);
 
   return (
     <header className="absolute top-0 left-0 z-40 p-4 pointer-events-none">
@@ -28,7 +47,14 @@ const Header = React.memo(function Header({
 
         <h1 className="header-title">
           <span className="header-title-prefix">{t('workspace:header.workspacePrefix')}</span>
-          <span className="header-workspace-id">{workspaceId}</span>
+          <button
+            type="button"
+            onClick={handleCopyWorkspaceId}
+            className={`header-workspace-id-btn ${copied ? 'copied' : ''}`}
+            title={t('workspace:header.clickToCopy')}
+          >
+            {workspaceId}
+          </button>
         </h1>
 
         {!canWrite() && (

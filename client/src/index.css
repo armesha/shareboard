@@ -885,6 +885,23 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   letter-spacing: 0.02em;
 }
+.header-workspace-id-btn {
+  @apply text-gray-700 font-semibold px-2 py-0.5 rounded cursor-pointer
+         transition-all duration-150 ease-out;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: none;
+}
+
+.header-workspace-id-btn:hover {
+  @apply bg-gray-100 text-blue-600;
+}
+
+.header-workspace-id-btn:active,
+.header-workspace-id-btn.copied {
+  @apply scale-95 bg-blue-100 text-blue-700;
+}
 
 .header-readonly-badge {
   @apply hidden md:flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg whitespace-nowrap;

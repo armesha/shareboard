@@ -1,6 +1,9 @@
 {
   "header": {
-    "workspacePrefix": "Pracovní prostor / "
+    "workspacePrefix": "Pracovní prostor / ",
+    "clickToCopy": "Klikněte pro kopírování",
+    "copiedToClipboard": "ID zkopírováno",
+    "copyFailed": "Kopírování selhalo"
   },
   "connection": {
     "online": "Online",

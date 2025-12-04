@@ -1,6 +1,9 @@
 {
   "header": {
-    "workspacePrefix": "Workspace / "
+    "workspacePrefix": "Workspace / ",
+    "clickToCopy": "Click to copy",
+    "copiedToClipboard": "Workspace ID copied",
+    "copyFailed": "Failed to copy"
   },
   "connection": {
     "online": "Online",
