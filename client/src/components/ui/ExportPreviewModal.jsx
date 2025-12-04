@@ -165,7 +165,7 @@ const ExportPreviewModal = ({
                                 ref={imgRef}
                                 src={fullCanvasImage}
                                 alt="Export Preview"
-                                className="max-w-full max-h-[60vh] select-none border border-gray-300 rounded"
+                                className="block max-w-full max-h-[60vh] select-none border border-gray-300 rounded"
                                 draggable={false}
                             />
                             {hasSelection && (

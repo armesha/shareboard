@@ -284,9 +284,6 @@ function DemoWhiteboard() {
   }, [windowSize]);
 
   useEffect(() => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
-
     isRunning.current = true;
 
     const initialShapes = [];
