@@ -13,6 +13,7 @@
     "heroku-postbuild": "npm run build",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "test": "vitest run",
+    "test:docker": "wsl docker compose exec frontend npm test",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
@@ -44,7 +45,7 @@
     "i18next": "^25.6.3",
     "i18next-browser-languagedetector": "^8.2.0",
     "lodash": "^4.17.21",
-    "mermaid": "^11.12.1",
+    "mermaid": "^11.12.2",
     "nomnoml": "^1.6.3",
     "plantuml-encoder": "^1.4.0",
     "react": "^19.2.0",
@@ -73,12 +74,9 @@
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.53.3",
     "@rollup/rollup-linux-x64-musl": "^4.53.3",
-    "@rollup/rollup-win32-x64-msvc": "^4.53.3",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.1.17",
     "@tailwindcss/oxide-linux-x64-musl": "^4.1.17",
-    "@tailwindcss/oxide-win32-x64-msvc": "^4.1.17",
     "lightningcss-linux-x64-gnu": "^1.30.2",
-    "lightningcss-linux-x64-musl": "^1.30.2",
-    "lightningcss-win32-x64-msvc": "^1.30.2"
+    "lightningcss-linux-x64-musl": "^1.30.2"
   }
 }

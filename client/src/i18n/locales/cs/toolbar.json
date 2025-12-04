@@ -56,16 +56,11 @@
   },
   "export": {
     "title": "Náhled exportu",
-    "allObjects": "Všechny objekty",
-    "customArea": "Vlastní oblast",
-    "zoomIn": "Přiblížit",
-    "zoomOut": "Oddálit",
-    "allObjectsSelected": "Vybrány všechny objekty",
-    "noObjects": "Na plátně nejsou žádné objekty",
-    "customAreaSelected": "Vybrána vlastní oblast",
-    "drawSelectionArea": "Nakreslete oblast výběru",
-    "zoomPanHint": "Kolečkem přibližujte • Pravým tlačítkem posouvejte",
-    "downloadImage": "Stáhnout obrázek",
+    "selectAll": "Vybrat vše",
+    "clearSelection": "Zrušit",
+    "customAreaSelected": "Oblast vybrána",
+    "drawOrSelectAll": "Nakreslete výběr nebo klikněte 'Vybrat vše'",
+    "downloadImage": "Stáhnout",
     "generatingPreview": "Generování náhledu..."
   }
 }

@@ -142,14 +142,32 @@ export function useWhiteboardCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
+    const multiplier = CANVAS.EXPORT_MULTIPLIER;
+    const vpt = canvas.viewportTransform;
+    const zoom = canvas.getZoom();
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+
+    const viewportLeft = -vpt[4] / zoom;
+    const viewportTop = -vpt[5] / zoom;
+    const viewportWidth = canvasWidth / zoom;
+    const viewportHeight = canvasHeight / zoom;
+
+    const dataUrl = canvas.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier,
+      left: viewportLeft,
+      top: viewportTop,
+      width: viewportWidth,
+      height: viewportHeight
+    });
+
     const objects = canvas.getObjects();
     let objectsBounds = null;
 
     if (objects.length > 0) {
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
       objects.forEach(obj => {
         const coords = obj.getBoundingRect(true);
@@ -161,23 +179,17 @@ export function useWhiteboardCanvas() {
 
       const padding = CANVAS.EXPORT_PADDING;
       objectsBounds = {
-        left: (minX - padding) * 2,
-        top: (minY - padding) * 2,
-        width: (maxX - minX + padding * 2) * 2,
-        height: (maxY - minY + padding * 2) * 2
+        left: (minX - viewportLeft - padding) * multiplier,
+        top: (minY - viewportTop - padding) * multiplier,
+        width: (maxX - minX + padding * 2) * multiplier,
+        height: (maxY - minY + padding * 2) * multiplier
       };
     }
 
-    const dataUrl = canvas.toDataURL({
-      format: 'png',
-      quality: 1,
-      multiplier: 2
-    });
-
     return {
       dataUrl,
-      width: canvas.getWidth() * 2,
-      height: canvas.getHeight() * 2,
+      width: viewportWidth * multiplier,
+      height: viewportHeight * multiplier,
       objectsBounds
     };
   }, []);

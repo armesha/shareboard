@@ -20,8 +20,19 @@ import csEditor from './locales/cs/editor.json';
 import csMessages from './locales/cs/messages.json';
 import csValidation from './locales/cs/validation.json';
 
+const urlParams = new URLSearchParams(window.location.search);
+const urlLanguage = urlParams.get('lang');
 const savedLanguage = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
-const initialLanguage = savedLanguage || 'cs';
+
+const supportedLanguages = ['en', 'cs'];
+let initialLanguage = 'cs';
+
+if (urlLanguage && supportedLanguages.includes(urlLanguage)) {
+  initialLanguage = urlLanguage;
+  localStorage.setItem(STORAGE_KEYS.LANGUAGE, urlLanguage);
+} else if (savedLanguage && supportedLanguages.includes(savedLanguage)) {
+  initialLanguage = savedLanguage;
+}
 
 i18n
   .use(initReactI18next)
