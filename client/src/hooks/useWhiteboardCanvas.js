@@ -11,6 +11,12 @@ export function useWhiteboardCanvas() {
   const socketRef = useRef(null);
   const canWriteRef = useRef(null);
   const elementsMapRef = useRef(new Map());
+  const userIdRef = useRef(null);
+
+  const drawingIdRef = useRef(null);
+  const lastSentPointIndexRef = useRef(0);
+  const drawingStreamThrottleRef = useRef(null);
+  const isCurrentlyDrawingRef = useRef(false);
 
   const initCanvas = useCallback((canvasElement, { onPathCreated, onObjectModified, onObjectMoving }) => {
     const canvas = new fabric.Canvas(canvasElement, {
@@ -36,6 +42,117 @@ export function useWhiteboardCanvas() {
     canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
+
+    const emitDrawingStream = () => {
+      if (!socketRef.current || !drawingIdRef.current || !canWriteRef.current || !canWriteRef.current()) {
+        return;
+      }
+
+      const brush = canvas.freeDrawingBrush;
+      if (!brush || !brush._points || brush._points.length === 0) {
+        return;
+      }
+
+      const allPoints = brush._points;
+      const lastIndex = lastSentPointIndexRef.current;
+
+      if (allPoints.length <= lastIndex) {
+        return;
+      }
+
+      const newPoints = allPoints.slice(lastIndex).map(point => ({
+        x: point.x,
+        y: point.y
+      }));
+
+      if (newPoints.length === 0) {
+        return;
+      }
+
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socketRef.current.emit(SOCKET_EVENTS.DRAWING_STREAM, {
+          workspaceId,
+          drawingId: drawingIdRef.current,
+          points: newPoints
+        });
+      }
+
+      lastSentPointIndexRef.current = allPoints.length;
+    };
+
+    const throttledEmitDrawingStream = () => {
+      if (drawingStreamThrottleRef.current) {
+        return;
+      }
+
+      emitDrawingStream();
+
+      drawingStreamThrottleRef.current = setTimeout(() => {
+        drawingStreamThrottleRef.current = null;
+        if (isCurrentlyDrawingRef.current) {
+          emitDrawingStream();
+        }
+      }, TIMING.DRAWING_STREAM_THROTTLE);
+    };
+
+    const handleDrawingMouseDown = (e) => {
+      if (!canvas.isDrawingMode || !canWriteRef.current || !canWriteRef.current()) {
+        return;
+      }
+
+      if (e.e.button !== 0) {
+        return;
+      }
+
+      isCurrentlyDrawingRef.current = true;
+      drawingIdRef.current = uuidv4();
+      lastSentPointIndexRef.current = 0;
+
+      const workspaceId = getWorkspaceId();
+      if (workspaceId && socketRef.current) {
+        socketRef.current.emit(SOCKET_EVENTS.DRAWING_START, {
+          workspaceId,
+          drawingId: drawingIdRef.current,
+          userId: userIdRef.current,
+          color: canvas.freeDrawingBrush.color,
+          brushWidth: canvas.freeDrawingBrush.width
+        });
+      }
+    };
+
+    const handleDrawingMouseMove = () => {
+      if (!isCurrentlyDrawingRef.current || !canvas.isDrawingMode) {
+        return;
+      }
+
+      throttledEmitDrawingStream();
+    };
+
+    const handleDrawingMouseUp = () => {
+      if (!isCurrentlyDrawingRef.current) {
+        return;
+      }
+
+      if (drawingStreamThrottleRef.current) {
+        clearTimeout(drawingStreamThrottleRef.current);
+        drawingStreamThrottleRef.current = null;
+      }
+
+      emitDrawingStream();
+
+      const workspaceId = getWorkspaceId();
+      if (workspaceId && socketRef.current && drawingIdRef.current) {
+        socketRef.current.emit(SOCKET_EVENTS.DRAWING_END, {
+          workspaceId,
+          drawingId: drawingIdRef.current
+        });
+      }
+
+      isCurrentlyDrawingRef.current = false;
+      drawingIdRef.current = null;
+      lastSentPointIndexRef.current = 0;
+    };
 
     const handlePathCreated = (e) => {
       if (!canWriteRef.current || !canWriteRef.current()) {
@@ -109,6 +226,9 @@ export function useWhiteboardCanvas() {
     canvas.on(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified);
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
     canvas.on(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified);
+    canvas.on(FABRIC_EVENTS.MOUSE_DOWN, handleDrawingMouseDown);
+    canvas.on(FABRIC_EVENTS.MOUSE_MOVE, handleDrawingMouseMove);
+    canvas.on(FABRIC_EVENTS.MOUSE_UP, handleDrawingMouseUp);
 
     const handleResize = () => {
       canvas.setDimensions({
@@ -121,11 +241,18 @@ export function useWhiteboardCanvas() {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (drawingStreamThrottleRef.current) {
+        clearTimeout(drawingStreamThrottleRef.current);
+        drawingStreamThrottleRef.current = null;
+      }
       window.removeEventListener('resize', handleResize);
       canvas.off(FABRIC_EVENTS.PATH_CREATED, handlePathCreated);
       canvas.off(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified);
       canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
       canvas.off(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified);
+      canvas.off(FABRIC_EVENTS.MOUSE_DOWN, handleDrawingMouseDown);
+      canvas.off(FABRIC_EVENTS.MOUSE_MOVE, handleDrawingMouseMove);
+      canvas.off(FABRIC_EVENTS.MOUSE_UP, handleDrawingMouseUp);
       canvas.dispose();
     };
   }, []);
@@ -210,9 +337,10 @@ export function useWhiteboardCanvas() {
     canvas.requestRenderAll();
   }, []);
 
-  const setRefs = useCallback((socket, canWrite) => {
+  const setRefs = useCallback((socket, canWrite, userId) => {
     socketRef.current = socket;
     canWriteRef.current = canWrite;
+    userIdRef.current = userId;
   }, []);
 
   const emitThrottled = useCallback((workspaceId, elements) => {

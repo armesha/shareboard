@@ -1,19 +1,6 @@
 export const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 
-export const SOCKET_EVENTS = {
-  CONNECT: 'connect',
-  DISCONNECT: 'disconnect',
-  ERROR: 'error',
-  JOIN_WORKSPACE: 'join-workspace',
-  WORKSPACE_STATE: 'workspace-state',
-  WHITEBOARD_UPDATE: 'whiteboard-update',
-  WHITEBOARD_CLEAR: 'whiteboard-clear',
-  DELETE_ELEMENT: 'delete-element',
-  CURSOR_POSITION: 'cursor-position',
-  CURSOR_UPDATE: 'cursor-update',
-  USER_JOINED: 'user-joined',
-  USER_LEFT: 'user-left',
-};
+export { SOCKET_EVENTS } from '../../shared/constants.js';
 
 export const SHAPES = ['rect', 'circle', 'triangle', 'line', 'arrow', 'path'];
 
@@ -36,6 +23,14 @@ export const TIMING = {
   DELETE_INTERVAL: 5000,
   CURSOR_INTERVAL: 500,
   RAMP_UP_DELAY: 100,
+  DRAWING_STREAM_INTERVAL: 50,
+  DRAWING_SESSION_MIN_DURATION: 1000,
+  DRAWING_SESSION_MAX_DURATION: 2000,
+  DRAWING_SESSION_CHECK_INTERVAL: 3000,
+  SHAPE_DRAWING_UPDATE_INTERVAL: 50,
+  SHAPE_DRAWING_MIN_DURATION: 1000,
+  SHAPE_DRAWING_MAX_DURATION: 2000,
+  SHAPE_DRAWING_CHECK_INTERVAL: 2500,
 };
 
 export const TEST_PROFILES = {
@@ -82,18 +77,24 @@ export const USER_BEHAVIOR = {
     drawProbability: 0.1,
     moveProbability: 0.05,
     deleteProbability: 0.01,
+    drawingStreamProbability: 0.05,
+    shapeDrawingProbability: 0.05,
   },
   NORMAL: {
     weight: 0.5,
     drawProbability: 0.4,
     moveProbability: 0.3,
     deleteProbability: 0.05,
+    drawingStreamProbability: 0.2,
+    shapeDrawingProbability: 0.2,
   },
   ACTIVE: {
     weight: 0.2,
     drawProbability: 0.7,
     moveProbability: 0.5,
     deleteProbability: 0.1,
+    drawingStreamProbability: 0.4,
+    shapeDrawingProbability: 0.4,
   },
 };
 

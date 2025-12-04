@@ -1,22 +1,28 @@
 import { useCallback, useRef } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { TOOLS } from '../constants';
+import { TOOLS, SOCKET_EVENTS, TIMING } from '../constants';
+import { getWorkspaceId } from '../utils';
 
-export function useLineDrawing({ canvas, tool, color, width, addElement, disabled }) {
+export function useLineDrawing({ canvas, tool, color, width, addElement, disabled, socket }) {
   const isDrawing = useRef(false);
   const currentLine = useRef(null);
   const startPoint = useRef(null);
+  const currentShapeIdRef = useRef(null);
+  const lastEmitTimeRef = useRef(0);
 
   const startLine = useCallback((pointer) => {
     if (disabled || !canvas) return;
     if (tool !== TOOLS.LINE && tool !== TOOLS.ARROW) return;
 
+    // eslint-disable-next-line react-hooks/immutability
     canvas.selection = false;
     isDrawing.current = true;
     startPoint.current = { x: pointer.x, y: pointer.y };
 
     const points = [pointer.x, pointer.y, pointer.x, pointer.y];
+    const shapeId = uuidv4();
+    currentShapeIdRef.current = shapeId;
 
     const commonProps = {
       stroke: color,
@@ -26,11 +32,12 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
       evented: false,
       hasControls: false,
       hasBorders: false,
-      id: uuidv4(),
+      id: shapeId,
       objectCaching: false,
     };
 
     let lineObj;
+    const shapeType = tool === TOOLS.ARROW ? 'arrow' : 'line';
 
     if (tool === TOOLS.ARROW) {
       lineObj = new fabric.Arrow(points, {
@@ -43,7 +50,28 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
 
     canvas.add(lineObj);
     currentLine.current = lineObj;
-  }, [canvas, tool, color, width, disabled]);
+
+    if (socket && !disabled) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
+          workspaceId,
+          shapeId,
+          shapeType,
+          data: {
+            x1: pointer.x,
+            y1: pointer.y,
+            x2: pointer.x,
+            y2: pointer.y,
+            stroke: color,
+            strokeWidth: width,
+            strokeLineCap: 'round',
+            headLength: tool === TOOLS.ARROW ? Math.max(width * 3, 12) : undefined,
+          }
+        });
+      }
+    }
+  }, [canvas, tool, color, width, disabled, socket]);
 
   const updateLine = useCallback((pointer, isShiftPressed = false) => {
     if (disabled || !isDrawing.current || !startPoint.current || !currentLine.current) return;
@@ -81,7 +109,31 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
 
     line.setCoords();
     canvas.requestRenderAll();
-  }, [canvas, disabled]);
+
+    if (socket && !disabled && currentShapeIdRef.current) {
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current >= TIMING.DRAWING_STREAM_THROTTLE) {
+        lastEmitTimeRef.current = now;
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current,
+            data: {
+              x1: startX,
+              y1: startY,
+              x2: endX,
+              y2: endY,
+              stroke: line.stroke,
+              strokeWidth: line.strokeWidth,
+              strokeLineCap: line.strokeLineCap,
+              headLength: line.headLength,
+            }
+          });
+        }
+      }
+    }
+  }, [canvas, disabled, socket]);
 
   const finishLine = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;
@@ -112,22 +164,45 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
         }
       });
 
+      if (socket && !disabled && currentShapeIdRef.current) {
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current,
+          });
+        }
+      }
+
       currentLine.current = null;
     }
 
+    currentShapeIdRef.current = null;
     startPoint.current = null;
     canvas.requestRenderAll();
-  }, [canvas, addElement, disabled]);
+  }, [canvas, addElement, disabled, socket]);
 
   const cancelLine = useCallback(() => {
     if (currentLine.current && canvas) {
       canvas.remove(currentLine.current);
       canvas.requestRenderAll();
     }
+
+    if (socket && !disabled && currentShapeIdRef.current) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+          workspaceId,
+          shapeId: currentShapeIdRef.current
+        });
+      }
+    }
+
     isDrawing.current = false;
     currentLine.current = null;
+    currentShapeIdRef.current = null;
     startPoint.current = null;
-  }, [canvas]);
+  }, [canvas, socket, disabled]);
 
   return {
     isDrawingLine: isDrawing,

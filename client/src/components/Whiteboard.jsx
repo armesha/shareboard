@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
+import { useSharing } from '../context/SharingContext';
 import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
 import { getAbsolutePosition } from '../utils/fabricHelpers';
@@ -18,6 +19,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
   const isSpacePressedRef = useRef(false);
   const modificationTimeoutsRef = useRef(new Set());
   const { socket } = useSocket();
+  const { canWrite } = useSharing() || { canWrite: () => false };
   const {
     tool,
     color,
@@ -45,7 +47,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
     color,
     width,
     addElement,
-    disabled
+    disabled,
+    socket,
+    canWrite
   });
 
   const {
@@ -59,7 +63,8 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
     color,
     width,
     addElement,
-    disabled
+    disabled,
+    socket
   });
 
   const {

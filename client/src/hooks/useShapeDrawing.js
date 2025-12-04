@@ -1,19 +1,26 @@
 import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { SHAPES } from '../constants';
+import { SHAPES, SOCKET_EVENTS, TIMING } from '../constants';
 import { createShape } from '../factories/shapeFactory';
+import { getWorkspaceId } from '../utils';
 
-export function useShapeDrawing({ canvas, selectedShape, color, width, addElement, disabled }) {
+export function useShapeDrawing({ canvas, selectedShape, color, width, addElement, disabled, socket, canWrite }) {
   const isDrawing = useRef(false);
   const currentShape = useRef(null);
   const startPoint = useRef(null);
+  const currentShapeIdRef = useRef(null);
+  const lastEmitTimeRef = useRef(0);
 
   const startShape = useCallback((pointer) => {
     if (disabled || !canvas || !selectedShape) return;
 
+    // eslint-disable-next-line react-hooks/immutability
     canvas.selection = false;
     isDrawing.current = true;
     startPoint.current = pointer;
+
+    const shapeId = uuidv4();
+    currentShapeIdRef.current = shapeId;
 
     const commonProps = {
       left: pointer.x,
@@ -26,18 +33,31 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
       hasBorders: false,
       lockMovementX: true,
       lockMovementY: true,
-      id: uuidv4(),
+      id: shapeId,
     };
 
     const shapeObj = createShape(selectedShape, commonProps);
 
     if (!shapeObj) {
+      currentShapeIdRef.current = null;
       return;
     }
 
     canvas.add(shapeObj);
     currentShape.current = shapeObj;
-  }, [canvas, selectedShape, color, width, disabled]);
+
+    if (socket && canWrite && canWrite()) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
+          workspaceId,
+          shapeId,
+          shapeType: selectedShape,
+          data: shapeObj.toObject(['id'])
+        });
+      }
+    }
+  }, [canvas, selectedShape, color, width, disabled, socket, canWrite]);
 
   const updateShape = useCallback((pointer, isCtrlPressed = false) => {
     if (disabled || !isDrawing.current || !startPoint.current || !currentShape.current) return;
@@ -233,7 +253,22 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
 
     shape.setCoords();
     canvas.requestRenderAll();
-  }, [canvas, selectedShape, disabled]);
+
+    if (socket && canWrite && canWrite() && currentShapeIdRef.current) {
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current >= TIMING.DRAWING_STREAM_THROTTLE) {
+        lastEmitTimeRef.current = now;
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current,
+            data: shape.toObject(['id'])
+          });
+        }
+      }
+    }
+  }, [canvas, selectedShape, disabled, socket, canWrite]);
 
   const finishShape = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;
@@ -252,22 +287,45 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         }
       });
 
+      if (socket && canWrite && canWrite() && currentShapeIdRef.current) {
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current
+          });
+        }
+      }
+
       currentShape.current = null;
     }
 
+    currentShapeIdRef.current = null;
     startPoint.current = null;
     canvas.requestRenderAll();
-  }, [canvas, addElement, disabled]);
+  }, [canvas, addElement, disabled, socket, canWrite]);
 
   const cancelShape = useCallback(() => {
     if (currentShape.current && canvas) {
       canvas.remove(currentShape.current);
       canvas.requestRenderAll();
     }
+
+    if (socket && canWrite && canWrite() && currentShapeIdRef.current) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+          workspaceId,
+          shapeId: currentShapeIdRef.current
+        });
+      }
+    }
+
     isDrawing.current = false;
     currentShape.current = null;
+    currentShapeIdRef.current = null;
     startPoint.current = null;
-  }, [canvas]);
+  }, [canvas, socket, canWrite]);
 
   return {
     isDrawing,

@@ -23,6 +23,10 @@ export class SimulatedUser {
     this.lastActivity = Date.now();
     this.editToken = editToken;
     this.hasEditAccess = false;
+    this.isDrawingActive = false;
+    this.drawingSessionTimeout = null;
+    this.isShapeDrawingActive = false;
+    this.shapeDrawingSessionTimeout = null;
   }
 
   selectBehavior(type) {
@@ -150,7 +154,19 @@ export class SimulatedUser {
       }
     }, TIMING.CURSOR_INTERVAL);
 
-    this.intervals = [drawInterval, moveInterval, deleteInterval, cursorInterval];
+    const drawingSessionInterval = setInterval(() => {
+      if (this.connected && !this.isDrawingActive && Math.random() < this.behavior.drawingStreamProbability) {
+        this.startDrawingSession();
+      }
+    }, TIMING.DRAWING_SESSION_CHECK_INTERVAL);
+
+    const shapeDrawingInterval = setInterval(() => {
+      if (this.connected && !this.isShapeDrawingActive && Math.random() < this.behavior.shapeDrawingProbability) {
+        this.startShapeDrawingSession();
+      }
+    }, TIMING.SHAPE_DRAWING_CHECK_INTERVAL);
+
+    this.intervals = [drawInterval, moveInterval, deleteInterval, cursorInterval, drawingSessionInterval, shapeDrawingInterval];
   }
 
   draw() {
@@ -278,9 +294,228 @@ export class SimulatedUser {
     return Math.floor(Math.random() * max * 0.8) + max * 0.1;
   }
 
+  startDrawingSession() {
+    if (this.isDrawingActive || !this.connected) return;
+
+    this.isDrawingActive = true;
+    const drawingId = uuidv4();
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const strokeWidth = 2 + Math.floor(Math.random() * 4);
+
+    const startX = this.randomCoord(CANVAS.WIDTH);
+    const startY = this.randomCoord(CANVAS.HEIGHT);
+
+    let currentX = startX;
+    let currentY = startY;
+    const points = [{ x: startX, y: startY }];
+
+    this.socket.emit(SOCKET_EVENTS.DRAWING_START, {
+      workspaceId: this.workspaceId,
+      drawingId,
+      startPoint: { x: startX, y: startY },
+      color,
+      strokeWidth,
+    });
+    this.metrics.recordSend(Date.now());
+
+    const sessionDuration = TIMING.DRAWING_SESSION_MIN_DURATION +
+      Math.random() * (TIMING.DRAWING_SESSION_MAX_DURATION - TIMING.DRAWING_SESSION_MIN_DURATION);
+
+    const streamInterval = setInterval(() => {
+      if (!this.connected || !this.isDrawingActive) {
+        clearInterval(streamInterval);
+        return;
+      }
+
+      currentX += (Math.random() - 0.5) * 40;
+      currentY += (Math.random() - 0.5) * 40;
+      currentX = Math.max(0, Math.min(CANVAS.WIDTH, currentX));
+      currentY = Math.max(0, Math.min(CANVAS.HEIGHT, currentY));
+
+      const point = { x: currentX, y: currentY };
+      points.push(point);
+
+      this.socket.emit(SOCKET_EVENTS.DRAWING_STREAM, {
+        workspaceId: this.workspaceId,
+        drawingId,
+        point,
+      });
+      this.metrics.recordSend(Date.now());
+    }, TIMING.DRAWING_STREAM_INTERVAL);
+
+    this.drawingSessionTimeout = setTimeout(() => {
+      clearInterval(streamInterval);
+
+      if (this.connected) {
+        this.socket.emit(SOCKET_EVENTS.DRAWING_END, {
+          workspaceId: this.workspaceId,
+          drawingId,
+          points,
+          color,
+          strokeWidth,
+        });
+        this.metrics.recordSend(Date.now());
+      }
+
+      this.isDrawingActive = false;
+      this.drawingSessionTimeout = null;
+    }, sessionDuration);
+
+    this.lastActivity = Date.now();
+  }
+
+  startShapeDrawingSession() {
+    if (this.isShapeDrawingActive || !this.connected) return;
+
+    this.isShapeDrawingActive = true;
+    const shapeId = uuidv4();
+    const shapeTypes = ['rect', 'circle', 'line', 'arrow'];
+    const shapeType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const strokeWidth = 2 + Math.floor(Math.random() * 4);
+
+    const startX = this.randomCoord(CANVAS.WIDTH);
+    const startY = this.randomCoord(CANVAS.HEIGHT);
+    let currentWidth = 10;
+    let currentHeight = 10;
+    let currentX2 = startX + 10;
+    let currentY2 = startY + 10;
+
+    const isLineType = shapeType === 'line' || shapeType === 'arrow';
+
+    const initialData = isLineType
+      ? {
+          x1: startX,
+          y1: startY,
+          x2: currentX2,
+          y2: currentY2,
+          stroke: color,
+          strokeWidth,
+        }
+      : {
+          left: startX,
+          top: startY,
+          width: currentWidth,
+          height: currentHeight,
+          stroke: color,
+          strokeWidth,
+          fill: 'transparent',
+        };
+
+    this.socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
+      workspaceId: this.workspaceId,
+      shapeId,
+      shapeType,
+      data: initialData,
+    });
+    this.metrics.recordSend(Date.now());
+
+    const sessionDuration = TIMING.SHAPE_DRAWING_MIN_DURATION +
+      Math.random() * (TIMING.SHAPE_DRAWING_MAX_DURATION - TIMING.SHAPE_DRAWING_MIN_DURATION);
+
+    const updateInterval = setInterval(() => {
+      if (!this.connected || !this.isShapeDrawingActive) {
+        clearInterval(updateInterval);
+        return;
+      }
+
+      if (isLineType) {
+        currentX2 += (Math.random() - 0.3) * 30;
+        currentY2 += (Math.random() - 0.3) * 30;
+        currentX2 = Math.max(0, Math.min(CANVAS.WIDTH, currentX2));
+        currentY2 = Math.max(0, Math.min(CANVAS.HEIGHT, currentY2));
+
+        this.socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+          workspaceId: this.workspaceId,
+          shapeId,
+          data: {
+            x1: startX,
+            y1: startY,
+            x2: currentX2,
+            y2: currentY2,
+            stroke: color,
+            strokeWidth,
+          },
+        });
+      } else {
+        currentWidth += (Math.random() - 0.2) * 20;
+        currentHeight += (Math.random() - 0.2) * 20;
+        currentWidth = Math.max(10, Math.min(500, currentWidth));
+        currentHeight = Math.max(10, Math.min(500, currentHeight));
+
+        this.socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+          workspaceId: this.workspaceId,
+          shapeId,
+          data: {
+            left: startX,
+            top: startY,
+            width: currentWidth,
+            height: currentHeight,
+            stroke: color,
+            strokeWidth,
+            fill: 'transparent',
+          },
+        });
+      }
+
+      this.metrics.recordSend(Date.now());
+    }, TIMING.SHAPE_DRAWING_UPDATE_INTERVAL);
+
+    this.shapeDrawingSessionTimeout = setTimeout(() => {
+      clearInterval(updateInterval);
+
+      if (this.connected) {
+        const finalData = isLineType
+          ? {
+              x1: startX,
+              y1: startY,
+              x2: currentX2,
+              y2: currentY2,
+              stroke: color,
+              strokeWidth,
+            }
+          : {
+              left: startX,
+              top: startY,
+              width: currentWidth,
+              height: currentHeight,
+              stroke: color,
+              strokeWidth,
+              fill: 'transparent',
+            };
+
+        this.socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+          workspaceId: this.workspaceId,
+          shapeId,
+          shapeType,
+          data: finalData,
+        });
+        this.metrics.recordSend(Date.now());
+        this.elements.push(shapeId);
+      }
+
+      this.isShapeDrawingActive = false;
+      this.shapeDrawingSessionTimeout = null;
+    }, sessionDuration);
+
+    this.lastActivity = Date.now();
+  }
+
   disconnect() {
     this.intervals.forEach(interval => clearInterval(interval));
     this.intervals = [];
+
+    if (this.drawingSessionTimeout) {
+      clearTimeout(this.drawingSessionTimeout);
+      this.drawingSessionTimeout = null;
+    }
+    this.isDrawingActive = false;
+
+    if (this.shapeDrawingSessionTimeout) {
+      clearTimeout(this.shapeDrawingSessionTimeout);
+      this.shapeDrawingSessionTimeout = null;
+    }
+    this.isShapeDrawingActive = false;
 
     if (this.socket) {
       this.socket.disconnect();

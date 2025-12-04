@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
@@ -7,6 +7,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useWhiteboard } from '../../context/WhiteboardContext';
 import { ExportPreviewModal, ConfirmDialog } from './index';
 import { SOCKET_EVENTS, EXPORT } from '../../constants';
+
+const HOVER_CLOSE_DELAY = 200;
 
 const OptionsMenu = React.memo(function OptionsMenu({
   onClearCanvas,
@@ -19,6 +21,22 @@ const OptionsMenu = React.memo(function OptionsMenu({
 }) {
   const { t } = useTranslation(['toolbar', 'messages', 'common']);
   const [isHovered, setIsHovered] = useState(false);
+  const closeTimeoutRef = useRef(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+      closeTimeoutRef.current = null;
+    }, HOVER_CLOSE_DELAY);
+  }, []);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false);
@@ -103,8 +121,8 @@ const OptionsMenu = React.memo(function OptionsMenu({
 
       <div
         className="flex flex-col items-center gap-1"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <button
           type="button"

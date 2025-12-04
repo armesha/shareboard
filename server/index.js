@@ -296,6 +296,92 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
+  socket.on(SOCKET_EVENTS.DRAWING_START, ({ workspaceId, drawingId, color, brushWidth }) => {
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_START, {
+          drawingId,
+          userId: socket.id,
+          color,
+          brushWidth
+        });
+      }
+    } catch (error) {
+      console.error('DRAWING_START error:', error);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.DRAWING_STREAM, ({ workspaceId, drawingId, points }) => {
+    if (!checkRateLimit(SOCKET_EVENTS.DRAWING_STREAM)) {
+      return;
+    }
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_STREAM, {
+          drawingId,
+          points
+        });
+      }
+    } catch (error) {
+      console.error('DRAWING_STREAM error:', error);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.DRAWING_END, ({ workspaceId, drawingId }) => {
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_END, {
+          drawingId
+        });
+      }
+    } catch (error) {
+      console.error('DRAWING_END error:', error);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, ({ workspaceId, shapeId, shapeType, data }) => {
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
+          shapeId,
+          userId: socket.id,
+          shapeType,
+          data
+        });
+      }
+    } catch (error) {
+      console.error('SHAPE_DRAWING_START error:', error);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, ({ workspaceId, shapeId, data }) => {
+    if (!checkRateLimit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE)) {
+      return;
+    }
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+          shapeId,
+          data
+        });
+      }
+    } catch (error) {
+      console.error('SHAPE_DRAWING_UPDATE error:', error);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, ({ workspaceId, shapeId }) => {
+    try {
+      if (workspaceService.workspaceExists(workspaceId)) {
+        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+          shapeId
+        });
+      }
+    } catch (error) {
+      console.error('SHAPE_DRAWING_END error:', error);
+    }
+  });
+
   socket.on(SOCKET_EVENTS.GET_EDIT_TOKEN, (data, callback) => {
     handlers.handleGetEditToken(data, callback, { currentUser });
   });

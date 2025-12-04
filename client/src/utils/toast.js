@@ -1,33 +1,41 @@
 import { toast as reactToast } from 'react-toastify';
 import { TOAST } from '../constants';
 
-const activeToasts = [];
+const activeToasts = new Set();
 
-function manageToastLimit() {
-  if (activeToasts.length >= TOAST.MAX_TOASTS) {
-    const oldestToastId = activeToasts.shift();
+function manageToastLimit(excludeId = null) {
+  const toastsToCheck = excludeId
+    ? [...activeToasts].filter(id => id !== excludeId)
+    : [...activeToasts];
+
+  while (toastsToCheck.length >= TOAST.MAX_TOASTS) {
+    const oldestToastId = toastsToCheck.shift();
+    activeToasts.delete(oldestToastId);
     reactToast.dismiss(oldestToastId);
   }
 }
 
 function createToastWithLimit(type) {
   return (message, options = {}) => {
-    manageToastLimit();
+    const customToastId = options.toastId;
+
+    if (customToastId && activeToasts.has(customToastId)) {
+      return customToastId;
+    }
+
+    manageToastLimit(customToastId);
 
     const toastId = reactToast[type](message, {
       ...options,
       onClose: () => {
-        const index = activeToasts.indexOf(toastId);
-        if (index > -1) {
-          activeToasts.splice(index, 1);
-        }
+        activeToasts.delete(toastId);
         if (options.onClose) {
           options.onClose();
         }
       }
     });
 
-    activeToasts.push(toastId);
+    activeToasts.add(toastId);
     return toastId;
   };
 }

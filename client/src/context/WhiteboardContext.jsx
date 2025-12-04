@@ -6,6 +6,7 @@ import { useWhiteboardCanvas } from '../hooks/useWhiteboardCanvas';
 import { useWhiteboardElements } from '../hooks/useWhiteboardElements';
 import { useWhiteboardSync } from '../hooks/useWhiteboardSync';
 import { useWhiteboardTools } from '../hooks/useWhiteboardTools';
+import { useRemoteDrawing } from '../hooks/useRemoteDrawing';
 
 const WhiteboardContext = createContext(null);
 
@@ -16,6 +17,7 @@ export function useWhiteboard() {
 export function WhiteboardProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
+  const userId = socketContext?.userId;
   const { canWrite } = useSharing() || { canWrite: () => false };
 
   const {
@@ -60,6 +62,8 @@ export function WhiteboardProvider({ children }) {
     setFontSize
   } = useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite);
 
+  useRemoteDrawing(socket, canvasRef);
+
   const [zoom, setZoomState] = useState(1);
 
   const setZoom = useCallback((newZoom) => {
@@ -74,8 +78,8 @@ export function WhiteboardProvider({ children }) {
   }, [canvasRef]);
 
   useEffect(() => {
-    setRefs(socket, canWrite);
-  }, [socket, canWrite, setRefs]);
+    setRefs(socket, canWrite, userId);
+  }, [socket, canWrite, userId, setRefs]);
 
   const updateElement = useCallback((id, element, isMoving = false) => {
     updateElementBase(id, element, isMoving, elementsMapRef, socket ? { current: socket } : { current: null }, isUpdatingRef, emitThrottled);
