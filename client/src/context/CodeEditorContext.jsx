@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { getWorkspaceId } from '../utils';
 import { SOCKET_EVENTS } from '../constants';
-import debounce from 'lodash/debounce';
+import { useSyncedEditor } from '../hooks/useSyncedEditor';
 
 const CodeEditorContext = createContext(null);
 
@@ -13,56 +13,56 @@ export function useCodeEditor() {
 export function CodeEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
-  const [content, setContent] = useState('');
-  const [language, setLanguage] = useState('javascript');
-  const [isEditing, setIsEditing] = useState(false);
-  const [lastEmittedContent, setLastEmittedContent] = useState('');
-  const [lastEmittedLanguage, setLastEmittedLanguage] = useState('javascript');
-  const lastLocalChangeRef = useRef(0);
+  const [language, setLanguageState] = useState('javascript');
+  const [_lastEmittedLanguage, setLastEmittedLanguage] = useState('javascript');
 
-  const emitCodeChange = useCallback((workspaceId, newLanguage, newContent) => {
-    if (socket && (newContent !== lastEmittedContent || newLanguage !== lastEmittedLanguage)) {
+  const emitPayload = useCallback((workspaceId, content) => ({
+    workspaceId,
+    language,
+    content
+  }), [language]);
+
+  const {
+    content,
+    setContent: updateContent,
+    syncContent,
+    handleRemoteUpdate,
+    isEditing,
+    setIsEditing
+  } = useSyncedEditor({
+    socket,
+    socketEvent: SOCKET_EVENTS.CODE_UPDATE,
+    initialContent: '',
+    emitPayload
+  });
+
+  const emitLanguageChange = useCallback((workspaceId, newLanguage, newContent) => {
+    if (socket) {
       socket.emit(SOCKET_EVENTS.CODE_UPDATE, {
         workspaceId,
         language: newLanguage,
         content: newContent
       });
-      setLastEmittedContent(newContent);
       setLastEmittedLanguage(newLanguage);
     }
-  }, [socket, lastEmittedContent, lastEmittedLanguage]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedEmit = useCallback(
-    debounce((workspaceId, language, content) => {
-      emitCodeChange(workspaceId, language, content);
-    }, 250),
-    [emitCodeChange]
-  );
-
-  useEffect(() => {
-    return () => debouncedEmit.cancel();
-  }, [debouncedEmit]);
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleCodeUpdate = ({ language: newLanguage, content: newContent }) => {
-      const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
-      if (timeSinceLastLocal < 500) return;
-
-      setLanguage(newLanguage);
-      setContent(newContent);
-      setLastEmittedContent(newContent);
-      setLastEmittedLanguage(newLanguage);
+      const updated = handleRemoteUpdate(newContent);
+      if (updated) {
+        setLanguageState(newLanguage);
+        setLastEmittedLanguage(newLanguage);
+      }
     };
 
     const handleWorkspaceState = (state) => {
       if (state.codeSnippets) {
-        setLanguage(state.codeSnippets.language);
-        setContent(state.codeSnippets.content);
-        setLastEmittedContent(state.codeSnippets.content);
+        setLanguageState(state.codeSnippets.language);
         setLastEmittedLanguage(state.codeSnippets.language);
+        syncContent(state.codeSnippets.content);
       }
     };
 
@@ -73,34 +73,22 @@ export function CodeEditorProvider({ children }) {
       socket.off(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
-  }, [socket, isEditing, content]);
-
-  const updateCode = useCallback((newContent) => {
-    lastLocalChangeRef.current = Date.now();
-    setContent(newContent);
-    const workspaceId = getWorkspaceId();
-
-    if (Math.abs(newContent.length - content.length) <= 1) {
-      emitCodeChange(workspaceId, language, newContent);
-    } else {
-      debouncedEmit(workspaceId, language, newContent);
-    }
-  }, [language, content, emitCodeChange, debouncedEmit]);
+  }, [socket, handleRemoteUpdate, syncContent]);
 
   const updateLanguage = useCallback((newLanguage) => {
-    setLanguage(newLanguage);
+    setLanguageState(newLanguage);
     const workspaceId = getWorkspaceId();
-    emitCodeChange(workspaceId, newLanguage, content);
-  }, [content, emitCodeChange]);
+    emitLanguageChange(workspaceId, newLanguage, content);
+  }, [content, emitLanguageChange]);
 
   const value = useMemo(() => ({
     content,
     language,
-    setContent: updateCode,
+    setContent: updateContent,
     setLanguage: updateLanguage,
     isEditing,
     setIsEditing
-  }), [content, language, updateCode, updateLanguage, isEditing]);
+  }), [content, language, updateContent, updateLanguage, isEditing, setIsEditing]);
 
   return (
     <CodeEditorContext.Provider value={value}>

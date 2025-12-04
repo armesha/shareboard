@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { SOCKET_EVENTS, DEFAULT_COLORS } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { createShapeFromData } from '../factories/shapeFactory';
+import { loadDiagramToCanvas } from '../factories/diagramFactory';
 import '../utils/fabricArrow';
 
 export function useWhiteboardElements() {
@@ -100,35 +101,8 @@ export function useWhiteboardElements() {
 
     if (element.type === 'diagram') {
       const canvas = canvasRef.current;
-      if (canvas && element.data.src && !canvas.getObjects().some(o => o.id === element.id)) {
-        fabric.Image.fromURL(element.data.src, (fabricImage) => {
-          if (!fabricImage) {
-            console.error('Failed to load diagram image');
-            return;
-          }
-          fabricImage.set({
-            id: element.id,
-            left: element.data.left || 50,
-            top: element.data.top || 50,
-            scaleX: element.data.scaleX || 0.5,
-            scaleY: element.data.scaleY || 0.5,
-            angle: element.data.angle || 0,
-            selectable: true,
-            hasControls: true,
-            hasBorders: true,
-            cornerColor: DEFAULT_COLORS.SELECTION,
-            borderColor: DEFAULT_COLORS.SELECTION_BORDER,
-            cornerSize: 8,
-            padding: 10,
-            data: { ...element.data, isDiagram: true }
-          });
-          fabricImage.type = 'diagram';
-          if (!canvas.getObjects().some(o => o.id === element.id)) {
-            canvas.add(fabricImage);
-            fabricImage.bringToFront();
-            canvas.requestRenderAll();
-          }
-        }, { crossOrigin: 'anonymous' });
+      if (canvas && element.data.src) {
+        loadDiagramToCanvas(canvas, element, true);
       }
     }
 

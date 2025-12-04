@@ -4,6 +4,7 @@ import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { TOOLS, FABRIC_EVENTS, TIMING, CANVAS, ZOOM, SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId, constrainObjectToBounds } from '../utils';
+import { getAbsolutePosition } from '../utils/fabricHelpers';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
 import { useLineDrawing } from '../hooks/useLineDrawing';
 import { useTextEditing } from '../hooks/useTextEditing';
@@ -80,15 +81,6 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
     if (!canvas) return;
 
     const timeoutsSet = modificationTimeoutsRef.current;
-
-    const getAbsolutePosition = (item, group) => {
-      const groupMatrix = group.calcTransformMatrix();
-      const point = fabric.util.transformPoint(
-        { x: item.left, y: item.top },
-        groupMatrix
-      );
-      return { left: point.x, top: point.y };
-    };
 
     const handleObjectModification = (e) => {
       if (disabled) {
@@ -331,15 +323,6 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
 
   useEffect(() => {
     if (!canvas || !socket) return;
-
-    const getAbsolutePosition = (item, group) => {
-      const groupMatrix = group.calcTransformMatrix();
-      const point = fabric.util.transformPoint(
-        { x: item.left, y: item.top },
-        groupMatrix
-      );
-      return { left: point.x, top: point.y };
-    };
 
     const handleSocketEmit = (e) => {
       const obj = e.target;

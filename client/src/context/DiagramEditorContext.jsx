@@ -1,9 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
-import { getWorkspaceId } from '../utils';
 import { SOCKET_EVENTS } from '../constants';
-import debounce from 'lodash/debounce';
+import { useSyncedEditor } from '../hooks/useSyncedEditor';
 
 const DiagramEditorContext = createContext(null);
 
@@ -21,56 +20,39 @@ export function DiagramEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
   const { canWrite } = useSharing() || { canWrite: () => false };
-  const [content, setContent] = useState(SAMPLE_DIAGRAM);
-  const [isEditing, setIsEditing] = useState(false);
-  const [lastEmittedContent, setLastEmittedContent] = useState('');
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const lastLocalChangeRef = useRef(0);
 
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
   }, [canWrite]);
 
-  const emitDiagramChange = useCallback((workspaceId, newContent) => {
-    if (socket && newContent !== lastEmittedContent && !isReadOnly) {
-      socket.emit(SOCKET_EVENTS.DIAGRAM_UPDATE, {
-        workspaceId,
-        content: newContent
-      });
-      setLastEmittedContent(newContent);
-    }
-  }, [socket, lastEmittedContent, isReadOnly]);
+  const canEmit = useCallback(() => !isReadOnly, [isReadOnly]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedEmit = useCallback(
-    debounce((workspaceId, content) => {
-      emitDiagramChange(workspaceId, content);
-    }, 250),
-    [emitDiagramChange]
-  );
-
-  useEffect(() => {
-    return () => debouncedEmit.cancel();
-  }, [debouncedEmit]);
+  const {
+    content,
+    setContent: updateContent,
+    syncContent,
+    handleRemoteUpdate,
+    isEditing,
+    setIsEditing
+  } = useSyncedEditor({
+    socket,
+    socketEvent: SOCKET_EVENTS.DIAGRAM_UPDATE,
+    initialContent: SAMPLE_DIAGRAM,
+    canEmit
+  });
 
   useEffect(() => {
     if (!socket) return;
 
     const handleDiagramUpdate = ({ content: newContent }) => {
-      const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
-      if (timeSinceLastLocal < 500) return;
-
-      if (newContent !== content) {
-        setContent(newContent);
-        setLastEmittedContent(newContent);
-      }
+      handleRemoteUpdate(newContent);
     };
 
     const handleWorkspaceState = (state) => {
       if (state.diagramContent) {
-        setContent(state.diagramContent);
-        setLastEmittedContent(state.diagramContent);
+        syncContent(state.diagramContent);
       }
     };
 
@@ -81,28 +63,15 @@ export function DiagramEditorProvider({ children }) {
       socket.off(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
-  }, [socket, isEditing, content]);
-
-  const updateContent = useCallback((newContent) => {
-    lastLocalChangeRef.current = Date.now();
-    setContent(newContent);
-    const workspaceId = getWorkspaceId();
-
-    if (Math.abs(newContent.length - content.length) <= 1) {
-      emitDiagramChange(workspaceId, newContent);
-    } else {
-      debouncedEmit(workspaceId, newContent);
-    }
-  }, [content, emitDiagramChange, debouncedEmit]);
+  }, [socket, handleRemoteUpdate, syncContent]);
 
   const value = useMemo(() => ({
     content,
     setContent: updateContent,
     isEditing,
     setIsEditing,
-    debouncedEmit,
     isReadOnly
-  }), [content, updateContent, isEditing, debouncedEmit, isReadOnly]);
+  }), [content, updateContent, isEditing, setIsEditing, isReadOnly]);
 
   return (
     <DiagramEditorContext.Provider value={value}>

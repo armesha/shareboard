@@ -1,6 +1,7 @@
 import { SOCKET_EVENTS, SHARING_MODES } from '../config.js';
 import * as workspaceService from '../services/workspaceService.js';
 import * as permissionService from '../services/permissionService.js';
+import { withWorkspaceAuth, withOwnerAuth } from '../middleware/socketAuth.js';
 
 const WORKSPACE_ID_REGEX = /^[a-zA-Z0-9_-]{1,32}$/;
 function isValidWorkspaceId(id) {
@@ -74,18 +75,12 @@ export function handleJoinWorkspace(
   }
 }
 
-export function handleWhiteboardUpdate(
+const handleWhiteboardUpdateCore = (
   { workspaceId, elements },
-  { socket, currentUser, queueUpdate }
-) {
+  { socket, workspace, queueUpdate }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace || !Array.isArray(elements)) {
+    if (!Array.isArray(elements)) {
       return { success: false, reason: 'invalid_input' };
     }
 
@@ -93,13 +88,6 @@ export function handleWhiteboardUpdate(
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Too many elements in single update' });
       return { success: false, reason: 'too_many_elements' };
     }
-
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to edit' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
 
     const drawingsMap = workspace.drawingsMap;
     const allDrawingsMap = workspace.allDrawingsMap;
@@ -128,26 +116,15 @@ export function handleWhiteboardUpdate(
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update whiteboard' });
     return { success: false, error };
   }
-}
+};
 
-export function handleWhiteboardClear({ workspaceId }, { socket, currentUser }) {
+export const handleWhiteboardUpdate = withWorkspaceAuth(handleWhiteboardUpdateCore);
+
+const handleWhiteboardClearCore = (
+  { workspaceId },
+  { socket, workspace }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to clear' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
     workspace.drawings = [];
     workspace.allDrawings = [];
     workspace.drawingsMap.clear();
@@ -160,26 +137,20 @@ export function handleWhiteboardClear({ workspaceId }, { socket, currentUser }) 
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to clear whiteboard' });
     return { success: false, error };
   }
-}
+};
 
-export function handleDeleteElement({ workspaceId, elementId }, { socket, currentUser }) {
+export const handleWhiteboardClear = withWorkspaceAuth(handleWhiteboardClearCore, {
+  permissionErrorMessage: 'You do not have permission to clear'
+});
+
+const handleDeleteElementCore = (
+  { workspaceId, elementId },
+  { socket, workspace }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace || !elementId) {
+    if (!elementId) {
       return { success: false, reason: 'invalid_input' };
     }
-
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to delete' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
 
     workspace.drawingsMap.delete(elementId);
     workspace.allDrawingsMap.delete(elementId);
@@ -191,26 +162,17 @@ export function handleDeleteElement({ workspaceId, elementId }, { socket, curren
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to delete element' });
     return { success: false, error };
   }
-}
+};
 
-export function handleDeleteDiagram({ workspaceId, diagramId }, { socket, currentUser }) {
+export const handleDeleteElement = withWorkspaceAuth(handleDeleteElementCore, {
+  permissionErrorMessage: 'You do not have permission to delete'
+});
+
+const handleDeleteDiagramCore = (
+  { workspaceId, diagramId },
+  { socket, workspace }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to delete diagram' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
     workspace.diagrams.delete(diagramId);
     workspace.drawings = workspace.drawings.filter(el => el.id !== diagramId);
     socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_DIAGRAM, { diagramId });
@@ -220,31 +182,22 @@ export function handleDeleteDiagram({ workspaceId, diagramId }, { socket, curren
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to delete diagram' });
     return { success: false, error };
   }
-}
+};
 
-export function handleCodeUpdate({ workspaceId, language, content }, { socket, currentUser }) {
+export const handleDeleteDiagram = withWorkspaceAuth(handleDeleteDiagramCore, {
+  permissionErrorMessage: 'You do not have permission to delete diagram'
+});
+
+const handleCodeUpdateCore = (
+  { workspaceId, language, content },
+  { socket, workspace }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
     if (typeof content !== 'string' || content.length > MAX_CODE_LENGTH) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid code content' });
       return { success: false, reason: 'invalid_content' };
     }
 
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to edit code' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
     workspace.codeSnippets = { language, content };
     socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.CODE_UPDATE, { language, content });
 
@@ -253,31 +206,22 @@ export function handleCodeUpdate({ workspaceId, language, content }, { socket, c
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update code' });
     return { success: false, error };
   }
-}
+};
 
-export function handleDiagramUpdate({ workspaceId, content }, { socket, currentUser }) {
+export const handleCodeUpdate = withWorkspaceAuth(handleCodeUpdateCore, {
+  permissionErrorMessage: 'You do not have permission to edit code'
+});
+
+const handleDiagramUpdateCore = (
+  { workspaceId, content },
+  { socket, workspace }
+) => {
   try {
-    if (!socket.rooms.has(workspaceId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
-      return { success: false, reason: 'not_authorized' };
-    }
-
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
     if (typeof content !== 'string' || content.length > MAX_DIAGRAM_LENGTH) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid diagram content' });
       return { success: false, reason: 'invalid_content' };
     }
 
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'You do not have permission to edit diagram' });
-      return { success: false, reason: 'no_permission' };
-    }
-
-    workspaceService.updateLastActivity(workspaceId);
     workspace.diagramContent = content;
     socket.to(workspaceId).emit(SOCKET_EVENTS.DIAGRAM_UPDATE, { content });
 
@@ -286,7 +230,11 @@ export function handleDiagramUpdate({ workspaceId, content }, { socket, currentU
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update diagram' });
     return { success: false, error };
   }
-}
+};
+
+export const handleDiagramUpdate = withWorkspaceAuth(handleDiagramUpdateCore, {
+  permissionErrorMessage: 'You do not have permission to edit diagram'
+});
 
 export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
   try {
@@ -333,19 +281,11 @@ export function handleSetEditToken({ workspaceId, editToken }, { socket, io, cur
   }
 }
 
-export function handleChangeSharingMode({ workspaceId, sharingMode }, { socket, io, currentUser }) {
+const handleChangeSharingModeCore = (
+  { workspaceId, sharingMode },
+  { socket, io, workspace }
+) => {
   try {
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Workspace not found' });
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Only the workspace owner can change sharing mode' });
-      return { success: false, reason: 'not_owner' };
-    }
-
     const validModes = Object.values(SHARING_MODES);
     if (!validModes.includes(sharingMode)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid sharing mode' });
@@ -366,20 +306,17 @@ export function handleChangeSharingMode({ workspaceId, sharingMode }, { socket, 
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to change sharing mode' });
     return { success: false, error };
   }
-}
+};
 
-export function handleEndSession({ workspaceId }, { socket, io, currentUser }) {
+export const handleChangeSharingMode = withOwnerAuth(handleChangeSharingModeCore, {
+  errorMessage: 'Only the workspace owner can change sharing mode'
+});
+
+const handleEndSessionCore = (
+  { workspaceId },
+  { socket, io, workspace }
+) => {
   try {
-    const workspace = workspaceService.getWorkspace(workspaceId);
-    if (!workspace) {
-      return { success: false, reason: 'workspace_not_found' };
-    }
-
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
-      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Only the workspace owner can end the session' });
-      return { success: false, reason: 'not_owner' };
-    }
-
     io.to(workspaceId).emit(SOCKET_EVENTS.SESSION_ENDED, { message: 'The workspace owner has ended this session' });
 
     const connections = workspaceService.getActiveConnections(workspaceId);
@@ -397,7 +334,11 @@ export function handleEndSession({ workspaceId }, { socket, io, currentUser }) {
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to end session' });
     return { success: false, error };
   }
-}
+};
+
+export const handleEndSession = withOwnerAuth(handleEndSessionCore, {
+  errorMessage: 'Only the workspace owner can end the session'
+});
 
 export function handleDisconnect({ socket, io, currentWorkspaceRef }) {
   try {

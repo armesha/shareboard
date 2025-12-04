@@ -1,40 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fabric } from 'fabric';
-import { SOCKET_EVENTS, DEFAULT_COLORS } from '../constants';
+import { SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId } from '../utils';
-
-function loadDiagramToCanvas(canvas, element, canWrite) {
-  if (!element.data.src) return;
-
-  fabric.Image.fromURL(element.data.src, (fabricImage) => {
-    if (!fabricImage) return;
-
-    const isSelectable = canWrite && canWrite();
-    fabricImage.set({
-      id: element.id,
-      left: element.data.left || 50,
-      top: element.data.top || 50,
-      scaleX: element.data.scaleX || 0.5,
-      scaleY: element.data.scaleY || 0.5,
-      angle: element.data.angle || 0,
-      selectable: isSelectable,
-      hasControls: isSelectable,
-      hasBorders: isSelectable,
-      evented: isSelectable,
-      cornerColor: DEFAULT_COLORS.SELECTION,
-      borderColor: DEFAULT_COLORS.SELECTION_BORDER,
-      cornerSize: 8,
-      padding: 10,
-      data: { ...element.data, isDiagram: true }
-    });
-    fabricImage.type = 'diagram';
-
-    if (!canvas.getObjects().some(o => o.id === element.id)) {
-      canvas.add(fabricImage);
-      canvas.requestRenderAll();
-    }
-  }, { crossOrigin: 'anonymous' });
-}
+import { loadDiagramToCanvas } from '../factories/diagramFactory';
 
 export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingRef, createFabricObject, setElements, canWrite) {
   const [isConnected, setIsConnected] = useState(false);
@@ -72,7 +39,8 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
             });
             existingObject.setCoords();
           } else {
-            loadDiagramToCanvas(canvas, element, canWrite);
+            const isSelectable = canWrite && canWrite();
+            loadDiagramToCanvas(canvas, element, isSelectable);
           }
 
           elementsMapRef.current.set(element.id, element);
@@ -148,7 +116,8 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
           diagramElements.forEach(element => {
             if (element && element.id) {
               elementsMapRef.current.set(element.id, element);
-              loadDiagramToCanvas(canvas, element, canWrite);
+              const isSelectable = canWrite && canWrite();
+              loadDiagramToCanvas(canvas, element, isSelectable);
             }
           });
 

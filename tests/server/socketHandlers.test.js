@@ -267,7 +267,7 @@ describe('socketHandlers', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.reason).toBe('invalid_input');
+      expect(result.reason).toBe('workspace_not_found');
     });
 
     it('should reject if elements is not array', () => {
@@ -446,7 +446,7 @@ describe('socketHandlers', () => {
       const result = handleDeleteElement({ workspaceId: 'ws-1', elementId: 'el-1' }, { socket, currentUser });
 
       expect(result.success).toBe(false);
-      expect(result.reason).toBe('invalid_input');
+      expect(result.reason).toBe('workspace_not_found');
     });
 
     it('should reject if elementId is missing', () => {
