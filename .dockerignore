@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Build output (will be created during Docker build)
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+
+# IDE and editor files
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Environment files
+.env
+.env.local
+*.local
+
+# Test files
+tests/
+coverage/
+*.test.js
+
+# Documentation and misc
+*.md
+*.txt
+*.py
+*.pyc
+__pycache__/
+*.ps1
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.bak
+nul
+NUL
+
+# Docker files (no need to copy into image)
+Dockerfile
+docker-compose*.yml
+.dockerignore

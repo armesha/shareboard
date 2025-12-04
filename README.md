@@ -3,6 +3,8 @@
 > Sdílená tabule a editor kódu v reálném čase
 
 ## Spuštění projektu
+
+### Standardní způsob
 ```bash
 npm install
 npm run dev:all
@@ -11,6 +13,15 @@ npm run dev:all
 - Frontend: http://localhost:5173
 - Backend: port 3000
 - prod: https://shareboard.live/
+
+### Docker (alternativní)
+```bash
+# Development s hot reload
+docker-compose up
+
+# Production build
+docker-compose --profile prod up production --build
+```
 ## Funkce
 - Interaktivní kreslící plocha (tvary, čáry, text, volné kreslení)
 - Editor kódu se zvýrazněním syntaxe
