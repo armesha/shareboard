@@ -444,7 +444,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
         isPanningRef.current = false;
         const defaultCursor = tool === TOOLS.SELECT ? CANVAS.CUSTOM_CURSOR : 'crosshair';
         canvas.defaultCursor = isSpacePressedRef.current ? 'grab' : defaultCursor;
-        canvas.selection = true;
+        canvas.selection = tool === TOOLS.SELECT;
       }
     };
 
@@ -499,7 +499,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
         <canvas
           ref={canvasRef}
           style={{
-            userSelect: disabled ? 'none' : 'auto'
+            userSelect: 'none'
           }}
         />
       </div>

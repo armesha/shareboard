@@ -11,6 +11,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
   const startShape = useCallback((pointer) => {
     if (disabled || !canvas || !selectedShape) return;
 
+    canvas.selection = false;
     isDrawing.current = true;
     startPoint.current = pointer;
 

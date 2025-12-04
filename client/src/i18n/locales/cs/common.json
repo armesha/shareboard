@@ -27,7 +27,9 @@
     "zoomOut": "Oddálit",
     "keyboardShortcuts": "Klávesové zkratky",
     "moreOptions": "Další možnosti",
-    "shareSettings": "Nastavení sdílení"
+    "shareSettings": "Nastavení sdílení",
+    "expandOptions": "Rozbalit možnosti",
+    "collapseOptions": "Skrýt možnosti"
   },
   "permissions": {
     "readOnly": "Pouze pro čtení",

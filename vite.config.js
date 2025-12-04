@@ -53,7 +53,10 @@ export default defineConfig({
       '@mui/icons-material/Add',
       '@mui/icons-material/Remove',
       '@mui/icons-material/HelpOutline',
-      '@mui/icons-material/Share'
+      '@mui/icons-material/Share',
+      '@mui/icons-material/Download',
+      '@mui/icons-material/ExitToApp',
+      '@mui/icons-material/ExpandMore'
     ],
     force: true
   }

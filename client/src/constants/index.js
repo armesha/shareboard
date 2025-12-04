@@ -44,6 +44,8 @@ export const CONTROL_TIPS = [
   { key: 'Right-click', action: 'Pan canvas', keyTranslationKey: 'rightClick', translationKey: 'panCanvas' },
   { key: 'Scroll', action: 'Zoom in/out', keyTranslationKey: 'scroll', translationKey: 'zoomInOut' },
   { key: 'Delete', action: 'Delete selected', keyTranslationKey: 'delete', translationKey: 'deleteSelected' },
+  { key: 'Ctrl+Drag', action: 'Perfect square', keyTranslationKey: 'ctrlDragRect', translationKey: 'perfectSquare' },
+  { key: 'Ctrl+Drag', action: 'Perfect circle', keyTranslationKey: 'ctrlDragCircle', translationKey: 'perfectCircle' },
 ];
 
 export const SHAPES = {
@@ -195,7 +197,7 @@ export const CANVAS = {
   MAX_FONT_SIZE: 200,
   DEFAULT_FONT_FAMILY: 'Inter',
   DEFAULT_BRUSH_WIDTH: 2,
-  MAX_BRUSH_WIDTH: 50,
+  MAX_BRUSH_WIDTH: 100,
   MIN_BRUSH_WIDTH: 1,
   AUTO_PAN_EDGE: 40,
   AUTO_PAN_SPEED: 10,

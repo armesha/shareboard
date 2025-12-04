@@ -1,12 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import DownloadIcon from '@mui/icons-material/Download';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useWhiteboard } from '../../context/WhiteboardContext';
 import { ExportPreviewModal, ConfirmDialog } from './index';
 import { SOCKET_EVENTS, EXPORT } from '../../constants';
-import { useDropdownBehavior } from '../../hooks';
 
 const OptionsMenu = React.memo(function OptionsMenu({
   onClearCanvas,
@@ -18,24 +18,16 @@ const OptionsMenu = React.memo(function OptionsMenu({
   readOnly = false
 }) {
   const { t } = useTranslation(['toolbar', 'messages', 'common']);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false);
   const [fullCanvasImage, setFullCanvasImage] = useState(null);
   const [canvasDimensions, setCanvasDimensions] = useState(null);
   const [objectsBounds, setObjectsBounds] = useState(null);
-  const menuRef = useRef(null);
   const { getFullCanvasImage } = useWhiteboard();
 
-  useDropdownBehavior(menuRef, isOpen, () => setIsOpen(false));
-
   if (disabled) return null;
-
-  const handleClearCanvasClick = () => {
-    setIsOpen(false);
-    setShowClearConfirm(true);
-  };
 
   const handleClearCanvasConfirm = () => {
     if (socket) {
@@ -45,7 +37,6 @@ const OptionsMenu = React.memo(function OptionsMenu({
   };
 
   const handleEndSessionClick = () => {
-    setIsOpen(false);
     setShowEndSessionConfirm(true);
   };
 
@@ -65,7 +56,6 @@ const OptionsMenu = React.memo(function OptionsMenu({
       setObjectsBounds(full.objectsBounds);
     }
     setShowExportPreview(true);
-    setIsOpen(false);
   };
 
   const handleDownload = (imageData) => {
@@ -110,76 +100,60 @@ const OptionsMenu = React.memo(function OptionsMenu({
         confirmText={t('options.endSession')}
         variant="danger"
       />
-      <div className="relative" ref={menuRef}>
+
+      <div
+        className="flex flex-col items-center gap-1"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <button
           type="button"
           className="btn-icon"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label={t('common:accessibility.moreOptions')}
-          aria-expanded={isOpen}
-          aria-haspopup="menu"
+          aria-label={t('options.moreOptions')}
           title={t('options.moreOptions')}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="text-gray-600"
-            width="22"
-            height="22"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-          </svg>
+          <ExpandMoreIcon sx={{ fontSize: 22 }} className="text-gray-600" />
         </button>
 
-        {isOpen && (
-          <div
-            className="dropdown-base dropdown-side py-2 w-52"
-            role="menu"
-            aria-label={t('common:accessibility.moreOptions')}
+        <div
+          className={`flex flex-col items-center gap-1 overflow-hidden transition-all duration-300 ease-out ${
+            isHovered ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={handleExportClick}
+            aria-label={t('options.exportAsImage')}
+            title={t('options.exportAsImage')}
           >
+            <DownloadIcon sx={{ fontSize: 22 }} className="text-blue-500" />
+          </button>
+
+          {!readOnly && (
             <button
               type="button"
-              className="options-menu-item"
-              onClick={handleExportClick}
-              role="menuitem"
+              className="btn-icon"
+              onClick={() => setShowClearConfirm(true)}
+              aria-label={t('options.clearWhiteboard')}
+              title={t('options.clearWhiteboard')}
             >
-              <div className="options-menu-icon text-blue-500">
-                <DownloadIcon sx={{ fontSize: 20 }} />
-              </div>
-              <span>{t('options.exportAsImage')}</span>
+              <DeleteIcon sx={{ fontSize: 22 }} className="text-red-500" />
             </button>
+          )}
 
-            {!readOnly && (
-              <button
-                type="button"
-                className="options-menu-item"
-                onClick={handleClearCanvasClick}
-                role="menuitem"
-              >
-                <div className="options-menu-icon text-red-500">
-                  <DeleteIcon sx={{ fontSize: 20 }} />
-                </div>
-                <span>{t('options.clearWhiteboard')}</span>
-              </button>
-            )}
-
-            {isOwner && (
-              <button
-                type="button"
-                className="options-menu-item"
-                onClick={handleEndSessionClick}
-                role="menuitem"
-              >
-                <div className="options-menu-icon text-red-500">
-                  <ExitToAppIcon sx={{ fontSize: 20 }} />
-                </div>
-                <span>{t('options.endSession')}</span>
-              </button>
-            )}
-          </div>
-        )}
+          {isOwner && (
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={handleEndSessionClick}
+              aria-label={t('options.endSession')}
+              title={t('options.endSession')}
+            >
+              <ExitToAppIcon sx={{ fontSize: 22 }} className="text-red-500" />
+            </button>
+          )}
+        </div>
       </div>
     </>
   );

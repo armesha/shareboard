@@ -27,7 +27,9 @@
     "zoomOut": "Zoom out",
     "keyboardShortcuts": "Keyboard shortcuts",
     "moreOptions": "More options",
-    "shareSettings": "Share Settings"
+    "shareSettings": "Share Settings",
+    "expandOptions": "Expand options",
+    "collapseOptions": "Collapse options"
   },
   "permissions": {
     "readOnly": "Read-Only",

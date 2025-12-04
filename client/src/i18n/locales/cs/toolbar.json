@@ -26,15 +26,21 @@
     "exportAsImage": "Exportovat jako obrázek",
     "clearWhiteboard": "Vymazat tabuli",
     "endSession": "Ukončit relaci",
-    "moreOptions": "Další možnosti"
+    "moreOptions": "Další možnosti",
+    "expandOptions": "Další možnosti",
+    "collapseOptions": "Skrýt možnosti"
   },
   "controls": {
     "rightClick": "Pravé tl.",
     "scroll": "Kolečko",
     "delete": "Delete",
+    "ctrlDragRect": "Ctrl+Tažení",
+    "ctrlDragCircle": "Ctrl+Tažení",
     "panCanvas": "Posun",
     "zoomInOut": "Zoom",
-    "deleteSelected": "Smazat"
+    "deleteSelected": "Smazat",
+    "perfectSquare": "Pravidelný čtverec",
+    "perfectCircle": "Pravidelný kruh"
   },
   "pen": {
     "size": "Velikost",

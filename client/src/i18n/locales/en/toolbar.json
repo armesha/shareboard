@@ -26,15 +26,21 @@
     "exportAsImage": "Export as Image",
     "clearWhiteboard": "Clear Whiteboard",
     "endSession": "End Session",
-    "moreOptions": "More Options"
+    "moreOptions": "More Options",
+    "expandOptions": "More Options",
+    "collapseOptions": "Hide Options"
   },
   "controls": {
     "rightClick": "Right-click",
     "scroll": "Scroll",
     "delete": "Delete",
+    "ctrlDragRect": "Ctrl+Drag",
+    "ctrlDragCircle": "Ctrl+Drag",
     "panCanvas": "Pan canvas",
     "zoomInOut": "Zoom in/out",
-    "deleteSelected": "Delete selected"
+    "deleteSelected": "Delete selected",
+    "perfectSquare": "Perfect square",
+    "perfectCircle": "Perfect circle"
   },
   "pen": {
     "size": "Size",

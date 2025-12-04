@@ -12,6 +12,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     if (disabled || !canvas) return;
     if (tool !== TOOLS.LINE && tool !== TOOLS.ARROW) return;
 
+    canvas.selection = false;
     isDrawing.current = true;
     startPoint.current = { x: pointer.x, y: pointer.y };
 
