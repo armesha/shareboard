@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import { CANVAS, FONT_SIZES } from '../../constants';
 import { useDropdownBehavior } from '../../hooks';
+import NumberInput from './NumberInput';
 
 const TextButton = React.memo(function TextButton({
   isActive,
@@ -59,7 +60,7 @@ const TextButton = React.memo(function TextButton({
         >
           <div className="text-sm text-gray-500 mb-3">{t('text.fontSize')}</div>
 
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {FONT_SIZES.map((size) => (
               <button
                 key={size}
@@ -78,18 +79,13 @@ const TextButton = React.memo(function TextButton({
 
           <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
             <span className="text-sm text-gray-500">{t('text.custom')}</span>
-            <input
-              type="number"
-              min={CANVAS.MIN_FONT_SIZE || 8}
-              max={CANVAS.MAX_FONT_SIZE || 200}
+            <NumberInput
               value={fontSize}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (val >= 8 && val <= 200) {
-                  onFontSizeChange(val);
-                }
-              }}
-              className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+              onChange={onFontSizeChange}
+              min={CANVAS.MIN_FONT_SIZE || 8}
+              max={100}
+              className="w-16"
+              label={`Font size: ${fontSize}px`}
             />
             <span className="text-sm text-gray-400">px</span>
           </div>

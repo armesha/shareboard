@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import CreateIcon from '@mui/icons-material/Create';
 import { BRUSH_COLORS, CANVAS } from '../../constants';
 import { useDropdownBehavior } from '../../hooks';
+import NumberInput from './NumberInput';
 
 const PenButton = React.memo(function PenButton({
   isActive,
@@ -66,24 +67,19 @@ const PenButton = React.memo(function PenButton({
             <input
               type="range"
               min={CANVAS.MIN_BRUSH_WIDTH}
-              max={CANVAS.MAX_BRUSH_WIDTH}
+              max={100}
               value={width}
               onChange={(e) => onWidthChange(parseInt(e.target.value, 10))}
               className="flex-1"
               aria-label={`Brush width: ${width}px`}
             />
-            <input
-              type="number"
-              min={CANVAS.MIN_BRUSH_WIDTH}
-              max={CANVAS.MAX_BRUSH_WIDTH}
+            <NumberInput
               value={width}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (val >= CANVAS.MIN_BRUSH_WIDTH && val <= CANVAS.MAX_BRUSH_WIDTH) {
-                  onWidthChange(val);
-                }
-              }}
-              className="w-14 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+              onChange={onWidthChange}
+              min={CANVAS.MIN_BRUSH_WIDTH}
+              max={100}
+              className="w-14"
+              label={`Brush width: ${width}px`}
             />
             <span className="text-sm text-gray-400">px</span>
           </div>
