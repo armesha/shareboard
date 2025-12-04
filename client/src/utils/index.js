@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS, CANVAS } from '../constants';
 
 export function getWorkspaceId() {
   const parts = window.location.pathname.split('/');
@@ -33,7 +33,7 @@ export function removeAccessToken(workspaceId) {
   localStorage.removeItem(STORAGE_KEYS.accessToken(workspaceId));
 }
 
-export function constrainObjectToBounds(obj, canvas, buffer = 20) {
+export function constrainObjectToBounds(obj, canvas, buffer = CANVAS.EDGE_BUFFER) {
   const boundingRect = canvas.calcViewportBoundaries();
   const objBoundingRect = obj.getBoundingRect();
 

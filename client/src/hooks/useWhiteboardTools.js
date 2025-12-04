@@ -5,7 +5,7 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
   const [tool, setTool] = useState(TOOLS.SELECT);
   const [selectedShape, setSelectedShape] = useState(null);
   const [color, setColor] = useState(DEFAULT_COLORS.BLACK);
-  const [width, setWidth] = useState(2);
+  const [width, setWidth] = useState(CANVAS.DEFAULT_BRUSH_WIDTH);
   const [fontSize, setFontSize] = useState(CANVAS.DEFAULT_FONT_SIZE);
 
   const handleColorChange = useCallback((newColor, setCanvasDrawingMode) => {

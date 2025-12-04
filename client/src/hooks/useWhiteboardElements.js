@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { SOCKET_EVENTS, DEFAULT_COLORS } from '../constants';
+import { SOCKET_EVENTS, DEFAULT_COLORS, CANVAS } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { createShapeFromData } from '../factories/shapeFactory';
 import { loadDiagramToCanvas } from '../factories/diagramFactory';
@@ -18,7 +18,7 @@ export function useWhiteboardElements() {
         obj = new fabric.Path(element.data.path, {
           ...element.data,
           stroke: element.data.stroke || DEFAULT_COLORS.BLACK,
-          strokeWidth: element.data.strokeWidth || 2,
+          strokeWidth: element.data.strokeWidth || CANVAS.DEFAULT_BRUSH_WIDTH,
           fill: null,
           strokeLineCap: 'round',
           strokeLineJoin: 'round',
@@ -32,9 +32,9 @@ export function useWhiteboardElements() {
           ...element.data,
           left: element.data.left,
           top: element.data.top,
-          fontSize: element.data.fontSize || 20,
-          fill: element.data.fill || '#000000',
-          fontFamily: element.data.fontFamily || 'Arial',
+          fontSize: element.data.fontSize || CANVAS.DEFAULT_FONT_SIZE,
+          fill: element.data.fill || DEFAULT_COLORS.BLACK,
+          fontFamily: element.data.fontFamily || CANVAS.DEFAULT_FONT_FAMILY,
           selectable: true,
           hasControls: true,
           hasBorders: true,

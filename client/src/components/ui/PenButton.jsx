@@ -67,7 +67,7 @@ const PenButton = React.memo(function PenButton({
             <input
               type="range"
               min={CANVAS.MIN_BRUSH_WIDTH}
-              max={100}
+              max={CANVAS.MAX_BRUSH_WIDTH}
               value={width}
               onChange={(e) => onWidthChange(parseInt(e.target.value, 10))}
               className="flex-1"
@@ -77,7 +77,7 @@ const PenButton = React.memo(function PenButton({
               value={width}
               onChange={onWidthChange}
               min={CANVAS.MIN_BRUSH_WIDTH}
-              max={100}
+              max={CANVAS.MAX_BRUSH_WIDTH}
               className="w-14"
               label={`Brush width: ${width}px`}
             />

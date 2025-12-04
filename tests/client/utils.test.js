@@ -130,7 +130,7 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.left).toBe(115);
+    expect(mockObj.left).toBe(135);
     expect(mockObj.setCoords).toHaveBeenCalled();
   });
 
@@ -144,7 +144,7 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.left).toBe(70);
+    expect(mockObj.left).toBe(50);
     expect(mockObj.setCoords).toHaveBeenCalled();
   });
 
@@ -158,7 +158,7 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.top).toBe(115);
+    expect(mockObj.top).toBe(135);
     expect(mockObj.setCoords).toHaveBeenCalled();
   });
 
@@ -172,11 +172,11 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.top).toBe(70);
+    expect(mockObj.top).toBe(50);
     expect(mockObj.setCoords).toHaveBeenCalled();
   });
 
-  it('uses default buffer of 20', () => {
+  it('uses default buffer of 40', () => {
     mockObj.getBoundingRect.mockReturnValue({
       left: 10,
       top: 100,
@@ -186,7 +186,7 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.left).toBe(110);
+    expect(mockObj.left).toBe(130);
   });
 
   it('uses custom buffer when provided', () => {
@@ -212,15 +212,15 @@ describe('constrainObjectToBounds', () => {
 
     const result = constrainObjectToBounds(mockObj, mockCanvas);
     expect(result).toBe(true);
-    expect(mockObj.left).toBe(115);
-    expect(mockObj.top).toBe(115);
+    expect(mockObj.left).toBe(135);
+    expect(mockObj.top).toBe(135);
     expect(mockObj.setCoords).toHaveBeenCalled();
   });
 
   it('handles objects at exact boundary with buffer', () => {
     mockObj.getBoundingRect.mockReturnValue({
-      left: 20,
-      top: 20,
+      left: 40,
+      top: 40,
       width: 50,
       height: 50
     });

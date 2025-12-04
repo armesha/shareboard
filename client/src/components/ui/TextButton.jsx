@@ -83,7 +83,7 @@ const TextButton = React.memo(function TextButton({
               value={fontSize}
               onChange={onFontSizeChange}
               min={CANVAS.MIN_FONT_SIZE || 8}
-              max={100}
+              max={CANVAS.MAX_FONT_SIZE}
               className="w-16"
               label={`Font size: ${fontSize}px`}
             />

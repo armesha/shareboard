@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
+import { ZOOM } from '../constants';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
 
@@ -131,8 +132,8 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   const handleWheelRef = useRef(null);
   handleWheelRef.current = (e) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(5, prev * delta)));
+    const delta = e.deltaY > 0 ? ZOOM.WHEEL_OUT_MULTIPLIER : ZOOM.WHEEL_IN_MULTIPLIER;
+    setZoom(prev => Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, prev * delta)));
   };
 
   useEffect(() => {

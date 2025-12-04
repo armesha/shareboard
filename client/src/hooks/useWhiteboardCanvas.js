@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS, CANVAS } from '../constants';
+import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS, CANVAS, DEFAULT_COLORS } from '../constants';
 import { getWorkspaceId } from '../utils';
 
 export function useWhiteboardCanvas() {
@@ -29,8 +29,8 @@ export function useWhiteboardCanvas() {
     });
 
     const brush = new fabric.PencilBrush(canvas);
-    brush.color = '#000000';
-    brush.width = 2;
+    brush.color = DEFAULT_COLORS.BLACK;
+    brush.width = CANVAS.DEFAULT_BRUSH_WIDTH;
     brush.strokeLineCap = 'round';
     brush.strokeLineJoin = 'round';
     canvas.freeDrawingBrush = brush;
