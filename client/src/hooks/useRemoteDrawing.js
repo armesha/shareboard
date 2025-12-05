@@ -6,16 +6,30 @@ import { createBatchedRender } from '../utils/batchedRender';
 import '../utils/fabricArrow';
 
 function pointsToSvgPath(points) {
-  if (!points || points.length === 0) return 'M 0 0';
+  if (!points || points.length === 0) return '';
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
 
-  const pathParts = points.map((point, index) => {
-    if (index === 0) {
-      return `M ${point.x} ${point.y}`;
-    }
-    return `L ${point.x} ${point.y}`;
-  });
+  let path = `M ${points[0].x} ${points[0].y}`;
 
-  return pathParts.join(' ');
+  for (let i = 1; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    // Use current point as control point, midpoint to next as end point
+    const midX = (curr.x + next.x) / 2;
+    const midY = (curr.y + next.y) / 2;
+    path += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+  }
+
+  // Line to the last point
+  const last = points[points.length - 1];
+  path += ` L ${last.x} ${last.y}`;
+
+  return path;
 }
 
 export function useRemoteDrawing(socket, canvasRef) {
