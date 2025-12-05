@@ -313,11 +313,17 @@ export function useWhiteboardCanvas() {
       });
 
       const padding = CANVAS.EXPORT_PADDING;
+      // Calculate bounds relative to viewport, clamped to visible area
+      const boundsLeft = Math.max(0, (minX - viewportLeft - padding)) * multiplier;
+      const boundsTop = Math.max(0, (minY - viewportTop - padding)) * multiplier;
+      const boundsWidth = (maxX - minX + padding * 2) * multiplier;
+      const boundsHeight = (maxY - minY + padding * 2) * multiplier;
+
       objectsBounds = {
-        left: (minX - viewportLeft - padding) * multiplier,
-        top: (minY - viewportTop - padding) * multiplier,
-        width: (maxX - minX + padding * 2) * multiplier,
-        height: (maxY - minY + padding * 2) * multiplier
+        left: boundsLeft,
+        top: boundsTop,
+        width: boundsWidth,
+        height: boundsHeight
       };
     }
 
