@@ -279,14 +279,14 @@ export function useWhiteboardCanvas() {
 
     const multiplier = CANVAS.EXPORT_MULTIPLIER;
     const vpt = canvas.viewportTransform;
-    const zoom = canvas.getZoom();
     const canvasWidth = canvas.getWidth();
     const canvasHeight = canvas.getHeight();
 
-    const viewportLeft = -vpt[4] / zoom;
-    const viewportTop = -vpt[5] / zoom;
-    const viewportWidth = canvasWidth / zoom;
-    const viewportHeight = canvasHeight / zoom;
+    // Use vpt[0] and vpt[3] (scale components) instead of zoom for correct viewport calculation
+    const viewportLeft = -vpt[4] / vpt[0];
+    const viewportTop = -vpt[5] / vpt[3];
+    const viewportWidth = canvasWidth / vpt[0];
+    const viewportHeight = canvasHeight / vpt[3];
 
     const dataUrl = canvas.toDataURL({
       format: 'png',

@@ -138,10 +138,133 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
                 type: 'text',
                 data: { text: item.text, left: capturedLeft, top: capturedTop, fontSize: item.fontSize, fill: item.fill, angle: item.angle, scaleX: item.scaleX, scaleY: item.scaleY }
               });
-            } else {
+            } else if (item.type === 'path') {
+              // Path objects (freehand drawings)
+              updateElement(item.id, {
+                type: 'path',
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  path: item.path,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill,
+                  strokeLineCap: item.strokeLineCap,
+                  strokeLineJoin: item.strokeLineJoin
+                }
+              });
+            } else if (item.type === 'line' || item.type === 'arrow') {
+              // Line and arrow objects
               updateElement(item.id, {
                 type: item.type,
-                data: { ...item.toObject(['left', 'top', 'scaleX', 'scaleY', 'angle']), left: capturedLeft, top: capturedTop, stroke: item.stroke, strokeWidth: item.strokeWidth, fill: item.fill }
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  x1: item.x1,
+                  y1: item.y1,
+                  x2: item.x2,
+                  y2: item.y2,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  strokeLineCap: item.strokeLineCap,
+                  headLength: item.headLength,
+                  headAngle: item.headAngle
+                }
+              });
+            } else if (item.type === 'circle') {
+              // Circle objects
+              updateElement(item.id, {
+                type: 'circle',
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  radius: item.radius,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill,
+                  strokeUniform: item.strokeUniform
+                }
+              });
+            } else if (item.type === 'rect') {
+              // Rectangle objects
+              updateElement(item.id, {
+                type: 'rect',
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  width: item.width,
+                  height: item.height,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill,
+                  strokeUniform: item.strokeUniform
+                }
+              });
+            } else if (item.type === 'ellipse') {
+              // Ellipse objects
+              updateElement(item.id, {
+                type: 'ellipse',
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  rx: item.rx,
+                  ry: item.ry,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill,
+                  strokeUniform: item.strokeUniform
+                }
+              });
+            } else if (['triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'octagon', 'cross'].includes(item.type)) {
+              // Polygon shapes
+              updateElement(item.id, {
+                type: item.type,
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  points: item.points,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill,
+                  strokeUniform: item.strokeUniform,
+                  strokeLineJoin: item.strokeLineJoin,
+                  strokeLineCap: item.strokeLineCap
+                }
+              });
+            } else {
+              // Fallback for any other object types
+              updateElement(item.id, {
+                type: item.type,
+                data: {
+                  left: capturedLeft,
+                  top: capturedTop,
+                  scaleX: item.scaleX,
+                  scaleY: item.scaleY,
+                  angle: item.angle,
+                  width: item.width,
+                  height: item.height,
+                  stroke: item.stroke,
+                  strokeWidth: item.strokeWidth,
+                  fill: item.fill
+                }
               });
             }
           } finally {
