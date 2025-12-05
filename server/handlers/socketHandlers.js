@@ -12,6 +12,7 @@ export const MAX_ELEMENTS_PER_UPDATE = 100;
 export const MAX_CODE_LENGTH = 500000;
 export const MAX_DIAGRAM_LENGTH = 100000;
 export const MAX_DRAWINGS = 5000;
+export const MAX_USERS_PER_WORKSPACE = 100;
 
 export function handleJoinWorkspace(
   { workspaceId, userId, accessToken },
@@ -29,6 +30,17 @@ export function handleJoinWorkspace(
     if (!workspace) {
       isNewWorkspace = true;
       workspace = workspaceService.createWorkspace(workspaceId, userId || socket.id);
+    }
+
+    // Check if workspace has reached maximum user limit
+    if (!isNewWorkspace) {
+      const currentUserCount = workspaceService.getActiveUserCount(workspaceId);
+      if (currentUserCount >= MAX_USERS_PER_WORKSPACE) {
+        socket.emit(SOCKET_EVENTS.ERROR, {
+          message: 'Workspace is full. Maximum of 100 users allowed per workspace.'
+        });
+        return { success: false, reason: 'workspace_full' };
+      }
     }
 
     currentUser.userId = userId || socket.id;
