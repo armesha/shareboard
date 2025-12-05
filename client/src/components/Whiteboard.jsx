@@ -13,7 +13,6 @@ import { useTextEditing } from '../hooks/useTextEditing';
 const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMove }) {
   const canvasRef = useRef(null);
   const isUpdatingRef = useRef(false);
-  const lastEmitTimeRef = useRef(0);
   const isPanningRef = useRef(false);
   const lastPanPointRef = useRef(null);
   const isSpacePressedRef = useRef(false);
@@ -28,6 +27,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
     selectedShape,
     initCanvas,
     canvasRef: fabricCanvasRef,
+    batchedRenderRef,
     addElement,
     updateElement,
     setTool,
@@ -91,7 +91,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       if (disabled) {
         if (e.target?.originalState) {
           e.target.set(e.target.originalState);
-          canvas.requestRenderAll();
+          if (batchedRenderRef.current) {
+            batchedRenderRef.current();
+          }
         }
         return;
       }
@@ -144,7 +146,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
             }
           } finally {
             canvas.suspendDrawing = false;
-            canvas.requestRenderAll();
+            if (batchedRenderRef.current) {
+              batchedRenderRef.current();
+            }
           }
         }, TIMING.MOVEMENT_TIMEOUT);
         item.modificationTimeout = timeoutId;
@@ -232,7 +236,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       });
 
       canvas.discardActiveObject();
-      canvas.requestRenderAll();
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -319,66 +325,15 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
 
       const rect = container.getBoundingClientRect();
       canvas.setDimensions({ width: rect.width, height: rect.height });
-      canvas.requestRenderAll();
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [canvas]);
 
-  useEffect(() => {
-    if (!canvas || !socket) return;
-
-    const handleSocketEmit = (e) => {
-      const obj = e.target;
-      if (!obj) return;
-
-      const now = Date.now();
-      if (now - lastEmitTimeRef.current < TIMING.MOVEMENT_TIMEOUT) {
-        return;
-      }
-      lastEmitTimeRef.current = now;
-
-      const workspaceId = getWorkspaceId();
-
-      const isActiveSelection = obj.type === 'activeSelection';
-      const objectsToSync = isActiveSelection ? obj.getObjects() : [obj];
-
-      const elements = objectsToSync
-        .filter(item => item.id)
-        .map(item => {
-          let absoluteLeft = item.left;
-          let absoluteTop = item.top;
-
-          if (isActiveSelection) {
-            const absPos = getAbsolutePosition(item, obj);
-            absoluteLeft = absPos.left;
-            absoluteTop = absPos.top;
-          }
-
-          const isDiagram = item.type === 'diagram' || (item.type === 'image' && item.data?.isDiagram);
-          if (isDiagram) {
-            return {
-              id: item.id,
-              type: 'diagram',
-              data: { ...item.data, left: absoluteLeft, top: absoluteTop, scaleX: item.scaleX, scaleY: item.scaleY, angle: item.angle }
-            };
-          }
-
-          const objData = item.toObject(['id']);
-          objData.left = absoluteLeft;
-          objData.top = absoluteTop;
-          return { id: item.id, type: item.type, data: objData };
-        });
-
-      if (elements.length > 0) {
-        socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, { workspaceId, elements });
-      }
-    };
-
-    canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleSocketEmit);
-    return () => canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleSocketEmit);
-  }, [canvas, socket]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -423,7 +378,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       vpt[4] += deltaX;
       vpt[5] += deltaY;
 
-      canvas.requestRenderAll();
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
       lastPanPointRef.current = { x: opt.e.clientX, y: opt.e.clientY };
     };
 
@@ -447,7 +404,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
 
       const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
       canvas.zoomToPoint(point, newZoom);
-      canvas.requestRenderAll();
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
       setZoomState(newZoom);
     };
 

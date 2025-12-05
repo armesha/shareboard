@@ -3,6 +3,7 @@ import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { COLORS, FABRIC_OBJECT_PROPS, SOCKET_EVENTS, TIMING, FABRIC_EVENTS, CANVAS, DEFAULT_COLORS } from '../constants';
 import { getWorkspaceId } from '../utils';
+import { createBatchedRender, cancelBatchedRender } from '../utils/batchedRender';
 
 export function useWhiteboardCanvas() {
   const canvasRef = useRef(null);
@@ -12,6 +13,7 @@ export function useWhiteboardCanvas() {
   const canWriteRef = useRef(null);
   const elementsMapRef = useRef(new Map());
   const userIdRef = useRef(null);
+  const batchedRenderRef = useRef(null);
 
   const drawingIdRef = useRef(null);
   const lastSentPointIndexRef = useRef(0);
@@ -42,6 +44,9 @@ export function useWhiteboardCanvas() {
     canvas.freeDrawingBrush = brush;
 
     canvasRef.current = canvas;
+
+    // Create batched render function for this canvas
+    batchedRenderRef.current = createBatchedRender(canvas);
 
     const emitDrawingStream = () => {
       if (!socketRef.current || !drawingIdRef.current || !canWriteRef.current || !canWriteRef.current()) {
@@ -235,7 +240,9 @@ export function useWhiteboardCanvas() {
         width: window.innerWidth,
         height: window.innerHeight
       });
-      canvas.requestRenderAll();
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -253,6 +260,7 @@ export function useWhiteboardCanvas() {
       canvas.off(FABRIC_EVENTS.MOUSE_DOWN, handleDrawingMouseDown);
       canvas.off(FABRIC_EVENTS.MOUSE_MOVE, handleDrawingMouseMove);
       canvas.off(FABRIC_EVENTS.MOUSE_UP, handleDrawingMouseUp);
+      cancelBatchedRender(canvas);
       canvas.dispose();
     };
   }, []);
@@ -334,7 +342,9 @@ export function useWhiteboardCanvas() {
       canvas.freeDrawingBrush.strokeLineJoin = 'round';
     }
 
-    canvas.requestRenderAll();
+    if (batchedRenderRef.current) {
+      batchedRenderRef.current();
+    }
   }, []);
 
   const setRefs = useCallback((socket, canWrite, userId) => {
@@ -362,6 +372,7 @@ export function useWhiteboardCanvas() {
     canvasRef,
     isUpdatingRef,
     elementsMapRef,
+    batchedRenderRef,
     initCanvas,
     disposeCanvas,
     getFullCanvasImage,

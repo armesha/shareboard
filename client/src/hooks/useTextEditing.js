@@ -2,11 +2,13 @@ import { useCallback } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { TOOLS, CANVAS } from '../constants';
+import { createBatchedRender } from '../utils/batchedRender';
 
 export function useTextEditing({ canvas, color, fontSize, addElement, setTool }) {
   const addText = useCallback((position) => {
     if (!canvas) return;
 
+    const batchedRender = createBatchedRender(canvas);
     const currentZoom = canvas.getZoom();
     const adaptiveFontSize = fontSize / currentZoom;
 
@@ -45,7 +47,7 @@ export function useTextEditing({ canvas, color, fontSize, addElement, setTool })
     });
 
     setTool(TOOLS.SELECT);
-    canvas.requestRenderAll();
+    batchedRender();
   }, [canvas, color, fontSize, addElement, setTool]);
 
   return {

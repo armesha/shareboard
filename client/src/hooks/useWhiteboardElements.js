@@ -5,6 +5,7 @@ import { SOCKET_EVENTS, DEFAULT_COLORS, CANVAS } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { createShapeFromData } from '../factories/shapeFactory';
 import { loadDiagramToCanvas } from '../factories/diagramFactory';
+import { createBatchedRender } from '../utils/batchedRender';
 import '../utils/fabricArrow';
 
 export function useWhiteboardElements() {
@@ -112,7 +113,8 @@ export function useWhiteboardElements() {
         const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
         if (fabricObj) {
           fabricObj.bringToFront();
-          canvas.requestRenderAll();
+          const batchedRender = createBatchedRender(canvas);
+          batchedRender();
         }
       }
     }, 0);
@@ -158,7 +160,8 @@ export function useWhiteboardElements() {
     setElements(updatedElements);
 
     if (canvas) {
-      canvas.requestRenderAll();
+      const batchedRender = createBatchedRender(canvas);
+      batchedRender();
     }
 
     const workspaceId = getWorkspaceId();

@@ -11,7 +11,6 @@ import Whiteboard from './Whiteboard';
 import CodeEditor from './CodeEditor';
 import DiagramRenderer from './DiagramRenderer';
 import { v4 as uuidv4 } from 'uuid';
-import mermaid from 'mermaid';
 import { MERMAID_THEME, SOCKET_EVENTS, TOOLS } from '../constants';
 
 export default function WorkspaceContent({
@@ -96,6 +95,9 @@ export default function WorkspaceContent({
 
   const handleAddImageToWhiteboard = useCallback(async () => {
     try {
+      // Dynamic import: only load mermaid library when actually needed
+      const { default: mermaid } = await import('mermaid');
+
       await mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'loose',

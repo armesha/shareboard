@@ -1,8 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { SHAPES, SOCKET_EVENTS, TIMING } from '../constants';
 import { createShape } from '../factories/shapeFactory';
 import { getWorkspaceId } from '../utils';
+import { createBatchedRender } from '../utils/batchedRender';
 
 export function useShapeDrawing({ canvas, selectedShape, color, width, addElement, disabled, socket, canWrite }) {
   const isDrawing = useRef(false);
@@ -10,6 +11,9 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
   const startPoint = useRef(null);
   const currentShapeIdRef = useRef(null);
   const lastEmitTimeRef = useRef(0);
+
+  // Create batched render function for the canvas
+  const batchedRender = useMemo(() => createBatchedRender(canvas), [canvas]);
 
   const startShape = useCallback((pointer) => {
     if (disabled || !canvas || !selectedShape) return;
@@ -252,7 +256,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     }
 
     shape.setCoords();
-    canvas.requestRenderAll();
+    batchedRender();
 
     if (socket && canWrite && canWrite() && currentShapeIdRef.current) {
       const now = Date.now();
@@ -268,7 +272,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         }
       }
     }
-  }, [canvas, selectedShape, disabled, socket, canWrite]);
+  }, [canvas, selectedShape, disabled, socket, canWrite, batchedRender]);
 
   const finishShape = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;
@@ -302,13 +306,13 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
 
     currentShapeIdRef.current = null;
     startPoint.current = null;
-    canvas.requestRenderAll();
-  }, [canvas, addElement, disabled, socket, canWrite]);
+    batchedRender();
+  }, [canvas, addElement, disabled, socket, canWrite, batchedRender]);
 
   const cancelShape = useCallback(() => {
     if (currentShape.current && canvas) {
       canvas.remove(currentShape.current);
-      canvas.requestRenderAll();
+      batchedRender();
     }
 
     if (socket && canWrite && canWrite() && currentShapeIdRef.current) {
@@ -325,7 +329,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
     currentShape.current = null;
     currentShapeIdRef.current = null;
     startPoint.current = null;
-  }, [canvas, socket, canWrite]);
+  }, [canvas, socket, canWrite, batchedRender]);
 
   return {
     isDrawing,

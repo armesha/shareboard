@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { SOCKET_EVENTS } from '../constants';
 import { createShapeFromData } from '../factories/shapeFactory';
+import { createBatchedRender } from '../utils/batchedRender';
 import '../utils/fabricArrow';
 
 function pointsToSvgPath(points) {
@@ -41,6 +42,8 @@ export function useRemoteDrawing(socket, canvasRef) {
     const canvas = canvasRef.current;
     if (!canvas || !newPoints || newPoints.length === 0) return;
 
+    const batchedRender = createBatchedRender(canvas);
+
     let drawingData = activeDrawingsRef.current.get(drawingId);
 
     if (!drawingData) {
@@ -58,27 +61,34 @@ export function useRemoteDrawing(socket, canvasRef) {
     const svgPathString = pointsToSvgPath(drawingData.points);
 
     if (drawingData.fabricPath) {
-      canvas.remove(drawingData.fabricPath);
+      // Reuse existing path object
+      drawingData.fabricPath.set({
+        path: fabric.util.parsePath(svgPathString),
+        stroke: drawingData.color,
+        strokeWidth: drawingData.brushWidth,
+      });
+      drawingData.fabricPath.setCoords();
+    } else {
+      // Create new path object only if it doesn't exist
+      const updatedPath = new fabric.Path(svgPathString, {
+        stroke: drawingData.color,
+        strokeWidth: drawingData.brushWidth,
+        fill: null,
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
+        selectable: false,
+        evented: false,
+        objectCaching: false,
+      });
+
+      updatedPath._isRemoteDrawing = true;
+      updatedPath._drawingId = drawingId;
+
+      canvas.add(updatedPath);
+      drawingData.fabricPath = updatedPath;
     }
 
-    const updatedPath = new fabric.Path(svgPathString, {
-      stroke: drawingData.color,
-      strokeWidth: drawingData.brushWidth,
-      fill: null,
-      strokeLineCap: 'round',
-      strokeLineJoin: 'round',
-      selectable: false,
-      evented: false,
-      objectCaching: false,
-    });
-
-    updatedPath._isRemoteDrawing = true;
-    updatedPath._drawingId = drawingId;
-
-    canvas.add(updatedPath);
-    drawingData.fabricPath = updatedPath;
-
-    canvas.requestRenderAll();
+    batchedRender();
   }, [canvasRef]);
 
   const handleDrawingEnd = useCallback((data) => {
@@ -86,12 +96,14 @@ export function useRemoteDrawing(socket, canvasRef) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const batchedRender = createBatchedRender(canvas);
+
     const drawingData = activeDrawingsRef.current.get(drawingId);
     if (!drawingData) return;
 
     if (drawingData.fabricPath) {
       canvas.remove(drawingData.fabricPath);
-      canvas.requestRenderAll();
+      batchedRender();
     }
     activeDrawingsRef.current.delete(drawingId);
   }, [canvasRef]);
@@ -100,6 +112,8 @@ export function useRemoteDrawing(socket, canvasRef) {
     const { shapeId, userId, shapeType, data: shapeData } = data;
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const batchedRender = createBatchedRender(canvas);
 
     if (socket && userId === socket.id) return;
 
@@ -143,7 +157,7 @@ export function useRemoteDrawing(socket, canvasRef) {
       shape._shapeId = shapeId;
       activeDrawingsRef.current.set(shapeId, { fabricShape: shape, shapeType });
       canvas.add(shape);
-      canvas.requestRenderAll();
+      batchedRender();
     }
   }, [canvasRef, socket]);
 
@@ -152,64 +166,46 @@ export function useRemoteDrawing(socket, canvasRef) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const batchedRender = createBatchedRender(canvas);
+
     const shapeInfo = activeDrawingsRef.current.get(shapeId);
     if (!shapeInfo || !shapeInfo.fabricShape) return;
 
     const { fabricShape, shapeType } = shapeInfo;
 
     if (shapeType === 'line' || shapeType === 'arrow') {
-      canvas.remove(fabricShape);
-
-      let newShape;
-      if (shapeType === 'line') {
-        newShape = new fabric.Line(
-          [shapeData.x1, shapeData.y1, shapeData.x2, shapeData.y2],
-          {
-            stroke: shapeData.stroke,
-            strokeWidth: shapeData.strokeWidth,
-            selectable: false,
-            evented: false,
-            objectCaching: false,
-          }
-        );
-      } else {
-        newShape = new fabric.Arrow(
-          [shapeData.x1, shapeData.y1, shapeData.x2, shapeData.y2],
-          {
-            stroke: shapeData.stroke,
-            strokeWidth: shapeData.strokeWidth,
-            selectable: false,
-            evented: false,
-            objectCaching: false,
-          }
-        );
-      }
-
-      newShape._isRemoteShape = true;
-      newShape._shapeId = shapeId;
-      activeDrawingsRef.current.set(shapeId, { fabricShape: newShape, shapeType });
-      canvas.add(newShape);
+      // Reuse existing line or arrow object
+      fabricShape.set({
+        x1: shapeData.x1,
+        y1: shapeData.y1,
+        x2: shapeData.x2,
+        y2: shapeData.y2,
+        stroke: shapeData.stroke,
+        strokeWidth: shapeData.strokeWidth,
+      });
+      fabricShape.setCoords();
     } else if (shapeData.points) {
-      canvas.remove(fabricShape);
-
-      const newShape = createShapeFromData(shapeType, shapeData);
-      if (newShape) {
-        newShape.set({
-          selectable: false,
-          evented: false,
-          objectCaching: false,
-        });
-        newShape._isRemoteShape = true;
-        newShape._shapeId = shapeId;
-        activeDrawingsRef.current.set(shapeId, { fabricShape: newShape, shapeType });
-        canvas.add(newShape);
-      }
+      // Reuse existing polygon object
+      fabricShape.set({
+        points: shapeData.points,
+        left: shapeData.left,
+        top: shapeData.top,
+        width: shapeData.width,
+        height: shapeData.height,
+        scaleX: shapeData.scaleX || 1,
+        scaleY: shapeData.scaleY || 1,
+        fill: shapeData.fill,
+        stroke: shapeData.stroke,
+        strokeWidth: shapeData.strokeWidth,
+      });
+      fabricShape._setPositionDimensions({});
+      fabricShape.setCoords();
     } else {
       fabricShape.set(shapeData);
       fabricShape.setCoords();
     }
 
-    canvas.requestRenderAll();
+    batchedRender();
   }, [canvasRef]);
 
   const handleShapeDrawingEnd = useCallback((data) => {
@@ -217,12 +213,14 @@ export function useRemoteDrawing(socket, canvasRef) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const batchedRender = createBatchedRender(canvas);
+
     const shapeInfo = activeDrawingsRef.current.get(shapeId);
     if (!shapeInfo) return;
 
     if (shapeInfo.fabricShape) {
       canvas.remove(shapeInfo.fabricShape);
-      canvas.requestRenderAll();
+      batchedRender();
     }
     activeDrawingsRef.current.delete(shapeId);
   }, [canvasRef]);
@@ -247,6 +245,7 @@ export function useRemoteDrawing(socket, canvasRef) {
 
       const canvas = canvasRef.current;
       if (canvas) {
+        const batchedRender = createBatchedRender(canvas);
         activeDrawingsRef.current.forEach((drawingData) => {
           if (drawingData.fabricPath) {
             canvas.remove(drawingData.fabricPath);
@@ -255,7 +254,7 @@ export function useRemoteDrawing(socket, canvasRef) {
             canvas.remove(drawingData.fabricShape);
           }
         });
-        canvas.requestRenderAll();
+        batchedRender();
       }
       activeDrawingsRef.current.clear();
     };

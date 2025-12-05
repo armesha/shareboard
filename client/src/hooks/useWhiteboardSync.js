@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { loadDiagramToCanvas } from '../factories/diagramFactory';
+import { createBatchedRender } from '../utils/batchedRender';
 
 export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingRef, createFabricObject, setElements, canWrite) {
   const [isConnected, setIsConnected] = useState(false);
@@ -16,6 +17,8 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const batchedRender = createBatchedRender(canvas);
 
     isUpdatingRef.current = true;
     canvas.suspendDrawing = true;
@@ -71,7 +74,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
       setElements(updatedElements);
     } finally {
       canvas.suspendDrawing = false;
-      canvas.requestRenderAll();
+      batchedRender();
       isUpdatingRef.current = false;
     }
   }, [canvasRef, elementsMapRef, isUpdatingRef, createFabricObject, setElements, canWrite]);
@@ -93,6 +96,8 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
     const handleWhiteboardState = (state) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
+
+      const batchedRender = createBatchedRender(canvas);
 
       canvas.clear();
       elementsMapRef.current.clear();
@@ -132,7 +137,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
             });
           });
 
-          canvas.requestRenderAll();
+          batchedRender();
           setElements(state.whiteboardElements);
         } finally {
           isUpdatingRef.current = false;
@@ -163,6 +168,8 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
         return;
       }
 
+      const batchedRender = createBatchedRender(canvas);
+
       elementsMapRef.current.delete(elementId);
 
       const obj = canvas.getObjects().find(o => o.id === elementId);
@@ -173,7 +180,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
       const updatedElements = Array.from(elementsMapRef.current.values());
       setElements(updatedElements);
 
-      canvas.requestRenderAll();
+      batchedRender();
     };
 
     const handleUserJoined = ({ activeUsers }) => {

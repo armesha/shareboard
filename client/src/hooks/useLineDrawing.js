@@ -1,8 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 import { fabric } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
 import { TOOLS, SOCKET_EVENTS, TIMING } from '../constants';
 import { getWorkspaceId } from '../utils';
+import { createBatchedRender } from '../utils/batchedRender';
 
 export function useLineDrawing({ canvas, tool, color, width, addElement, disabled, socket }) {
   const isDrawing = useRef(false);
@@ -10,6 +11,9 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
   const startPoint = useRef(null);
   const currentShapeIdRef = useRef(null);
   const lastEmitTimeRef = useRef(0);
+
+  // Create batched render function for this canvas
+  const batchedRender = useMemo(() => createBatchedRender(canvas), [canvas]);
 
   const startLine = useCallback((pointer) => {
     if (disabled || !canvas) return;
@@ -108,7 +112,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     });
 
     line.setCoords();
-    canvas.requestRenderAll();
+    batchedRender();
 
     if (socket && !disabled && currentShapeIdRef.current) {
       const now = Date.now();
@@ -133,7 +137,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
         }
       }
     }
-  }, [canvas, disabled, socket]);
+  }, [canvas, disabled, socket, batchedRender]);
 
   const finishLine = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;
@@ -179,13 +183,13 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
 
     currentShapeIdRef.current = null;
     startPoint.current = null;
-    canvas.requestRenderAll();
-  }, [canvas, addElement, disabled, socket]);
+    batchedRender();
+  }, [canvas, addElement, disabled, socket, batchedRender]);
 
   const cancelLine = useCallback(() => {
     if (currentLine.current && canvas) {
       canvas.remove(currentLine.current);
-      canvas.requestRenderAll();
+      batchedRender();
     }
 
     if (socket && !disabled && currentShapeIdRef.current) {
@@ -202,7 +206,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     currentLine.current = null;
     currentShapeIdRef.current = null;
     startPoint.current = null;
-  }, [canvas, socket, disabled]);
+  }, [canvas, socket, disabled, batchedRender]);
 
   return {
     isDrawingLine: isDrawing,

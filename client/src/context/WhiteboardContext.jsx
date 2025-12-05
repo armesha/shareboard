@@ -24,6 +24,7 @@ export function WhiteboardProvider({ children }) {
     canvasRef,
     isUpdatingRef,
     elementsMapRef,
+    batchedRenderRef,
     initCanvas: initCanvasBase,
     disposeCanvas: _disposeCanvas,
     getFullCanvasImage,
@@ -73,9 +74,11 @@ export function WhiteboardProvider({ children }) {
     const clampedZoom = Math.min(Math.max(newZoom, ZOOM.MIN), ZOOM.MAX);
     const center = canvas.getCenter();
     canvas.zoomToPoint({ x: center.left, y: center.top }, clampedZoom);
-    canvas.requestRenderAll();
+    if (batchedRenderRef.current) {
+      batchedRenderRef.current();
+    }
     setZoomState(clampedZoom);
-  }, [canvasRef]);
+  }, [canvasRef, batchedRenderRef]);
 
   useEffect(() => {
     setRefs(socket, canWrite, userId);
@@ -119,6 +122,7 @@ export function WhiteboardProvider({ children }) {
     activeUsers,
     elements,
     canvasRef,
+    batchedRenderRef,
     isConnected,
     isLoading,
     connectionStatus,
@@ -144,6 +148,7 @@ export function WhiteboardProvider({ children }) {
     activeUsers,
     elements,
     canvasRef,
+    batchedRenderRef,
     isConnected,
     isLoading,
     connectionStatus,
