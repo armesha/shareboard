@@ -82,7 +82,15 @@ function isValidBrushWidth(width) {
 function isValidPoints(points) {
   if (!Array.isArray(points)) return false;
   if (points.length > DRAWING_VALIDATION.MAX_POINTS_LENGTH) return false;
-  return points.every(p => typeof p === 'number' && Number.isFinite(p));
+  // Points can be either array of numbers or array of {x, y} objects
+  return points.every(p => {
+    if (typeof p === 'number') return Number.isFinite(p);
+    if (typeof p === 'object' && p !== null) {
+      return typeof p.x === 'number' && Number.isFinite(p.x) &&
+             typeof p.y === 'number' && Number.isFinite(p.y);
+    }
+    return false;
+  });
 }
 
 function isValidShapeData(data) {
