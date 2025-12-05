@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { SOCKET_EVENTS, STORAGE_KEYS, SHARING_MODES } from '../constants';
 import { getPersistentUserId } from '../utils';
@@ -141,10 +141,11 @@ export function SharingProvider({ children, workspaceId }) {
     });
   }, [socket, workspaceId, persistentUserId]);
 
+  // Proper useRef for tracking if connect was handled (resets on disconnect)
+  const hasHandledConnectRef = useRef(false);
+
   useEffect(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
-
-    const hasHandledConnectRef = { current: false };
 
     const handleWorkspaceExistsResult = ({ exists }) => {
       setIsCheckingWorkspace(false);
@@ -162,8 +163,14 @@ export function SharingProvider({ children, workspaceId }) {
       socket.emit(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, { workspaceId });
     };
 
+    const handleDisconnect = () => {
+      // Reset the flag on disconnect so reconnection works properly
+      hasHandledConnectRef.current = false;
+    };
+
     socket.on(SOCKET_EVENTS.CONNECT, handleConnect);
     socket.on(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleWorkspaceExistsResult);
+    socket.on('disconnect', handleDisconnect);
 
     if (socket.connected) {
       handleConnect();
@@ -172,6 +179,7 @@ export function SharingProvider({ children, workspaceId }) {
     return () => {
       socket.off(SOCKET_EVENTS.CONNECT, handleConnect);
       socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleWorkspaceExistsResult);
+      socket.off('disconnect', handleDisconnect);
     };
   }, [socket, workspaceId, persistentUserId, joinWorkspace]);
 
@@ -212,20 +220,34 @@ export function SharingProvider({ children, workspaceId }) {
     });
   }, [socket, workspaceId, isOwner]);
 
+  const contextValue = useMemo(() => ({
+    sharingMode,
+    allowedUsers,
+    isOwner,
+    currentUser,
+    hasEditAccess,
+    canWrite,
+    changeMode,
+    workspaceOwner,
+    sharingInfoReceived,
+    workspaceNotFound,
+    isCheckingWorkspace
+  }), [
+    sharingMode,
+    allowedUsers,
+    isOwner,
+    currentUser,
+    hasEditAccess,
+    canWrite,
+    changeMode,
+    workspaceOwner,
+    sharingInfoReceived,
+    workspaceNotFound,
+    isCheckingWorkspace
+  ]);
+
   return (
-    <SharingContext.Provider value={{
-      sharingMode,
-      allowedUsers,
-      isOwner,
-      currentUser,
-      hasEditAccess,
-      canWrite,
-      changeMode,
-      workspaceOwner,
-      sharingInfoReceived,
-      workspaceNotFound,
-      isCheckingWorkspace
-    }}>
+    <SharingContext.Provider value={contextValue}>
       {children}
     </SharingContext.Provider>
   );

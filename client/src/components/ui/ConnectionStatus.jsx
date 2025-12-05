@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CONNECTION_STATUS } from '../../constants';
 
@@ -9,7 +9,7 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
 }) {
   const { t } = useTranslation('workspace');
 
-  const STATUS_CONFIG = {
+  const STATUS_CONFIG = useMemo(() => ({
     [CONNECTION_STATUS.CONNECTED]: {
       color: 'text-green-600',
       dotColor: 'bg-green-600',
@@ -30,7 +30,7 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
       dotColor: 'bg-red-600',
       text: t('connection.error')
     }
-  };
+  }), [t]);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG[CONNECTION_STATUS.CONNECTING];
   const showParticipants = status === CONNECTION_STATUS.CONNECTED && participantCount > 0;

@@ -4,20 +4,19 @@ import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
+import DOMPurify from 'dompurify';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
   theme: 'neutral',
   logLevel: 'error',
-  securityLevel: 'loose',
+  securityLevel: 'strict',
   flowchart: {
     curve: 'linear',
     useMaxWidth: false,
     padding: 15
   }
 };
-
-let mermaidInitialized = false;
 
 export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }) {
   const { t } = useTranslation(['editor', 'common', 'workspace']);
@@ -35,11 +34,12 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const panOffsetRef = useRef({ x: 0, y: 0 });
+  const mermaidInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (!mermaidInitialized) {
+    if (!mermaidInitializedRef.current) {
       mermaid.initialize(MERMAID_CONFIG);
-      mermaidInitialized = true;
+      mermaidInitializedRef.current = true;
     }
   }, []);
 
@@ -64,7 +64,14 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      diagramRef.current.innerHTML = svgWithAttrs;
+      // Sanitize SVG output to prevent XSS attacks
+      const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ['foreignObject'],
+        ADD_ATTR: ['xmlns', 'xmlns:xlink', 'viewBox', 'class', 'id', 'data-exportable', 'data-name']
+      });
+
+      diagramRef.current.innerHTML = sanitizedSvg;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {
@@ -103,15 +110,14 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     setContent(e.target.value);
   };
 
-  const handleResizeStart = useCallback((e) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-  }, []);
+  // Refs to store handlers for cleanup
+  const resizeMoveHandlerRef = useRef(null);
+  const resizeEndHandlerRef = useRef(null);
+  const panMoveHandlerRef = useRef(null);
+  const panEndHandlerRef = useRef(null);
 
   const handleResizeMove = useCallback((e) => {
-    if (!isDraggingRef.current || !containerRef.current) return;
+    if (!containerRef.current) return;
 
     const container = containerRef.current;
     const containerRect = container.getBoundingClientRect();
@@ -127,7 +133,27 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     isDraggingRef.current = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    // Remove event listeners when dragging ends
+    if (resizeMoveHandlerRef.current) {
+      document.removeEventListener('mousemove', resizeMoveHandlerRef.current);
+    }
+    if (resizeEndHandlerRef.current) {
+      document.removeEventListener('mouseup', resizeEndHandlerRef.current);
+    }
   }, []);
+
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    // Store handlers in refs for cleanup
+    resizeMoveHandlerRef.current = handleResizeMove;
+    resizeEndHandlerRef.current = handleResizeEnd;
+    // Add event listeners only when dragging starts
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+  }, [handleResizeMove, handleResizeEnd]);
 
   const handleWheelRef = useRef(null);
   handleWheelRef.current = (e) => {
@@ -145,16 +171,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     return () => previewEl.removeEventListener('wheel', handler);
   }, []);
 
-  const handlePanStart = useCallback((e) => {
-    e.preventDefault();
-    isPanningRef.current = true;
-    panStartRef.current = { x: e.clientX, y: e.clientY };
-    panOffsetRef.current = { x: pan.x, y: pan.y };
-    document.body.style.cursor = 'grabbing';
-  }, [pan]);
-
   const handlePanMove = useCallback((e) => {
-    if (!isPanningRef.current) return;
     const dx = e.clientX - panStartRef.current.x;
     const dy = e.clientY - panStartRef.current.y;
     setPan({
@@ -164,11 +181,30 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   }, []);
 
   const handlePanEnd = useCallback(() => {
-    if (isPanningRef.current) {
-      isPanningRef.current = false;
-      document.body.style.cursor = '';
+    isPanningRef.current = false;
+    document.body.style.cursor = '';
+    // Remove event listeners when panning ends
+    if (panMoveHandlerRef.current) {
+      document.removeEventListener('mousemove', panMoveHandlerRef.current);
+    }
+    if (panEndHandlerRef.current) {
+      document.removeEventListener('mouseup', panEndHandlerRef.current);
     }
   }, []);
+
+  const handlePanStart = useCallback((e) => {
+    e.preventDefault();
+    isPanningRef.current = true;
+    panStartRef.current = { x: e.clientX, y: e.clientY };
+    panOffsetRef.current = { x: pan.x, y: pan.y };
+    document.body.style.cursor = 'grabbing';
+    // Store handlers in refs for cleanup
+    panMoveHandlerRef.current = handlePanMove;
+    panEndHandlerRef.current = handlePanEnd;
+    // Add event listeners only when panning starts
+    document.addEventListener('mousemove', handlePanMove);
+    document.addEventListener('mouseup', handlePanEnd);
+  }, [pan, handlePanMove, handlePanEnd]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -179,18 +215,25 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     setPan({ x: 0, y: 0 });
   }, []);
 
+  // Cleanup event listeners on unmount to prevent memory leaks
   useEffect(() => {
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-    document.addEventListener('mousemove', handlePanMove);
-    document.addEventListener('mouseup', handlePanEnd);
     return () => {
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-      document.removeEventListener('mousemove', handlePanMove);
-      document.removeEventListener('mouseup', handlePanEnd);
+      // Clean up any remaining resize listeners
+      if (resizeMoveHandlerRef.current) {
+        document.removeEventListener('mousemove', resizeMoveHandlerRef.current);
+      }
+      if (resizeEndHandlerRef.current) {
+        document.removeEventListener('mouseup', resizeEndHandlerRef.current);
+      }
+      // Clean up any remaining pan listeners
+      if (panMoveHandlerRef.current) {
+        document.removeEventListener('mousemove', panMoveHandlerRef.current);
+      }
+      if (panEndHandlerRef.current) {
+        document.removeEventListener('mouseup', panEndHandlerRef.current);
+      }
     };
-  }, [handleResizeMove, handleResizeEnd, handlePanMove, handlePanEnd]);
+  }, []);
 
   return (
     <div ref={containerRef} className="h-full flex flex-col bg-white overflow-hidden">

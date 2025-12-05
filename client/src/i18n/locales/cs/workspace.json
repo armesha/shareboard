@@ -8,7 +8,11 @@
   "connection": {
     "online": "Online",
     "connecting": "Připojování...",
-    "offline": "Offline",
+    "connectingToWorkspace": "Připojování k pracovnímu prostoru...",
+    "loadingHistory": "Načítání historie kreslení...",
+    "reconnecting": "Připojení ztraceno. Opětovné připojování...",
+    "errorRefresh": "Chyba připojení. Zkuste prosím obnovit stránku.",
+    "offline": "Offline - Znovu připojování...",
     "error": "Chyba",
     "participants_one": "{{count}} uživatel",
     "participants_few": "{{count}} uživatelé",

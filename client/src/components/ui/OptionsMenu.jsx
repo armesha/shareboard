@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
@@ -36,6 +36,15 @@ const OptionsMenu = React.memo(function OptionsMenu({
       setIsHovered(false);
       closeTimeoutRef.current = null;
     }, HOVER_CLOSE_DELAY);
+  }, []);
+
+  // Clear timeout on component unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
   }, []);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);

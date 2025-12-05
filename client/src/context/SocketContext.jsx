@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from '../utils/toast';
 import i18n from '../i18n';
@@ -119,15 +119,17 @@ export function SocketProvider({ children }) {
     }
   }, [connectionAttempts, maxReconnectAttempts]);
 
+  const contextValue = useMemo(() => ({
+    socket,
+    connectionStatus,
+    connectionError,
+    connectionAttempts,
+    maxReconnectAttempts,
+    userId
+  }), [socket, connectionStatus, connectionError, connectionAttempts, maxReconnectAttempts, userId]);
+
   return (
-    <SocketContext.Provider value={{ 
-      socket, 
-      connectionStatus, 
-      connectionError,
-      connectionAttempts,
-      maxReconnectAttempts,
-      userId
-    }}>
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

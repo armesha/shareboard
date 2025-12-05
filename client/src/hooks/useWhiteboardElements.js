@@ -45,6 +45,7 @@ export function useWhiteboardElements() {
 
       case 'rect':
       case 'circle':
+      case 'ellipse':
       case 'triangle':
       case 'star':
       case 'diamond':
@@ -109,13 +110,15 @@ export function useWhiteboardElements() {
 
     setTimeout(() => {
       const canvas = canvasRef.current;
-      if (canvas) {
-        const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
-        if (fabricObj) {
-          fabricObj.bringToFront();
-          const batchedRender = createBatchedRender(canvas);
-          batchedRender();
-        }
+      // Defensive check: ensure canvas exists and hasn't been disposed
+      if (!canvas || typeof canvas.getObjects !== 'function') {
+        return;
+      }
+      const fabricObj = canvas.getObjects().find(obj => obj.id === element.id);
+      if (fabricObj) {
+        fabricObj.bringToFront();
+        const batchedRender = createBatchedRender(canvas);
+        batchedRender();
       }
     }, 0);
   }, []);

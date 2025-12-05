@@ -12,3 +12,4 @@ export { default as TextButton } from './TextButton';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as LanguageSwitcher } from './LanguageSwitcher';
 export { default as RemoteCursors } from './RemoteCursors';
+export { default as NumberInput } from './NumberInput';

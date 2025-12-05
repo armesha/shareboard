@@ -31,6 +31,7 @@ function WorkspaceLayout() {
   const [persistentUserId, setPersistentUserId] = useState(null);
   const [isNewWorkspace, setIsNewWorkspace] = useState(false);
   const containerRef = useRef(null);
+  const sessionEndedTimeoutRef = useRef(null);
 
   useEffect(() => {
     const userId = getPersistentUserId();
@@ -118,7 +119,10 @@ function WorkspaceLayout() {
         draggable: true
       });
 
-      setTimeout(() => {
+      if (sessionEndedTimeoutRef.current) {
+        clearTimeout(sessionEndedTimeoutRef.current);
+      }
+      sessionEndedTimeoutRef.current = setTimeout(() => {
         navigate('/', { replace: true });
       }, 2000);
     };
@@ -129,6 +133,9 @@ function WorkspaceLayout() {
     return () => {
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
       socket.off(SOCKET_EVENTS.SESSION_ENDED, handleSessionEnded);
+      if (sessionEndedTimeoutRef.current) {
+        clearTimeout(sessionEndedTimeoutRef.current);
+      }
     };
   }, [socket, workspaceId, persistentUserId, navigate]);
 
@@ -147,13 +154,13 @@ function WorkspaceLayout() {
             {connectionStatus === CONNECTION_STATUS.CONNECTING && (
               <>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                <p className="text-lg text-gray-700">Connecting to workspace...</p>
+                <p className="text-lg text-gray-700">{t('connection.connectingToWorkspace')}</p>
               </>
             )}
             {connectionStatus === CONNECTION_STATUS.CONNECTED && isLoading && (
               <>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent mb-4"></div>
-                <p className="text-lg text-gray-700">Loading drawing history...</p>
+                <p className="text-lg text-gray-700">{t('connection.loadingHistory')}</p>
               </>
             )}
             {connectionStatus === CONNECTION_STATUS.DISCONNECTED && (
@@ -163,7 +170,7 @@ function WorkspaceLayout() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <p className="text-lg text-red-600">Connection lost. Reconnecting...</p>
+                <p className="text-lg text-red-600">{t('connection.reconnecting')}</p>
               </>
             )}
             {connectionStatus === CONNECTION_STATUS.ERROR && (
@@ -173,7 +180,7 @@ function WorkspaceLayout() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <p className="text-lg text-red-600">Connection error. Please try refreshing the page.</p>
+                <p className="text-lg text-red-600">{t('connection.errorRefresh')}</p>
               </>
             )}
           </div>

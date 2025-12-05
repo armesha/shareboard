@@ -147,6 +147,7 @@ const createPolygonFromData = (type, data) => {
 const shapeFromDataCreators = {
   rect: (data) => new fabric.Rect(data),
   circle: (data) => new fabric.Circle(data),
+  ellipse: (data) => new fabric.Ellipse(data),
   triangle: (data) => data.points ? createPolygonFromData('triangle', data) : new fabric.Triangle(data),
   star: (data) => createPolygonFromData('star', data),
   diamond: (data) => createPolygonFromData('diamond', data),

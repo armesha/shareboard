@@ -14,6 +14,90 @@ import * as handlers from './handlers/socketHandlers.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Input validation constants for drawing events
+const DRAWING_VALIDATION = {
+  MAX_DRAWING_ID_LENGTH: 64,
+  MAX_SHAPE_ID_LENGTH: 64,
+  MAX_SHAPE_TYPE_LENGTH: 32,
+  MIN_BRUSH_WIDTH: 1,
+  MAX_BRUSH_WIDTH: 100,
+  MAX_POINTS_LENGTH: 10000,
+  // Valid hex color regex or named colors
+  COLOR_REGEX: /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$|^(rgb|rgba)\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*[\d.]+\s*)?\)$|^[a-zA-Z]+$/
+};
+
+// Input validation constants for cursor position
+const CURSOR_VALIDATION = {
+  MIN_POSITION: 0,
+  MAX_POSITION: 10000,
+  MAX_COLOR_LENGTH: 32,
+  MAX_ANIMAL_KEY_LENGTH: 32
+};
+
+function isValidCursorPosition(position) {
+  return typeof position === 'object' &&
+         position !== null &&
+         typeof position.x === 'number' &&
+         typeof position.y === 'number' &&
+         Number.isFinite(position.x) &&
+         Number.isFinite(position.y) &&
+         position.x >= CURSOR_VALIDATION.MIN_POSITION &&
+         position.x <= CURSOR_VALIDATION.MAX_POSITION &&
+         position.y >= CURSOR_VALIDATION.MIN_POSITION &&
+         position.y <= CURSOR_VALIDATION.MAX_POSITION;
+}
+
+function isValidUserColor(color) {
+  return typeof color === 'string' && color.length <= CURSOR_VALIDATION.MAX_COLOR_LENGTH;
+}
+
+function isValidAnimalKey(key) {
+  return typeof key === 'string' && key.length <= CURSOR_VALIDATION.MAX_ANIMAL_KEY_LENGTH;
+}
+
+// Validation helper functions
+function isValidDrawingId(id) {
+  return typeof id === 'string' && id.length > 0 && id.length <= DRAWING_VALIDATION.MAX_DRAWING_ID_LENGTH;
+}
+
+function isValidShapeId(id) {
+  return typeof id === 'string' && id.length > 0 && id.length <= DRAWING_VALIDATION.MAX_SHAPE_ID_LENGTH;
+}
+
+function isValidShapeType(type) {
+  return typeof type === 'string' && type.length > 0 && type.length <= DRAWING_VALIDATION.MAX_SHAPE_TYPE_LENGTH;
+}
+
+function isValidColor(color) {
+  return typeof color === 'string' && DRAWING_VALIDATION.COLOR_REGEX.test(color);
+}
+
+function isValidBrushWidth(width) {
+  return typeof width === 'number' &&
+         width >= DRAWING_VALIDATION.MIN_BRUSH_WIDTH &&
+         width <= DRAWING_VALIDATION.MAX_BRUSH_WIDTH &&
+         Number.isFinite(width);
+}
+
+function isValidPoints(points) {
+  if (!Array.isArray(points)) return false;
+  if (points.length > DRAWING_VALIDATION.MAX_POINTS_LENGTH) return false;
+  return points.every(p => typeof p === 'number' && Number.isFinite(p));
+}
+
+function isValidShapeData(data) {
+  // Shape data should be an object with numeric coordinates
+  if (typeof data !== 'object' || data === null) return false;
+  // Check common properties are numbers if present
+  const numericProps = ['left', 'top', 'width', 'height', 'scaleX', 'scaleY', 'angle', 'x1', 'y1', 'x2', 'y2'];
+  for (const prop of numericProps) {
+    if (data[prop] !== undefined && (typeof data[prop] !== 'number' || !Number.isFinite(data[prop]))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -35,28 +119,36 @@ function queueUpdate(workspaceId, elements, senderSocketId) {
 }
 
 setInterval(() => {
-  for (const [workspaceId, queue] of updateQueues.entries()) {
-    if (queue.elements.size > 0) {
-      const batchedElements = Array.from(queue.elements.values());
-      const senders = new Set(queue.senders);
-      const roomSockets = io.sockets.adapter.rooms.get(workspaceId);
+  try {
+    for (const [workspaceId, queue] of updateQueues.entries()) {
+      if (queue.elements.size > 0) {
+        const batchedElements = Array.from(queue.elements.values());
+        const senders = new Set(queue.senders);
+        const roomSockets = io.sockets.adapter.rooms.get(workspaceId);
 
-      queue.elements.clear();
-      queue.senders.clear();
+        queue.elements.clear();
+        queue.senders.clear();
 
-      if (roomSockets) {
-        setImmediate(() => {
-          for (const socketId of roomSockets) {
-            if (!senders.has(socketId)) {
-              const socket = io.sockets.sockets.get(socketId);
-              if (socket) {
-                socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, batchedElements);
+        if (roomSockets) {
+          setImmediate(() => {
+            try {
+              for (const socketId of roomSockets) {
+                if (!senders.has(socketId)) {
+                  const socket = io.sockets.sockets.get(socketId);
+                  if (socket) {
+                    socket.emit(SOCKET_EVENTS.WHITEBOARD_UPDATE, batchedElements);
+                  }
+                }
               }
+            } catch (innerError) {
+              console.error('Error in batched update emission:', innerError);
             }
-          }
-        });
+          });
+        }
       }
     }
+  } catch (error) {
+    console.error('Error in batched update interval:', error);
   }
 }, config.batch.interval);
 
@@ -76,7 +168,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(cors());
+app.use(cors(config.cors));
 app.use(express.json());
 
 const createWorkspaceLimiter = rateLimit({
@@ -252,6 +344,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.DELETE_DIAGRAM, (data) => {
+    if (!checkRateLimit(SOCKET_EVENTS.DELETE_DIAGRAM)) {
+      return;
+    }
     handlers.handleDeleteDiagram(data, {
       socket,
       currentUser
@@ -283,6 +378,17 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       return;
     }
     try {
+      // Validate cursor position data
+      if (!isValidCursorPosition(position)) {
+        return;
+      }
+      if (!isValidUserColor(userColor)) {
+        return;
+      }
+      if (!isValidAnimalKey(animalKey)) {
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.CURSOR_UPDATE, {
           userId: socket.id,
@@ -298,6 +404,20 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
   socket.on(SOCKET_EVENTS.DRAWING_START, ({ workspaceId, drawingId, color, brushWidth }) => {
     try {
+      // Validate input parameters
+      if (!isValidDrawingId(drawingId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing ID' });
+        return;
+      }
+      if (!isValidColor(color)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid color format' });
+        return;
+      }
+      if (!isValidBrushWidth(brushWidth)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid brush width' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_START, {
           drawingId,
@@ -316,6 +436,16 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       return;
     }
     try {
+      // Validate input parameters
+      if (!isValidDrawingId(drawingId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing ID' });
+        return;
+      }
+      if (!isValidPoints(points)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid points data' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_STREAM, {
           drawingId,
@@ -329,6 +459,12 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
   socket.on(SOCKET_EVENTS.DRAWING_END, ({ workspaceId, drawingId }) => {
     try {
+      // Validate input parameter
+      if (!isValidDrawingId(drawingId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing ID' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_END, {
           drawingId
@@ -341,6 +477,20 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
   socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, ({ workspaceId, shapeId, shapeType, data }) => {
     try {
+      // Validate input parameters
+      if (!isValidShapeId(shapeId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape ID' });
+        return;
+      }
+      if (!isValidShapeType(shapeType)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape type' });
+        return;
+      }
+      if (!isValidShapeData(data)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape data' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
           shapeId,
@@ -359,6 +509,16 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       return;
     }
     try {
+      // Validate input parameters
+      if (!isValidShapeId(shapeId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape ID' });
+        return;
+      }
+      if (!isValidShapeData(data)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape data' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
           shapeId,
@@ -372,6 +532,12 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
 
   socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, ({ workspaceId, shapeId }) => {
     try {
+      // Validate input parameter
+      if (!isValidShapeId(shapeId)) {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape ID' });
+        return;
+      }
+
       if (workspaceService.workspaceExists(workspaceId)) {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
           shapeId
@@ -415,6 +581,13 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.DISCONNECT, () => {
+    // Clear rate limit entries for this socket to prevent memory leak
+    for (const key of eventCounts.keys()) {
+      if (key.startsWith(`${socket.id}:`)) {
+        eventCounts.delete(key);
+      }
+    }
+
     handlers.handleDisconnect({
       socket,
       io,

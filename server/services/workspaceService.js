@@ -23,12 +23,9 @@ export function createWorkspace(workspaceId, ownerId) {
     created: Date.now(),
     lastActivity: Date.now(),
     diagrams: new Map(),
-    drawings: [],
-    allDrawings: [],
     drawingsMap: new Map(),
     allDrawingsMap: new Map(),
     drawingOrder: [],
-    drawingHistory: [],
     diagramContent: '',
     codeSnippets: { language: 'javascript', content: '' },
     owner: ownerId,
@@ -149,19 +146,11 @@ export function getWorkspaceState(workspaceId) {
   const workspace = workspaces.get(workspaceId);
   if (!workspace) return null;
 
-  const drawings = workspace.drawingsMap
-    ? Array.from(workspace.drawingsMap.values())
-    : workspace.drawings || [];
-
-  const allDrawings = workspace.allDrawingsMap
-    ? Array.from(workspace.allDrawingsMap.values())
-    : workspace.allDrawings || [];
-
   return {
-    whiteboardElements: drawings,
-    diagrams: Array.from(workspace.diagrams.values()) || [],
+    whiteboardElements: Array.from(workspace.drawingsMap.values()),
+    diagrams: Array.from(workspace.diagrams.values()),
     activeUsers: getActiveUserCount(workspaceId),
-    allDrawings: allDrawings,
+    allDrawings: Array.from(workspace.allDrawingsMap.values()),
     codeSnippets: workspace.codeSnippets || { language: 'javascript', content: '' },
     diagramContent: workspace.diagramContent || ''
   };

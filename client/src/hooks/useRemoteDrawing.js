@@ -34,6 +34,18 @@ function pointsToSvgPath(points) {
 
 export function useRemoteDrawing(socket, canvasRef) {
   const activeDrawingsRef = useRef(new Map());
+  const batchedRenderRef = useRef(null);
+
+  // Create batchedRender once per canvas
+  const getBatchedRender = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return () => {};
+    if (!batchedRenderRef.current || batchedRenderRef.current._canvas !== canvas) {
+      batchedRenderRef.current = createBatchedRender(canvas);
+      batchedRenderRef.current._canvas = canvas;
+    }
+    return batchedRenderRef.current;
+  }, [canvasRef]);
 
   const handleDrawingStart = useCallback((data) => {
     const { drawingId, userId, color, brushWidth } = data;
@@ -56,7 +68,7 @@ export function useRemoteDrawing(socket, canvasRef) {
     const canvas = canvasRef.current;
     if (!canvas || !newPoints || newPoints.length === 0) return;
 
-    const batchedRender = createBatchedRender(canvas);
+    const batchedRender = getBatchedRender();
 
     let drawingData = activeDrawingsRef.current.get(drawingId);
 
@@ -103,14 +115,14 @@ export function useRemoteDrawing(socket, canvasRef) {
     }
 
     batchedRender();
-  }, [canvasRef]);
+  }, [canvasRef, getBatchedRender]);
 
   const handleDrawingEnd = useCallback((data) => {
     const { drawingId } = data;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const batchedRender = createBatchedRender(canvas);
+    const batchedRender = getBatchedRender();
 
     const drawingData = activeDrawingsRef.current.get(drawingId);
     if (!drawingData) return;
@@ -120,14 +132,14 @@ export function useRemoteDrawing(socket, canvasRef) {
       batchedRender();
     }
     activeDrawingsRef.current.delete(drawingId);
-  }, [canvasRef]);
+  }, [canvasRef, getBatchedRender]);
 
   const handleShapeDrawingStart = useCallback((data) => {
     const { shapeId, userId, shapeType, data: shapeData } = data;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const batchedRender = createBatchedRender(canvas);
+    const batchedRender = getBatchedRender();
 
     if (socket && userId === socket.id) return;
 
@@ -173,14 +185,14 @@ export function useRemoteDrawing(socket, canvasRef) {
       canvas.add(shape);
       batchedRender();
     }
-  }, [canvasRef, socket]);
+  }, [canvasRef, socket, getBatchedRender]);
 
   const handleShapeDrawingUpdate = useCallback((data) => {
     const { shapeId, data: shapeData } = data;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const batchedRender = createBatchedRender(canvas);
+    const batchedRender = getBatchedRender();
 
     const shapeInfo = activeDrawingsRef.current.get(shapeId);
     if (!shapeInfo || !shapeInfo.fabricShape) return;
@@ -220,14 +232,14 @@ export function useRemoteDrawing(socket, canvasRef) {
     }
 
     batchedRender();
-  }, [canvasRef]);
+  }, [canvasRef, getBatchedRender]);
 
   const handleShapeDrawingEnd = useCallback((data) => {
     const { shapeId } = data;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const batchedRender = createBatchedRender(canvas);
+    const batchedRender = getBatchedRender();
 
     const shapeInfo = activeDrawingsRef.current.get(shapeId);
     if (!shapeInfo) return;
@@ -237,7 +249,7 @@ export function useRemoteDrawing(socket, canvasRef) {
       batchedRender();
     }
     activeDrawingsRef.current.delete(shapeId);
-  }, [canvasRef]);
+  }, [canvasRef, getBatchedRender]);
 
   useEffect(() => {
     if (!socket) return;
@@ -259,7 +271,7 @@ export function useRemoteDrawing(socket, canvasRef) {
 
       const canvas = canvasRef.current;
       if (canvas) {
-        const batchedRender = createBatchedRender(canvas);
+        const batchedRender = getBatchedRender();
         activeDrawingsRef.current.forEach((drawingData) => {
           if (drawingData.fabricPath) {
             canvas.remove(drawingData.fabricPath);
@@ -272,5 +284,5 @@ export function useRemoteDrawing(socket, canvasRef) {
       }
       activeDrawingsRef.current.clear();
     };
-  }, [socket, canvasRef, handleDrawingStart, handleDrawingStream, handleDrawingEnd, handleShapeDrawingStart, handleShapeDrawingUpdate, handleShapeDrawingEnd]);
+  }, [socket, canvasRef, handleDrawingStart, handleDrawingStream, handleDrawingEnd, handleShapeDrawingStart, handleShapeDrawingUpdate, handleShapeDrawingEnd, getBatchedRender]);
 }

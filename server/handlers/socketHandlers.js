@@ -3,6 +3,9 @@ import * as workspaceService from '../services/workspaceService.js';
 import * as permissionService from '../services/permissionService.js';
 import { withWorkspaceAuth, withOwnerAuth } from '../middleware/socketAuth.js';
 
+// Set to track workspaces currently being created (for race condition prevention)
+const workspacesBeingCreated = new Set();
+
 const WORKSPACE_ID_REGEX = /^[a-zA-Z0-9_-]{1,32}$/;
 function isValidWorkspaceId(id) {
   return typeof id === 'string' && WORKSPACE_ID_REGEX.test(id);
@@ -13,8 +16,15 @@ export const MAX_CODE_LENGTH = 500000;
 export const MAX_DIAGRAM_LENGTH = 100000;
 export const MAX_DRAWINGS = 5000;
 export const MAX_USERS_PER_WORKSPACE = 100;
+export const MAX_LANGUAGE_LENGTH = 32;
 
-export function handleJoinWorkspace(
+// Basic email format validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(email) {
+  return typeof email === 'string' && email.length <= 254 && EMAIL_REGEX.test(email);
+}
+
+export async function handleJoinWorkspace(
   { workspaceId, userId, accessToken },
   { socket, io, currentUser, currentWorkspaceRef }
 ) {
@@ -28,8 +38,29 @@ export function handleJoinWorkspace(
     let isNewWorkspace = false;
 
     if (!workspace) {
-      isNewWorkspace = true;
-      workspace = workspaceService.createWorkspace(workspaceId, userId || socket.id);
+      // Check if workspace is currently being created by another user (race condition prevention)
+      if (workspacesBeingCreated.has(workspaceId)) {
+        // Wait briefly and retry to get the workspace
+        await new Promise(resolve => setTimeout(resolve, 50));
+        workspace = workspaceService.getWorkspace(workspaceId);
+        if (!workspace) {
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Workspace creation in progress, please retry' });
+          return { success: false, reason: 'workspace_creation_in_progress' };
+        }
+      } else {
+        // Mark workspace as being created
+        workspacesBeingCreated.add(workspaceId);
+        try {
+          // Double-check after acquiring the lock
+          workspace = workspaceService.getWorkspace(workspaceId);
+          if (!workspace) {
+            isNewWorkspace = true;
+            workspace = workspaceService.createWorkspace(workspaceId, userId || socket.id);
+          }
+        } finally {
+          workspacesBeingCreated.delete(workspaceId);
+        }
+      }
     }
 
     // Check if workspace has reached maximum user limit
@@ -137,8 +168,6 @@ const handleWhiteboardClearCore = (
   { socket, workspace }
 ) => {
   try {
-    workspace.drawings = [];
-    workspace.allDrawings = [];
     workspace.drawingsMap.clear();
     workspace.allDrawingsMap.clear();
     workspace.drawingOrder.length = 0;
@@ -166,6 +195,11 @@ const handleDeleteElementCore = (
 
     workspace.drawingsMap.delete(elementId);
     workspace.allDrawingsMap.delete(elementId);
+    // Also remove from drawingOrder array to maintain consistency
+    const orderIndex = workspace.drawingOrder.indexOf(elementId);
+    if (orderIndex !== -1) {
+      workspace.drawingOrder.splice(orderIndex, 1);
+    }
 
     socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_ELEMENT, { workspaceId, elementId });
 
@@ -186,7 +220,13 @@ const handleDeleteDiagramCore = (
 ) => {
   try {
     workspace.diagrams.delete(diagramId);
-    workspace.drawings = workspace.drawings.filter(el => el.id !== diagramId);
+    // Also remove from drawing maps and order array if present
+    workspace.drawingsMap.delete(diagramId);
+    workspace.allDrawingsMap.delete(diagramId);
+    const orderIndex = workspace.drawingOrder.indexOf(diagramId);
+    if (orderIndex !== -1) {
+      workspace.drawingOrder.splice(orderIndex, 1);
+    }
     socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.DELETE_DIAGRAM, { diagramId });
 
     return { success: true };
@@ -208,6 +248,11 @@ const handleCodeUpdateCore = (
     if (typeof content !== 'string' || content.length > MAX_CODE_LENGTH) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid code content' });
       return { success: false, reason: 'invalid_content' };
+    }
+
+    if (typeof language !== 'string' || language.length > MAX_LANGUAGE_LENGTH) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid language' });
+      return { success: false, reason: 'invalid_language' };
     }
 
     workspace.codeSnippets = { language, content };
@@ -256,7 +301,8 @@ export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkOwnership(workspace, currentUser.userId) && !currentUser.isOwner) {
+    // Use checkOwnership as single source of truth for ownership verification
+    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
       callback?.({ error: 'Permission denied' });
       return { success: false, reason: 'not_owner' };
     }
@@ -269,6 +315,9 @@ export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
   }
 }
 
+// Minimum token length: edit_ (5 chars) + 8 chars = 13 total
+const MIN_EDIT_TOKEN_LENGTH = 13;
+
 export function handleSetEditToken({ workspaceId, editToken }, { socket, io, currentUser }) {
   try {
     const workspace = workspaceService.getWorkspace(workspaceId);
@@ -276,13 +325,16 @@ export function handleSetEditToken({ workspaceId, editToken }, { socket, io, cur
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkOwnership(workspace, currentUser.userId) && !currentUser.isOwner) {
+    // Use checkOwnership as single source of truth for ownership verification
+    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
       return { success: false, reason: 'not_owner' };
     }
 
-    if (editToken?.startsWith('edit_')) {
+    // Validate token format and minimum length for security
+    if (editToken?.startsWith('edit_') && editToken.length >= MIN_EDIT_TOKEN_LENGTH) {
       workspace.editToken = editToken;
-      io.to(workspaceId).emit(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, { editToken });
+      // SECURITY: Only emit token to the owner's socket, not to all users in the workspace
+      socket.emit(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, { editToken });
       return { success: true };
     }
 
@@ -306,9 +358,9 @@ const handleChangeSharingModeCore = (
 
     const success = workspaceService.updateSharingMode(workspaceId, sharingMode);
     if (success) {
+      // SECURITY: Do not include editToken in broadcast - it should only be known to the owner
       io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
-        sharingMode,
-        editToken: workspace.editToken
+        sharingMode
       });
       return { success: true };
     }
@@ -336,6 +388,8 @@ const handleEndSessionCore = (
     for (const socketId of connections) {
       const clientSocket = io.sockets?.sockets?.get(socketId);
       if (clientSocket && clientSocket.id !== socket.id) {
+        // Clean up connection state before removing from room to prevent stale state
+        workspaceService.removeConnection(workspaceId, socketId);
         clientSocket.leave(workspaceId);
         disconnectedClients.push(socketId);
       }
@@ -372,8 +426,8 @@ export function handleDisconnect({ socket, io, currentWorkspaceRef }) {
 
 export function handleInviteUser({ workspaceId, email }, callback) {
   try {
-    if (typeof email !== 'string') {
-      callback?.({ error: 'Invalid email' });
+    if (!isValidEmail(email)) {
+      callback?.({ error: 'Invalid email format' });
       return { success: false, reason: 'invalid_email' };
     }
 

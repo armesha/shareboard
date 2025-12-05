@@ -80,8 +80,11 @@ export function useCursorSync() {
       socket.off(SOCKET_EVENTS.CURSOR_UPDATE, handleCursorUpdate);
       socket.off(SOCKET_EVENTS.USER_LEFT, handleUserLeft);
 
-      Object.values(cursorTimeouts.current).forEach(clearTimeout);
-      cursorTimeouts.current = {};
+      // Clear timeouts in place instead of reassigning to prevent memory leak
+      Object.keys(cursorTimeouts.current).forEach(key => {
+        clearTimeout(cursorTimeouts.current[key]);
+        delete cursorTimeouts.current[key];
+      });
     };
   }, [socket, isConnected, t]);
 

@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy, useMemo, useCallback } from 'react';
+import { useState, Suspense, lazy, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/ui';
@@ -49,6 +49,7 @@ export default function LandingPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { socket } = useSocket();
+  const joinTimeoutRef = useRef(null);
 
   const demoCursors = useMemo(() => [
     { animalKey: CURSOR_ANIMALS[0], color: CURSOR_COLORS[0].color, className: 'cursor-1', style: { top: '15%', left: '10%' } },
@@ -83,6 +84,15 @@ export default function LandingPage() {
     }
   };
 
+  // Cleanup timeout on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (joinTimeoutRef.current) {
+        clearTimeout(joinTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const joinWorkspace = useCallback((e) => {
     e.preventDefault();
     const key = workspaceKey.trim();
@@ -98,8 +108,18 @@ export default function LandingPage() {
 
     setIsJoining(true);
 
+    // Clear any existing timeout
+    if (joinTimeoutRef.current) {
+      clearTimeout(joinTimeoutRef.current);
+    }
+
     const handleResult = ({ exists }) => {
       socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
+      // Clear timeout when response arrives
+      if (joinTimeoutRef.current) {
+        clearTimeout(joinTimeoutRef.current);
+        joinTimeoutRef.current = null;
+      }
       setIsJoining(false);
 
       if (exists) {
@@ -115,9 +135,10 @@ export default function LandingPage() {
     socket.on(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
     socket.emit(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, { workspaceId: key });
 
-    setTimeout(() => {
+    joinTimeoutRef.current = setTimeout(() => {
       socket.off(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, handleResult);
       setIsJoining(false);
+      joinTimeoutRef.current = null;
     }, 5000);
   }, [socket, workspaceKey, navigate, tMessages]);
 

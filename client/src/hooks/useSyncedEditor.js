@@ -17,6 +17,8 @@ export function useSyncedEditor({
   const [lastEmittedContent, setLastEmittedContent] = useState('');
   const lastLocalChangeRef = useRef(0);
   const debounceRef = useRef(null);
+  const contentLengthRef = useRef(initialContent.length);
+  const contentRef = useRef(content);
 
   const emitChange = useCallback((workspaceId, newContent) => {
     if (socket && newContent !== lastEmittedContent && canEmit()) {
@@ -42,27 +44,35 @@ export function useSyncedEditor({
     setContentState(newContent);
     const workspaceId = getWorkspaceId();
 
-    if (Math.abs(newContent.length - content.length) <= 1) {
+    const prevLength = contentLengthRef.current;
+    contentLengthRef.current = newContent.length;
+    contentRef.current = newContent;
+
+    if (Math.abs(newContent.length - prevLength) <= 1) {
       emitChange(workspaceId, newContent);
     } else if (debounceRef.current) {
       debounceRef.current(workspaceId, newContent);
     }
-  }, [content, emitChange]);
+  }, [emitChange]);
 
   const handleRemoteUpdate = useCallback((newContent) => {
     const timeSinceLastLocal = Date.now() - lastLocalChangeRef.current;
     if (timeSinceLastLocal < REMOTE_UPDATE_BLOCK_TIME) return false;
 
-    if (newContent !== content) {
+    if (newContent !== contentRef.current) {
       setContentState(newContent);
       setLastEmittedContent(newContent);
+      contentLengthRef.current = newContent.length;
+      contentRef.current = newContent;
     }
     return true;
-  }, [content]);
+  }, []);
 
   const syncContent = useCallback((newContent) => {
     setContentState(newContent);
     setLastEmittedContent(newContent);
+    contentLengthRef.current = newContent.length;
+    contentRef.current = newContent;
   }, []);
 
   return {

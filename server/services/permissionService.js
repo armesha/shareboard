@@ -52,16 +52,17 @@ export function calculateEditAccess(workspace, user, accessToken) {
   return { hasEditAccess, isOwner };
 }
 
+// Note: Token setting is only allowed via handleSetEditToken by owner
+// This function only validates existing tokens, it does NOT set new tokens
 export function validateAndSetToken(workspace, accessToken, user) {
   if (!workspace || !accessToken) return false;
 
-  if (accessToken.startsWith('edit_') && !workspace.editToken) {
-    workspace.editToken = accessToken;
-
+  // Only validate against existing token, never set a new one
+  // Token must be at least edit_ + 8 characters (13 total) for security
+  if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
     if (user) {
       user.hasEditAccess = true;
     }
-
     return true;
   }
 

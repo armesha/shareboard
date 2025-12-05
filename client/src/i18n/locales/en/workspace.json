@@ -8,6 +8,10 @@
   "connection": {
     "online": "Online",
     "connecting": "Connecting...",
+    "connectingToWorkspace": "Connecting to workspace...",
+    "loadingHistory": "Loading drawing history...",
+    "reconnecting": "Connection lost. Reconnecting...",
+    "errorRefresh": "Connection error. Please try refreshing the page.",
     "offline": "Offline - Reconnecting...",
     "error": "Connection Error",
     "participants_one": "{{count}} user",

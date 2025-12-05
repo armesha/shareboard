@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { TIMING } from '../../constants';
 
 const NOTIFICATION_STYLES = {
@@ -37,21 +37,30 @@ const Notification = React.memo(function Notification({
 }) {
   const [isVisible, setIsVisible] = useState(visible);
   const [isAnimating, setIsAnimating] = useState(false);
+  const hideTimerRef = useRef(null);
+  const animationTimerRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
       setIsVisible(true);
       setIsAnimating(true);
 
-      const hideTimer = setTimeout(() => {
+      hideTimerRef.current = setTimeout(() => {
         setIsAnimating(false);
-        setTimeout(() => {
+        animationTimerRef.current = setTimeout(() => {
           setIsVisible(false);
           onClose?.();
         }, 300);
       }, duration);
 
-      return () => clearTimeout(hideTimer);
+      return () => {
+        if (hideTimerRef.current) {
+          clearTimeout(hideTimerRef.current);
+        }
+        if (animationTimerRef.current) {
+          clearTimeout(animationTimerRef.current);
+        }
+      };
     }
   }, [visible, duration, onClose]);
 

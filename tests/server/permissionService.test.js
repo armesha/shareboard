@@ -475,20 +475,22 @@ describe('permissionService', () => {
       };
     });
 
-    it('should set token if it starts with "edit_" and token is not set', () => {
-      const result = validateAndSetToken(workspace, 'edit_newtoken', user);
+    it('should validate and grant access when token matches existing token', () => {
+      workspace.editToken = 'edit_existingtoken';
+      const result = validateAndSetToken(workspace, 'edit_existingtoken', user);
       expect(result).toBe(true);
-      expect(workspace.editToken).toBe('edit_newtoken');
-    });
-
-    it('should set hasEditAccess for user', () => {
-      validateAndSetToken(workspace, 'edit_newtoken', user);
       expect(user.hasEditAccess).toBe(true);
     });
 
-    it('should not override existing token', () => {
-      workspace.editToken = 'edit_existingtoken';
+    it('should not set token if workspace has no editToken (only validates existing)', () => {
       const result = validateAndSetToken(workspace, 'edit_newtoken', user);
+      expect(result).toBe(false);
+      expect(workspace.editToken).toBe(null);
+    });
+
+    it('should not change token when access token does not match existing', () => {
+      workspace.editToken = 'edit_existingtoken';
+      const result = validateAndSetToken(workspace, 'edit_differenttoken', user);
       expect(result).toBe(false);
       expect(workspace.editToken).toBe('edit_existingtoken');
     });
@@ -525,37 +527,39 @@ describe('permissionService', () => {
       expect(result).toBe(false);
     });
 
-    it('should handle null user gracefully when setting token', () => {
+    it('should handle null user gracefully when validating token', () => {
+      workspace.editToken = 'edit_token';
       const result = validateAndSetToken(workspace, 'edit_token', null);
       expect(result).toBe(true);
-      expect(workspace.editToken).toBe('edit_token');
     });
 
-    it('should handle undefined user gracefully when setting token', () => {
+    it('should handle undefined user gracefully when validating token', () => {
+      workspace.editToken = 'edit_token';
       const result = validateAndSetToken(workspace, 'edit_token', undefined);
       expect(result).toBe(true);
-      expect(workspace.editToken).toBe('edit_token');
     });
 
-    it('should accept token exactly equal to "edit_"', () => {
+    it('should reject token exactly equal to "edit_" when no token set', () => {
       const result = validateAndSetToken(workspace, 'edit_', user);
-      expect(result).toBe(true);
-      expect(workspace.editToken).toBe('edit_');
+      expect(result).toBe(false);
     });
 
-    it('should handle token with special characters after "edit_"', () => {
+    it('should validate matching token with special characters', () => {
+      workspace.editToken = 'edit_!@#$%^&*()';
       const result = validateAndSetToken(workspace, 'edit_!@#$%^&*()', user);
       expect(result).toBe(true);
-      expect(workspace.editToken).toBe('edit_!@#$%^&*()');
+      expect(user.hasEditAccess).toBe(true);
     });
 
-    it('should not modify user hasEditAccess if user is null', () => {
+    it('should not modify user hasEditAccess if user is null but token matches', () => {
+      workspace.editToken = 'edit_token';
       const result = validateAndSetToken(workspace, 'edit_token', null);
       expect(result).toBe(true);
     });
 
-    it('should preserve other workspace properties when setting token', () => {
+    it('should preserve other workspace properties when validating token', () => {
       workspace.otherProp = 'value';
+      workspace.editToken = 'edit_token';
       validateAndSetToken(workspace, 'edit_token', user);
       expect(workspace.otherProp).toBe('value');
       expect(workspace.owner).toBe('owner-123');

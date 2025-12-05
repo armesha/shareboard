@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
 
+/**
+ * Geometry calculation functions for shape drawing.
+ *
+ * These functions are implemented inline in this test file because the actual
+ * geometry calculations are embedded within the useShapeDrawing hook
+ * (client/src/hooks/useShapeDrawing.js) as part of the updateShape callback.
+ * They are not exported as standalone functions since they are tightly coupled
+ * with Fabric.js shape manipulation and canvas rendering.
+ *
+ * These tests verify the mathematical correctness of the geometry algorithms
+ * used for rectangle, circle, triangle, and line drawing with modifiers
+ * (Ctrl for constrained proportions, Shift for line snapping).
+ */
+
 function calculateRectangle(startX, startY, currentX, currentY, ctrlPressed = false) {
   const deltaWidth = currentX - startX;
   const deltaHeight = currentY - startY;

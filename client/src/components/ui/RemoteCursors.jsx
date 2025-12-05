@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-function CursorIcon({ color }) {
+const CursorIcon = memo(function CursorIcon({ color }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="drop-shadow-md">
       <path
@@ -11,12 +11,13 @@ function CursorIcon({ color }) {
       />
     </svg>
   );
-}
+});
 
-function RemoteCursor({ cursor, viewportTransform = [1, 0, 0, 1, 0, 0] }) {
+const RemoteCursor = memo(function RemoteCursor({ cursor, viewportTransform = [1, 0, 0, 1, 0, 0] }) {
+  const { x = 0, y = 0 } = cursor || {};
   const vpt = viewportTransform;
-  const screenX = vpt[0] * cursor.x + vpt[2] * cursor.y + vpt[4];
-  const screenY = vpt[1] * cursor.x + vpt[3] * cursor.y + vpt[5];
+  const screenX = vpt[0] * x + vpt[2] * y + vpt[4];
+  const screenY = vpt[1] * x + vpt[3] * y + vpt[5];
 
   return (
     <div
@@ -34,7 +35,7 @@ function RemoteCursor({ cursor, viewportTransform = [1, 0, 0, 1, 0, 0] }) {
       </span>
     </div>
   );
-}
+});
 
 function RemoteCursors({ cursors, viewportTransform }) {
   const cursorEntries = Object.entries(cursors);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSharing } from '../context/SharingContext';
 import { useSocket } from '../context/SocketContext';
@@ -14,6 +14,15 @@ export default function SharingSettings({ workspaceId, onClose }) {
   } = useSharing();
   const [editLink, setEditLink] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
+  const copyTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket || !workspaceId) return;
@@ -26,34 +35,21 @@ export default function SharingSettings({ workspaceId, onClose }) {
       });
     }
 
-    const handleActiveUsersUpdate = () => {
-    };
-
-    socket.on(SOCKET_EVENTS.ACTIVE_USERS_UPDATE, handleActiveUsersUpdate);
     socket.emit(SOCKET_EVENTS.GET_ACTIVE_USERS, { workspaceId });
 
     if (isOwner) {
       socket.emit(SOCKET_EVENTS.GET_EDIT_TOKEN, { workspaceId }, (response) => {
+        const baseUrl = window.location.origin;
+        const path = `/w/${workspaceId}`;
         if (response && response.editToken) {
-          const baseUrl = window.location.origin;
-          const path = `/w/${workspaceId}`;
           setEditLink(`${baseUrl}${path}?access=${response.editToken}`);
         } else {
-          const baseUrl = window.location.origin;
-          const path = `/w/${workspaceId}`;
-          const editToken = `edit_${Math.random().toString(36).substring(2, 10)}`;
-          setEditLink(`${baseUrl}${path}?access=${editToken}`);
-
-          if (sharingMode === SHARING_MODES.READ_WRITE_SELECTED) {
-            socket.emit(SOCKET_EVENTS.SET_EDIT_TOKEN, { workspaceId, editToken });
-          }
+          // Token will be generated server-side when workspace is created
+          // Show empty link until token is available
+          setEditLink('');
         }
       });
     }
-
-    return () => {
-      socket.off(SOCKET_EVENTS.ACTIVE_USERS_UPDATE, handleActiveUsersUpdate);
-    };
   }, [socket, workspaceId, sharingMode, isOwner]);
 
   const copyToClipboard = (text, isEditLink = false) => {
@@ -74,7 +70,10 @@ export default function SharingSettings({ workspaceId, onClose }) {
     } else {
       setCopySuccess('view');
     }
-    setTimeout(() => setCopySuccess(''), TIMING.COPY_SUCCESS_DURATION);
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = setTimeout(() => setCopySuccess(''), TIMING.COPY_SUCCESS_DURATION);
   };
 
   if (!isOwner) {

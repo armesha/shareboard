@@ -5,3 +5,7 @@ export { useCursorSync } from './useCursorSync';
 export { useClickOutside, useEscapeKey, useDropdownBehavior } from './useClickOutside';
 export { useSyncedEditor } from './useSyncedEditor';
 export { useRemoteDrawing } from './useRemoteDrawing';
+export { useWhiteboardCanvas } from './useWhiteboardCanvas';
+export { useWhiteboardElements } from './useWhiteboardElements';
+export { useWhiteboardSync } from './useWhiteboardSync';
+export { useWhiteboardTools } from './useWhiteboardTools';

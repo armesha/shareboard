@@ -105,9 +105,9 @@ describe('workspaceService', () => {
       expect(workspace.created).toBeDefined();
       expect(workspace.lastActivity).toBeDefined();
       expect(workspace.diagrams).toBeInstanceOf(Map);
-      expect(workspace.drawings).toEqual([]);
-      expect(workspace.allDrawings).toEqual([]);
-      expect(workspace.drawingHistory).toEqual([]);
+      expect(workspace.drawingsMap).toBeInstanceOf(Map);
+      expect(workspace.allDrawingsMap).toBeInstanceOf(Map);
+      expect(workspace.drawingOrder).toEqual([]);
       expect(workspace.diagramContent).toBe('');
       expect(workspace.codeSnippets).toEqual({ language: 'javascript', content: '' });
       expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
@@ -121,14 +121,14 @@ describe('workspaceService', () => {
       deleteWorkspace('ws-1');
     });
 
-    it('initializes empty arrays for drawings', () => {
+    it('initializes empty Maps and arrays for drawings', () => {
       const workspace = createWorkspace('ws-2', 'owner-xyz');
-      expect(Array.isArray(workspace.drawings)).toBe(true);
-      expect(workspace.drawings.length).toBe(0);
-      expect(Array.isArray(workspace.allDrawings)).toBe(true);
-      expect(workspace.allDrawings.length).toBe(0);
-      expect(Array.isArray(workspace.drawingHistory)).toBe(true);
-      expect(workspace.drawingHistory.length).toBe(0);
+      expect(workspace.drawingsMap).toBeInstanceOf(Map);
+      expect(workspace.drawingsMap.size).toBe(0);
+      expect(workspace.allDrawingsMap).toBeInstanceOf(Map);
+      expect(workspace.allDrawingsMap.size).toBe(0);
+      expect(Array.isArray(workspace.drawingOrder)).toBe(true);
+      expect(workspace.drawingOrder.length).toBe(0);
       deleteWorkspace('ws-2');
     });
 

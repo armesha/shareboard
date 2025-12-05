@@ -17,7 +17,8 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
     }
 
     if (setCanvasDrawingMode) {
-      setCanvasDrawingMode(tool === TOOLS.PEN && canWrite(), newColor, width);
+      const hasWriteAccess = canWrite();
+      setCanvasDrawingMode(tool === TOOLS.PEN && hasWriteAccess, newColor, width);
     }
   }, [tool, canvasRef, canWrite, width]);
 
@@ -34,7 +35,8 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const shouldBeDrawingMode = tool === TOOLS.PEN && canWrite();
+    const hasWriteAccess = canWrite();
+    const shouldBeDrawingMode = tool === TOOLS.PEN && hasWriteAccess;
 
     if (canvas.isDrawingMode !== shouldBeDrawingMode) {
       canvas.isDrawingMode = shouldBeDrawingMode;
@@ -49,7 +51,7 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
       canvas.requestRenderAll();
     }
 
-    const userCanDraw = !isLoading && isConnected && canWrite();
+    const userCanDraw = !isLoading && isConnected && hasWriteAccess;
     canvas.selection = userCanDraw && (tool === TOOLS.SELECT);
 
     canvas.getObjects().forEach(obj => {
@@ -85,10 +87,10 @@ export function useWhiteboardTools(canvasRef, isLoading, isConnected, canWrite) 
     if (!canvas) return;
 
     if (tool === TOOLS.PEN) {
-      const hasPermission = canWrite();
-      canvas.isDrawingMode = hasPermission;
+      const hasWriteAccess = canWrite();
+      canvas.isDrawingMode = hasWriteAccess;
 
-      if (!hasPermission) {
+      if (!hasWriteAccess) {
         setTool(TOOLS.SELECT);
       }
     }

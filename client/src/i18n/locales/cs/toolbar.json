@@ -48,6 +48,11 @@
     "ariaLabel": "Nástroj pero",
     "settings": "Nastavení pera"
   },
+  "text": {
+    "fontSize": "Velikost písma",
+    "custom": "Vlastní",
+    "settings": "Nastavení textu"
+  },
   "colorPicker": {
     "moreColors": "Více barev",
     "colorPalette": "Paleta barev",

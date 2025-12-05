@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from '../../utils/toast';
@@ -10,6 +10,15 @@ const Header = React.memo(function Header({
   const { t } = useTranslation(['workspace', 'common']);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopyWorkspaceId = useCallback(async () => {
     try {
@@ -19,7 +28,10 @@ const Header = React.memo(function Header({
         toastId: 'workspace-id-copied',
         autoClose: 2000
       });
-      setTimeout(() => setCopied(false), 300);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 300);
     } catch {
       toast.error(t('workspace:header.copyFailed'), {
         toastId: 'workspace-id-copy-failed',

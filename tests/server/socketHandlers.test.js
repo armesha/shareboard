@@ -70,8 +70,6 @@ function createMockWorkspace(overrides = {}) {
     owner: 'owner-123',
     sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
     editToken: 'edit_token123',
-    drawings: [],
-    allDrawings: [],
     drawingsMap: new Map(),
     allDrawingsMap: new Map(),
     drawingOrder: [],
@@ -118,12 +116,12 @@ describe('socketHandlers', () => {
   });
 
   describe('handleJoinWorkspace', () => {
-    it('should create new workspace if not exists', () => {
+    it('should create new workspace if not exists', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
-      const result = handleJoinWorkspace(
+      const result = await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -133,11 +131,11 @@ describe('socketHandlers', () => {
       expect(workspaceService.createWorkspace).toHaveBeenCalledWith('ws-1', 'user-1');
     });
 
-    it('should join existing workspace', () => {
+    it('should join existing workspace', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
-      const result = handleJoinWorkspace(
+      const result = await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -147,12 +145,12 @@ describe('socketHandlers', () => {
       expect(workspaceService.createWorkspace).not.toHaveBeenCalled();
     });
 
-    it('should set owner for new workspace', () => {
+    it('should set owner for new workspace', async () => {
       const workspace = createMockWorkspace({ owner: null });
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -162,11 +160,11 @@ describe('socketHandlers', () => {
       expect(currentUser.hasEditAccess).toBe(true);
     });
 
-    it('should emit WORKSPACE_STATE and SHARING_INFO', () => {
+    it('should emit WORKSPACE_STATE and SHARING_INFO', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -175,14 +173,14 @@ describe('socketHandlers', () => {
       expect(socket.emit).toHaveBeenCalledWith(SOCKET_EVENTS.SHARING_INFO, expect.any(Object));
     });
 
-    it('should leave previous workspace if exists', () => {
+    it('should leave previous workspace if exists', async () => {
       const prevWorkspace = createMockWorkspace();
       const newWorkspace = createMockWorkspace();
       currentWorkspaceRef.current = prevWorkspace;
       vi.mocked(workspaceService.findWorkspaceIdByRef).mockReturnValue('prev-ws');
       workspaceService.getWorkspace.mockReturnValue(newWorkspace);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -191,11 +189,11 @@ describe('socketHandlers', () => {
       expect(workspaceService.removeConnection).toHaveBeenCalledWith('prev-ws', 'socket-123');
     });
 
-    it('should validate access token', () => {
+    it('should validate access token', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: 'edit_token123' },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -203,10 +201,10 @@ describe('socketHandlers', () => {
       expect(permissionService.validateAndSetToken).toHaveBeenCalledWith(workspace, 'edit_token123', currentUser);
     });
 
-    it('should emit error on exception', () => {
+    it('should emit error on exception', async () => {
       vi.mocked(workspaceService.getWorkspace).mockImplementation(() => { throw new Error('Test error'); });
 
-      const result = handleJoinWorkspace(
+      const result = await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -215,12 +213,12 @@ describe('socketHandlers', () => {
       expect(socket.emit).toHaveBeenCalledWith(SOCKET_EVENTS.ERROR, { message: 'Failed to join workspace' });
     });
 
-    it('should use socket.id as userId if not provided', () => {
+    it('should use socket.id as userId if not provided', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       vi.mocked(workspaceService.createWorkspace).mockReturnValue(workspace);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: null, accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -228,12 +226,12 @@ describe('socketHandlers', () => {
       expect(workspaceService.createWorkspace).toHaveBeenCalledWith('ws-1', 'socket-123');
     });
 
-    it('should broadcast USER_JOINED event', () => {
+    it('should broadcast USER_JOINED event', async () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       vi.mocked(workspaceService.getActiveUserCount).mockReturnValue(5);
 
-      handleJoinWorkspace(
+      await handleJoinWorkspace(
         { workspaceId: 'ws-1', userId: 'user-1', accessToken: null },
         { socket, io, currentUser, currentWorkspaceRef, queueUpdate }
       );
@@ -379,7 +377,6 @@ describe('socketHandlers', () => {
       const result = handleWhiteboardClear({ workspaceId: 'ws-1' }, { socket, currentUser });
 
       expect(result.success).toBe(true);
-      expect(workspace.drawings).toEqual([]);
       expect(workspace.drawingsMap.size).toBe(0);
       expect(workspace.allDrawingsMap.size).toBe(0);
       expect(workspace.drawingOrder.length).toBe(0);
@@ -476,14 +473,18 @@ describe('socketHandlers', () => {
     it('should delete diagram with permission', () => {
       const workspace = createMockWorkspace();
       workspace.diagrams.set('diag-1', { id: 'diag-1' });
-      workspace.drawings = [{ id: 'diag-1' }, { id: 'el-1' }];
+      workspace.drawingsMap.set('diag-1', { id: 'diag-1' });
+      workspace.allDrawingsMap.set('diag-1', { id: 'diag-1' });
+      workspace.drawingOrder.push('diag-1');
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleDeleteDiagram({ workspaceId: 'ws-1', diagramId: 'diag-1' }, { socket, currentUser });
 
       expect(result.success).toBe(true);
       expect(workspace.diagrams.has('diag-1')).toBe(false);
-      expect(workspace.drawings).toEqual([{ id: 'el-1' }]);
+      expect(workspace.drawingsMap.has('diag-1')).toBe(false);
+      expect(workspace.allDrawingsMap.has('diag-1')).toBe(false);
+      expect(workspace.drawingOrder).not.toContain('diag-1');
     });
 
     it('should broadcast DELETE_DIAGRAM event', () => {
@@ -672,11 +673,11 @@ describe('socketHandlers', () => {
       expect(callback).toHaveBeenCalledWith({ editToken: 'edit_secret' });
     });
 
-    it('should return edit token for user with isOwner flag', () => {
+    it('should return edit token for user verified by checkOwnership', () => {
       const workspace = createMockWorkspace({ editToken: 'edit_secret' });
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
-      currentUser.isOwner = true;
-      vi.mocked(permissionService.checkOwnership).mockReturnValue(false);
+      currentUser.userId = 'owner-123';
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
       const callback = vi.fn();
 
       const result = handleGetEditToken({ workspaceId: 'ws-1' }, callback, { currentUser });
@@ -737,7 +738,7 @@ describe('socketHandlers', () => {
       expect(workspace.editToken).toBe('edit_newtoken');
     });
 
-    it('should broadcast EDIT_TOKEN_UPDATED event', () => {
+    it('should emit EDIT_TOKEN_UPDATED event to owner socket', () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
       vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
@@ -747,8 +748,8 @@ describe('socketHandlers', () => {
         { socket, io, currentUser }
       );
 
-      expect(io.to).toHaveBeenCalledWith('ws-1');
-      expect(io._toEmit).toHaveBeenCalledWith(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, { editToken: 'edit_newtoken' });
+      // SECURITY: Token should only be emitted to owner's socket, not broadcast to all users
+      expect(socket.emit).toHaveBeenCalledWith(SOCKET_EVENTS.EDIT_TOKEN_UPDATED, { editToken: 'edit_newtoken' });
     });
 
     it('should reject if not owner', () => {
@@ -821,9 +822,9 @@ describe('socketHandlers', () => {
       );
 
       expect(io.to).toHaveBeenCalledWith('ws-1');
+      // SECURITY: editToken is no longer included in broadcast
       expect(io._toEmit).toHaveBeenCalledWith(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
-        sharingMode: SHARING_MODES.READ_ONLY,
-        editToken: 'edit_token'
+        sharingMode: SHARING_MODES.READ_ONLY
       });
     });
 
@@ -1030,7 +1031,7 @@ describe('socketHandlers', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('invalid_email');
-      expect(callback).toHaveBeenCalledWith({ error: 'Invalid email' });
+      expect(callback).toHaveBeenCalledWith({ error: 'Invalid email format' });
     });
 
     it('should handle workspace not found', () => {

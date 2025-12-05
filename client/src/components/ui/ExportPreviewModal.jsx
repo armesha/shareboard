@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -7,14 +7,14 @@ import SelectAllIcon from '@mui/icons-material/SelectAll';
 import ClearIcon from '@mui/icons-material/Clear';
 import { COLORS } from '../../constants';
 
-const ExportPreviewModal = ({
+const ExportPreviewModal = React.memo(function ExportPreviewModal({
     isOpen,
     onClose,
     fullCanvasImage,
     canvasDimensions,
     objectsBounds,
     onDownload
-}) => {
+}) {
     const { t } = useTranslation(['toolbar', 'common']);
     const [selection, setSelection] = useState(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -211,6 +211,6 @@ const ExportPreviewModal = ({
         </div>,
         document.body
     );
-};
+});
 
 export default ExportPreviewModal;
