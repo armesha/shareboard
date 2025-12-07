@@ -2,7 +2,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { WebSocketServer } from 'ws';
-import { setupWSConnection } from 'y-websocket/bin/utils.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -115,19 +114,30 @@ const io = new Server(httpServer, {
   ...config.socketIO,
 });
 
-const yWebsocketServer = new WebSocketServer({ noServer: true });
-yWebsocketServer.on('connection', (conn, req) => {
-  setupWSConnection(conn, req, { maxPayload: 1024 * 1024 });
-});
+let yWebsocketServer = null;
+(async () => {
+  try {
+    const yUtils = await import('y-websocket/bin/utils.js');
+    const setupWSConnection = yUtils.setupWSConnection;
 
-httpServer.on('upgrade', (request, socket, head) => {
-  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
-  if (pathname === '/yjs' || pathname.startsWith('/yjs/')) {
-    yWebsocketServer.handleUpgrade(request, socket, head, (ws) => {
-      yWebsocketServer.emit('connection', ws, request);
+    yWebsocketServer = new WebSocketServer({ noServer: true });
+    yWebsocketServer.on('connection', (conn, req) => {
+      setupWSConnection(conn, req, { maxPayload: 1024 * 1024 });
     });
+
+    httpServer.on('upgrade', (request, socket, head) => {
+      const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+      if (pathname === '/yjs' || pathname.startsWith('/yjs/')) {
+        yWebsocketServer.handleUpgrade(request, socket, head, (ws) => {
+          yWebsocketServer.emit('connection', ws, request);
+        });
+      }
+    });
+    console.log('Y-websocket server initialized');
+  } catch (err) {
+    console.error('Failed to initialize y-websocket:', err.message);
   }
-});
+})();
 
 const updateQueues = new Map();
 
