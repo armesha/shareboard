@@ -130,6 +130,7 @@ export function getWorkspaceUsers(workspaceId) {
 export function cleanupInactiveWorkspaces() {
   const threshold = config.cleanup.inactiveThresholdMs;
   const now = Date.now();
+  const removed = [];
 
   for (const [workspaceId, workspace] of workspaces.entries()) {
     const connections = activeConnections.get(workspaceId) || new Set();
@@ -138,8 +139,11 @@ export function cleanupInactiveWorkspaces() {
       console.log(`Cleaning up inactive workspace: ${workspaceId}`);
       workspaces.delete(workspaceId);
       activeConnections.delete(workspaceId);
+      removed.push(workspaceId);
     }
   }
+
+  return removed;
 }
 
 export function getWorkspaceState(workspaceId) {

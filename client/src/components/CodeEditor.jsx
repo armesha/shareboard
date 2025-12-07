@@ -13,6 +13,7 @@ import { useClickOutside } from '../hooks';
 export default function CodeEditor() {
   const { t } = useTranslation(['editor', 'common']);
   const {
+    content,
     language,
     setContent,
     setLanguage

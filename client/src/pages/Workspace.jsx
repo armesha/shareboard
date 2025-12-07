@@ -14,7 +14,6 @@ import { toast } from '../utils/toast';
 import { getPersistentUserId } from '../utils';
 
 function WorkspaceLayout() {
-  const { t } = useTranslation('workspace');
   const { workspaceId } = useParams();
   const { socket, connectionStatus: socketConnectionStatus } = useSocket();
   const { isLoading, connectionStatus: whiteboardConnectionStatus } = useWhiteboard();

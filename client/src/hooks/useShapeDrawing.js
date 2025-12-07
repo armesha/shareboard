@@ -272,7 +272,7 @@ export function useShapeDrawing({ canvas, selectedShape, color, width, addElemen
         }
       }
     }
-  }, [canvas, selectedShape, disabled, socket, canWrite, batchedRender]);
+  }, [selectedShape, disabled, socket, canWrite, batchedRender]);
 
   const finishShape = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;

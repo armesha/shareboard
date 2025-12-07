@@ -299,7 +299,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       timeoutsSet.forEach(clearTimeout);
       timeoutsSet.clear();
     };
-  }, [canvas, updateElement, disabled]);
+  }, [canvas, updateElement, disabled, batchedRenderRef]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -357,7 +357,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canvas, tool, socket, disabled]);
+  }, [canvas, tool, socket, disabled, batchedRenderRef]);
 
 
 
@@ -446,7 +446,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [canvas]);
+  }, [canvas, batchedRenderRef]);
 
 
   useEffect(() => {
@@ -545,7 +545,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       canvas.off(FABRIC_EVENTS.MOUSE_WHEEL, handleWheel);
       canvas.upperCanvasEl?.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [canvas, setZoomState, tool]);
+  }, [canvas, setZoomState, tool, batchedRenderRef]);
 
   useEffect(() => {
     if (!canvas) return;

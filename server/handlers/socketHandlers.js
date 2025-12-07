@@ -11,6 +11,56 @@ function isValidWorkspaceId(id) {
   return typeof id === 'string' && WORKSPACE_ID_REGEX.test(id);
 }
 
+const ELEMENT_TYPES = new Set([
+  'rect',
+  'circle',
+  'triangle',
+  'line',
+  'arrow',
+  'path',
+  'text',
+  'diagram',
+  'polygon',
+  'star',
+  'diamond',
+  'pentagon',
+  'hexagon',
+  'octagon',
+  'cross'
+]);
+
+const MAX_ELEMENT_ID_LENGTH = 100;
+const MAX_TEXT_LENGTH = 2000;
+const MAX_SRC_LENGTH = 2048;
+
+function isValidElementData(data) {
+  if (typeof data !== 'object' || data === null) return false;
+  const numericKeys = [
+    'left', 'top', 'width', 'height', 'scaleX', 'scaleY',
+    'angle', 'strokeWidth', 'fontSize', 'x1', 'y1', 'x2', 'y2'
+  ];
+  for (const key of numericKeys) {
+    if (data[key] !== undefined && (typeof data[key] !== 'number' || !Number.isFinite(data[key]))) {
+      return false;
+    }
+  }
+  if (data.text !== undefined && (typeof data.text !== 'string' || data.text.length > MAX_TEXT_LENGTH)) {
+    return false;
+  }
+  if (data.src !== undefined && (typeof data.src !== 'string' || data.src.length > MAX_SRC_LENGTH)) {
+    return false;
+  }
+  return true;
+}
+
+function isValidElement(element) {
+  if (typeof element !== 'object' || element === null) return false;
+  if (typeof element.id !== 'string' || element.id.length === 0 || element.id.length > MAX_ELEMENT_ID_LENGTH) return false;
+  if (!ELEMENT_TYPES.has(element.type)) return false;
+  if (!isValidElementData(element.data)) return false;
+  return true;
+}
+
 export const MAX_ELEMENTS_PER_UPDATE = 100;
 export const MAX_CODE_LENGTH = 500000;
 export const MAX_DIAGRAM_LENGTH = 100000;
@@ -33,6 +83,7 @@ export async function handleJoinWorkspace(
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid workspace ID' });
       return { success: false, reason: 'invalid_workspace_id' };
     }
+    currentUser.accessToken = accessToken || null;
 
     let workspace = workspaceService.getWorkspace(workspaceId);
     let isNewWorkspace = false;
@@ -123,6 +174,11 @@ const handleWhiteboardUpdateCore = (
   { socket, workspace, queueUpdate }
 ) => {
   try {
+    if (!isValidWorkspaceId(workspaceId)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid workspace ID' });
+      return { success: false, reason: 'invalid_workspace_id' };
+    }
+
     if (!Array.isArray(elements)) {
       return { success: false, reason: 'invalid_input' };
     }
@@ -130,6 +186,11 @@ const handleWhiteboardUpdateCore = (
     if (elements.length > MAX_ELEMENTS_PER_UPDATE) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Too many elements in single update' });
       return { success: false, reason: 'too_many_elements' };
+    }
+
+    if (!elements.every(isValidElement)) {
+      socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid element payload' });
+      return { success: false, reason: 'invalid_element' };
     }
 
     const drawingsMap = workspace.drawingsMap;
@@ -318,7 +379,7 @@ export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
 // Minimum token length: edit_ (5 chars) + 8 chars = 13 total
 const MIN_EDIT_TOKEN_LENGTH = 13;
 
-export function handleSetEditToken({ workspaceId, editToken }, { socket, io, currentUser }) {
+export function handleSetEditToken({ workspaceId, editToken }, { socket, currentUser }) {
   try {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
@@ -347,7 +408,7 @@ export function handleSetEditToken({ workspaceId, editToken }, { socket, io, cur
 
 const handleChangeSharingModeCore = (
   { workspaceId, sharingMode },
-  { socket, io, workspace }
+  { socket, io }
 ) => {
   try {
     const validModes = Object.values(SHARING_MODES);
@@ -378,7 +439,7 @@ export const handleChangeSharingMode = withOwnerAuth(handleChangeSharingModeCore
 
 const handleEndSessionCore = (
   { workspaceId },
-  { socket, io, workspace }
+  { socket, io }
 ) => {
   try {
     io.to(workspaceId).emit(SOCKET_EVENTS.SESSION_ENDED, { message: 'The workspace owner has ended this session' });

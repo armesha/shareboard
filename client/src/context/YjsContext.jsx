@@ -23,7 +23,8 @@ export function YjsProvider({ workspaceId, children }) {
     const color = pickColor(currentUser || workspaceId);
     const animal = CURSOR_ANIMALS[(currentUser?.length || workspaceId.length) % CURSOR_ANIMALS.length];
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const url = `${protocol}://${window.location.hostname}:1234`;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const url = `${protocol}://${window.location.hostname}${port}/yjs`;
     const wsProvider = new WebsocketProvider(
       url,
       workspaceId,

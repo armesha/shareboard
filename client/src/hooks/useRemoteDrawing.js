@@ -254,6 +254,10 @@ export function useRemoteDrawing(socket, canvasRef) {
   useEffect(() => {
     if (!socket) return;
 
+    const canvasInstance = canvasRef.current;
+    const activeDrawings = activeDrawingsRef.current;
+    const batchedRender = getBatchedRender();
+
     socket.on(SOCKET_EVENTS.DRAWING_START, handleDrawingStart);
     socket.on(SOCKET_EVENTS.DRAWING_STREAM, handleDrawingStream);
     socket.on(SOCKET_EVENTS.DRAWING_END, handleDrawingEnd);
@@ -269,20 +273,18 @@ export function useRemoteDrawing(socket, canvasRef) {
       socket.off(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, handleShapeDrawingUpdate);
       socket.off(SOCKET_EVENTS.SHAPE_DRAWING_END, handleShapeDrawingEnd);
 
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const batchedRender = getBatchedRender();
-        activeDrawingsRef.current.forEach((drawingData) => {
+      if (canvasInstance) {
+        activeDrawings.forEach((drawingData) => {
           if (drawingData.fabricPath) {
-            canvas.remove(drawingData.fabricPath);
+            canvasInstance.remove(drawingData.fabricPath);
           }
           if (drawingData.fabricShape) {
-            canvas.remove(drawingData.fabricShape);
+            canvasInstance.remove(drawingData.fabricShape);
           }
         });
         batchedRender();
       }
-      activeDrawingsRef.current.clear();
+      activeDrawings.clear();
     };
   }, [socket, canvasRef, handleDrawingStart, handleDrawingStream, handleDrawingEnd, handleShapeDrawingStart, handleShapeDrawingUpdate, handleShapeDrawingEnd, getBatchedRender]);
 }

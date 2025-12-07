@@ -137,7 +137,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
         }
       }
     }
-  }, [canvas, disabled, socket, batchedRender]);
+  }, [disabled, socket, batchedRender]);
 
   const finishLine = useCallback(() => {
     if (disabled || !isDrawing.current || !canvas) return;

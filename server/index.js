@@ -115,17 +115,26 @@ const io = new Server(httpServer, {
   ...config.socketIO,
 });
 
-const yjsPort = process.env.YJS_PORT || 1234;
-const yServer = createServer();
-const yWebsocketServer = new WebSocketServer({ server: yServer });
+const yWebsocketServer = new WebSocketServer({ noServer: true });
 yWebsocketServer.on('connection', (conn, req) => {
   setupWSConnection(conn, req, { maxPayload: 1024 * 1024 });
 });
-yServer.listen(yjsPort);
+
+httpServer.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+  if (pathname === '/yjs' || pathname.startsWith('/yjs/')) {
+    yWebsocketServer.handleUpgrade(request, socket, head, (ws) => {
+      yWebsocketServer.emit('connection', ws, request);
+    });
+  }
+});
 
 const updateQueues = new Map();
 
 function queueUpdate(workspaceId, elements, senderSocketId) {
+  if (!workspaceService.workspaceExists(workspaceId)) {
+    return;
+  }
   if (!updateQueues.has(workspaceId)) {
     updateQueues.set(workspaceId, { elements: new Map(), senders: new Set() });
   }
@@ -139,6 +148,10 @@ function queueUpdate(workspaceId, elements, senderSocketId) {
 setInterval(() => {
   try {
     for (const [workspaceId, queue] of updateQueues.entries()) {
+      if (!workspaceService.workspaceExists(workspaceId)) {
+        updateQueues.delete(workspaceId);
+        continue;
+      }
       if (queue.elements.size > 0) {
         const batchedElements = Array.from(queue.elements.values());
         const senders = new Set(queue.senders);
@@ -170,7 +183,10 @@ setInterval(() => {
   }
 }, config.batch.interval);
 
-setInterval(workspaceService.cleanupInactiveWorkspaces, config.cleanup.intervalMs);
+setInterval(() => {
+  const removed = workspaceService.cleanupInactiveWorkspaces();
+  removed.forEach(id => updateQueues.delete(id));
+}, config.cleanup.intervalMs);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -297,6 +313,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       const workspace = workspaceService.getWorkspace(workspaceId);
       if (!workspace) return;
 
+      currentUser.accessToken = accessToken || currentUser.accessToken || null;
       if (userId) currentUser.userId = userId;
 
       const { hasEditAccess, isOwner } = permissionService.calculateEditAccess(workspace, currentUser, accessToken);

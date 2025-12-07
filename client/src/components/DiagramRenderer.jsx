@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
-import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
+import { loadMermaid } from '../utils/mermaid';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
@@ -33,17 +33,25 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const panOffsetRef = useRef({ x: 0, y: 0 });
-  const mermaidInitializedRef = useRef(false);
+  const mermaidRef = useRef(null);
 
   useEffect(() => {
-    if (!mermaidInitializedRef.current) {
-      mermaid.initialize(MERMAID_CONFIG);
-      mermaidInitializedRef.current = true;
-    }
+    let isMounted = true;
+    loadMermaid(MERMAID_CONFIG).then(instance => {
+      if (isMounted) {
+        mermaidRef.current = instance;
+      }
+    }).catch(err => {
+      setError(err.message || 'Failed to load diagram renderer');
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const renderDiagram = useCallback(async (diagramContent) => {
     if (!diagramRef.current || !diagramContent.trim() || isRenderingRef.current) return;
+    if (!mermaidRef.current) return;
 
     isRenderingRef.current = true;
 
@@ -51,7 +59,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
       renderIdRef.current += 1;
       const renderId = `mermaid-render-${renderIdRef.current}`;
 
-      const { svg } = await mermaid.render(renderId, diagramContent);
+      const { svg } = await mermaidRef.current.render(renderId, diagramContent);
 
       const tempSvg = document.getElementById(renderId);
       if (tempSvg) tempSvg.remove();
@@ -85,17 +93,15 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     }
   }, []);
 
-  const debouncedRender = useMemo(
-    () => debounce((diagramContent) => renderDiagram(diagramContent), 400),
-    [renderDiagram]
-  );
-
   useEffect(() => {
+    const debouncedRender = debounce((diagramContent) => {
+      renderDiagram(diagramContent);
+    }, 400);
     if (content.trim()) {
       debouncedRender(content);
     }
     return () => debouncedRender.cancel();
-  }, [content, debouncedRender]);
+  }, [content, renderDiagram]);
 
   const handleContentChange = (e) => {
     if (isReadOnly) return;
