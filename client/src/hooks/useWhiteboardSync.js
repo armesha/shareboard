@@ -20,6 +20,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
     if (!canvas) return;
 
     const batchedRender = createBatchedRender(canvas);
+    const hasWritePermission = canWrite && canWrite();
 
     isUpdatingRef.current = true;
     canvas.suspendDrawing = true;
@@ -43,8 +44,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
             });
             existingObject.setCoords();
           } else {
-            const isSelectable = canWrite && canWrite();
-            loadDiagramToCanvas(canvas, element, isSelectable);
+            loadDiagramToCanvas(canvas, element, hasWritePermission);
           }
 
           elementsMapRef.current.set(element.id, element);
@@ -100,6 +100,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
       if (!canvas) return;
 
       const batchedRender = createBatchedRender(canvas);
+      const hasWritePermission = canWrite && canWrite();
 
       canvas.clear();
       elementsMapRef.current.clear();
@@ -125,8 +126,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
           diagramElements.forEach(element => {
             if (element && element.id) {
               elementsMapRef.current.set(element.id, element);
-              const isSelectable = canWrite && canWrite();
-              loadDiagramToCanvas(canvas, element, isSelectable);
+              loadDiagramToCanvas(canvas, element, hasWritePermission);
               const diagramObj = canvas.getObjects().find(o => o.id === element.id);
               if (diagramObj) {
                 objectMapRef.current.set(element.id, diagramObj);
@@ -135,13 +135,11 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
           });
 
           canvas.getObjects().forEach(obj => {
-            const isSelectable = canWrite && canWrite();
-
             obj.set({
-              selectable: isSelectable,
-              hasControls: isSelectable,
-              hasBorders: isSelectable,
-              evented: isSelectable
+              selectable: hasWritePermission,
+              hasControls: hasWritePermission,
+              hasBorders: hasWritePermission,
+              evented: hasWritePermission
             });
           });
 
