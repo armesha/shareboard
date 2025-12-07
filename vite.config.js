@@ -24,6 +24,12 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
         secure: false
+      },
+      '/yjs': {
+        target: process.env.VITE_API_URL || 'http://localhost:3000',
+        ws: true,
+        changeOrigin: true,
+        secure: false
       }
     }
   },

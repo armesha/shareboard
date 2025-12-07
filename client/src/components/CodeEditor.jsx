@@ -6,7 +6,6 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
 import { useSharing } from '../context/SharingContext';
 import { useYjs } from '../context/YjsContext';
-import UserCursors from './UserCursors';
 import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES } from '../constants';
 import { useClickOutside } from '../hooks';
 
@@ -23,6 +22,7 @@ export default function CodeEditor() {
   const { canWrite } = useSharing();
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
   const editorRef = useRef(null);
   const bindingRef = useRef(null);
   const langMenuRef = useRef(null);
@@ -40,6 +40,7 @@ export default function CodeEditor() {
 
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;
+    setEditorReady(true);
     editor.focus();
   };
 
@@ -59,7 +60,7 @@ export default function CodeEditor() {
   };
 
   useEffect(() => {
-    if (!doc || !provider || !editorRef.current) return;
+    if (!doc || !provider || !editorReady || !editorRef.current) return;
 
     const model = editorRef.current.getModel();
     const yText = doc.getText('code');
@@ -70,7 +71,7 @@ export default function CodeEditor() {
       binding.destroy();
       bindingRef.current = null;
     };
-  }, [doc, provider]);
+  }, [doc, provider, editorReady]);
 
   useEffect(() => {
     const updateLayout = () => {
@@ -134,9 +135,6 @@ export default function CodeEditor() {
             {t('common:permissions.readOnlyMode')}
           </div>
         )}
-        <div className="ml-auto">
-          <UserCursors />
-        </div>
       </div>
       <div className="flex-1 relative">
         <div className="absolute inset-0">

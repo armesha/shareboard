@@ -926,3 +926,30 @@ body {
 .font-code {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
+
+.yRemoteSelection {
+  background-color: rgba(139, 92, 246, 0.3);
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  border-left: 2px solid rgb(139, 92, 246);
+  border-top: 2px solid rgb(139, 92, 246);
+  border-bottom: 2px solid rgb(139, 92, 246);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.yRemoteSelectionHead::after {
+  content: attr(data-name);
+  position: absolute;
+  top: -1.4em;
+  left: -2px;
+  font-size: 10px;
+  background-color: rgb(139, 92, 246);
+  color: white;
+  padding: 1px 4px;
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  font-family: 'Inter', system-ui, sans-serif;
+}

@@ -13,28 +13,41 @@ export function useCodeEditor() {
 export function CodeEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
-  const { doc } = useYjs();
+  const { doc, synced } = useYjs();
   const [language, setLanguageState] = useState('javascript');
   const [content, setContentState] = useState('');
   const yText = useMemo(() => doc?.getText('code') ?? null, [doc]);
 
   useEffect(() => {
-    if (!yText) return;
+    if (!yText || !doc) return;
 
-    const syncContent = () => setContentState(yText.toString());
+    const syncContent = () => {
+      const text = yText.toString();
+      setContentState(text || CODE_EXAMPLES[language] || '');
+    };
     syncContent();
 
     const observer = () => syncContent();
     yText.observe(observer);
 
-    if (yText.length === 0 && CODE_EXAMPLES[language]) {
-      yText.insert(0, CODE_EXAMPLES[language]);
-    }
-
     return () => {
       yText.unobserve(observer);
     };
-  }, [yText, language]);
+  }, [yText, doc, language]);
+
+  useEffect(() => {
+    if (!yText || !doc || !synced) return;
+
+    const meta = doc.getMap('meta');
+    if (yText.length === 0 && CODE_EXAMPLES[language] && !meta.get('codeInitialized')) {
+      doc.transact(() => {
+        if (yText.length === 0 && !meta.get('codeInitialized')) {
+          meta.set('codeInitialized', true);
+          yText.insert(0, CODE_EXAMPLES[language]);
+        }
+      });
+    }
+  }, [yText, doc, synced, language]);
 
   const setContent = useCallback((value) => {
     if (!yText) return;

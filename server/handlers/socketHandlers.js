@@ -31,7 +31,7 @@ const ELEMENT_TYPES = new Set([
 
 const MAX_ELEMENT_ID_LENGTH = 100;
 const MAX_TEXT_LENGTH = 2000;
-const MAX_SRC_LENGTH = 2048;
+const MAX_SRC_LENGTH = 512000;
 
 function isValidElementData(data) {
   if (typeof data !== 'object' || data === null) return false;

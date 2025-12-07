@@ -76,6 +76,7 @@ function createMockWorkspace(overrides = {}) {
     diagrams: new Map(),
     codeSnippets: null,
     diagramContent: '',
+    allowedUsers: [],
     ...overrides
   };
 }
@@ -247,13 +248,13 @@ describe('socketHandlers', () => {
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       const result = handleWhiteboardUpdate(
-        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect' }] },
+        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect', data: { left: 10 } }] },
         { socket, currentUser, queueUpdate }
       );
 
       expect(result.success).toBe(true);
       expect(workspace.drawingsMap.has('el-1')).toBe(true);
-      expect(queueUpdate).toHaveBeenCalledWith('ws-1', [{ id: 'el-1', type: 'rect' }], 'socket-123');
+      expect(queueUpdate).toHaveBeenCalledWith('ws-1', [{ id: 'el-1', type: 'rect', data: { left: 10 } }], 'socket-123');
     });
 
     it('should reject if workspace not found', () => {
@@ -316,7 +317,7 @@ describe('socketHandlers', () => {
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
-        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect' }] },
+        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect', data: { left: 0, top: 0 } }] },
         { socket, currentUser, queueUpdate }
       );
 
@@ -330,7 +331,7 @@ describe('socketHandlers', () => {
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
-        { workspaceId: 'ws-1', elements: [{ type: 'rect' }, { id: 'el-1' }] },
+        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect', data: { left: 0, top: 0 } }] },
         { socket, currentUser, queueUpdate }
       );
 
@@ -340,24 +341,24 @@ describe('socketHandlers', () => {
 
     it('should update existing elements', () => {
       const workspace = createMockWorkspace();
-      workspace.drawingsMap.set('el-1', { id: 'el-1', x: 0 });
+      workspace.drawingsMap.set('el-1', { id: 'el-1', type: 'rect', data: { left: 0 } });
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
-        { workspaceId: 'ws-1', elements: [{ id: 'el-1', x: 100 }] },
+        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect', data: { left: 100 } }] },
         { socket, currentUser, queueUpdate }
       );
 
-      expect(workspace.drawingsMap.get('el-1').x).toBe(100);
+      expect(workspace.drawingsMap.get('el-1').data.left).toBe(100);
     });
 
     it('should add to drawingOrder for new elements only', () => {
       const workspace = createMockWorkspace();
-      workspace.drawingsMap.set('el-1', { id: 'el-1' });
+      workspace.drawingsMap.set('el-1', { id: 'el-1', type: 'rect', data: {} });
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
 
       handleWhiteboardUpdate(
-        { workspaceId: 'ws-1', elements: [{ id: 'el-1' }, { id: 'el-2' }] },
+        { workspaceId: 'ws-1', elements: [{ id: 'el-1', type: 'rect', data: {} }, { id: 'el-2', type: 'rect', data: {} }] },
         { socket, currentUser, queueUpdate }
       );
 
@@ -1016,9 +1017,14 @@ describe('socketHandlers', () => {
     it('should generate userId from email', () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
       const callback = vi.fn();
 
-      const result = handleInviteUser({ workspaceId: 'ws-1', email: 'Test.User@Example.com' }, callback);
+      const result = handleInviteUser(
+        { workspaceId: 'ws-1', email: 'Test.User@Example.com' },
+        callback,
+        { socket, currentUser, io }
+      );
 
       expect(result.success).toBe(true);
       expect(callback).toHaveBeenCalledWith({ userId: 'test-user-example-com' });
@@ -1027,7 +1033,11 @@ describe('socketHandlers', () => {
     it('should reject if email is not string', () => {
       const callback = vi.fn();
 
-      const result = handleInviteUser({ workspaceId: 'ws-1', email: 12345 }, callback);
+      const result = handleInviteUser(
+        { workspaceId: 'ws-1', email: 12345 },
+        callback,
+        { socket, currentUser, io }
+      );
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('invalid_email');
@@ -1038,7 +1048,11 @@ describe('socketHandlers', () => {
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(null);
       const callback = vi.fn();
 
-      const result = handleInviteUser({ workspaceId: 'ws-1', email: 'test@example.com' }, callback);
+      const result = handleInviteUser(
+        { workspaceId: 'ws-1', email: 'test@example.com' },
+        callback,
+        { socket, currentUser, io }
+      );
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('workspace_not_found');
@@ -1048,9 +1062,14 @@ describe('socketHandlers', () => {
     it('should handle special characters in email', () => {
       const workspace = createMockWorkspace();
       vi.mocked(workspaceService.getWorkspace).mockReturnValue(workspace);
+      vi.mocked(permissionService.checkOwnership).mockReturnValue(true);
       const callback = vi.fn();
 
-      handleInviteUser({ workspaceId: 'ws-1', email: 'user+tag@example.com' }, callback);
+      handleInviteUser(
+        { workspaceId: 'ws-1', email: 'user+tag@example.com' },
+        callback,
+        { socket, currentUser, io }
+      );
 
       expect(callback).toHaveBeenCalledWith({ userId: 'user-tag-example-com' });
     });

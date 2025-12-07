@@ -21,7 +21,7 @@ export function DiagramEditorProvider({ children }) {
   const socket = socketContext?.socket;
   const { canWrite } = useSharing() || { canWrite: () => false };
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const { doc } = useYjs();
+  const { doc, synced } = useYjs();
   const [content, setContentState] = useState(SAMPLE_DIAGRAM);
   const yText = useMemo(() => doc?.getText('diagram') ?? null, [doc]);
 
@@ -31,22 +31,35 @@ export function DiagramEditorProvider({ children }) {
   }, [canWrite]);
 
   useEffect(() => {
-    if (!yText) return;
+    if (!yText || !doc) return;
 
-    const syncContent = () => setContentState(yText.toString());
+    const syncContent = () => {
+      const text = yText.toString();
+      setContentState(text || SAMPLE_DIAGRAM);
+    };
     syncContent();
 
     const observer = () => syncContent();
     yText.observe(observer);
 
-    if (yText.length === 0) {
-      yText.insert(0, SAMPLE_DIAGRAM);
-    }
-
     return () => {
       yText.unobserve(observer);
     };
-  }, [yText]);
+  }, [yText, doc]);
+
+  useEffect(() => {
+    if (!yText || !doc || !synced) return;
+
+    const meta = doc.getMap('meta');
+    if (yText.length === 0 && !meta.get('diagramInitialized')) {
+      doc.transact(() => {
+        if (yText.length === 0 && !meta.get('diagramInitialized')) {
+          meta.set('diagramInitialized', true);
+          yText.insert(0, SAMPLE_DIAGRAM);
+        }
+      });
+    }
+  }, [yText, doc, synced]);
 
   const setContent = useCallback((value) => {
     if (!yText || isReadOnly) return;
