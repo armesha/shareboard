@@ -67,7 +67,6 @@ export function useWhiteboardElements() {
       }
       case 'diagram': {
         if (!element.data.src) {
-          console.warn('Diagram element has no src');
           return null;
         }
         return null;

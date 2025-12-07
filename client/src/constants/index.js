@@ -350,3 +350,9 @@ SELECT * FROM greetings WHERE name = 'World';`,
   }
 }`
 };
+
+export const SAMPLE_DIAGRAM = `graph TD
+  A[Start] --> B{Is it?}
+  B -- Yes --> C[OK]
+  B -- No --> D[End]
+`;

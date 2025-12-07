@@ -160,7 +160,6 @@ const shapeFromDataCreators = {
 export function createShape(shapeType, props) {
   const creator = shapeCreators[shapeType];
   if (!creator) {
-    console.warn(`Unknown shape type for drawing: ${shapeType}`);
     return null;
   }
   return creator(props);

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
-import { SOCKET_EVENTS } from '../constants';
+import { SOCKET_EVENTS, SAMPLE_DIAGRAM } from '../constants';
 import { useYjs } from './YjsContext';
 
 const DiagramEditorContext = createContext(null);
@@ -9,12 +9,6 @@ const DiagramEditorContext = createContext(null);
 export function useDiagramEditor() {
   return useContext(DiagramEditorContext);
 }
-
-const SAMPLE_DIAGRAM = `graph TD
-  A[Start] --> B{Is it?}
-  B -- Yes --> C[OK]
-  B -- No --> D[End]
-`;
 
 export function DiagramEditorProvider({ children }) {
   const socketContext = useSocket();

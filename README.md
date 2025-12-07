@@ -36,9 +36,11 @@ docker-compose --profile prod up production --build
 - React + Vite + TailwindCSS
 - Fabric.js - kreslící plocha
 - Monaco Editor - editor kódu
-- Socket.IO Client - real-time komunikace
+- Socket.IO Client - real-time komunikace (whiteboard)
+- Yjs + y-monaco - kolaborativní editace kódu (CRDT)
 - Mermaid - diagramy
 
 ### Backend
 - Node.js + Express
-- Socket.IO - WebSocket server
+- Socket.IO - WebSocket server (whiteboard, permissions)
+- y-websocket - Yjs WebSocket server (code/diagram sync)
