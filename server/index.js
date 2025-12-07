@@ -117,7 +117,7 @@ const io = new Server(httpServer, {
 let yWebsocketServer = null;
 (async () => {
   try {
-    const yUtils = await import('y-websocket/bin/utils.js');
+    const yUtils = await import('y-websocket/bin/utils');
     const setupWSConnection = yUtils.setupWSConnection;
 
     yWebsocketServer = new WebSocketServer({ noServer: true });
