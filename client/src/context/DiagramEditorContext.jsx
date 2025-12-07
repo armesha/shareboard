@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { useSocket } from './SocketContext';
 import { useSharing } from './SharingContext';
 import { SOCKET_EVENTS } from '../constants';
-import { useSyncedEditor } from '../hooks/useSyncedEditor';
+import { useYjs } from './YjsContext';
 
 const DiagramEditorContext = createContext(null);
 
@@ -21,57 +21,62 @@ export function DiagramEditorProvider({ children }) {
   const socket = socketContext?.socket;
   const { canWrite } = useSharing() || { canWrite: () => false };
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const { doc } = useYjs();
+  const [content, setContentState] = useState(SAMPLE_DIAGRAM);
+  const yText = useMemo(() => doc?.getText('diagram') ?? null, [doc]);
 
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
   }, [canWrite]);
 
-  const canEmit = useCallback(() => !isReadOnly, [isReadOnly]);
+  useEffect(() => {
+    if (!yText) return;
 
-  const {
-    content,
-    setContent: updateContent,
-    syncContent,
-    handleRemoteUpdate,
-    isEditing,
-    setIsEditing
-  } = useSyncedEditor({
-    socket,
-    socketEvent: SOCKET_EVENTS.DIAGRAM_UPDATE,
-    initialContent: SAMPLE_DIAGRAM,
-    canEmit
-  });
+    const syncContent = () => setContentState(yText.toString());
+    syncContent();
+
+    const observer = () => syncContent();
+    yText.observe(observer);
+
+    if (yText.length === 0) {
+      yText.insert(0, SAMPLE_DIAGRAM);
+    }
+
+    return () => {
+      yText.unobserve(observer);
+    };
+  }, [yText]);
+
+  const setContent = useCallback((value) => {
+    if (!yText || isReadOnly) return;
+    yText.delete(0, yText.length);
+    if (value) {
+      yText.insert(0, value);
+    }
+  }, [yText, isReadOnly]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleDiagramUpdate = ({ content: newContent }) => {
-      handleRemoteUpdate(newContent);
-    };
-
     const handleWorkspaceState = (state) => {
-      if (state.diagramContent) {
-        syncContent(state.diagramContent);
+      if (state.diagramContent && yText && yText.length === 0) {
+        setContent(state.diagramContent);
       }
     };
 
-    socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
     socket.on(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
 
     return () => {
-      socket.off(SOCKET_EVENTS.DIAGRAM_UPDATE, handleDiagramUpdate);
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
-  }, [socket, handleRemoteUpdate, syncContent]);
+  }, [socket, setContent, yText]);
 
   const value = useMemo(() => ({
     content,
-    setContent: updateContent,
-    isEditing,
-    setIsEditing,
+    setContent,
     isReadOnly
-  }), [content, updateContent, isEditing, setIsEditing, isReadOnly]);
+  }), [content, setContent, isReadOnly]);
 
   return (
     <DiagramEditorContext.Provider value={value}>

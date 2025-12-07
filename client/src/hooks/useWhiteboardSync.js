@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SOCKET_EVENTS } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { loadDiagramToCanvas } from '../factories/diagramFactory';
@@ -9,6 +9,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [activeUsers, setActiveUsers] = useState(0);
+  const objectMapRef = useRef(new Map());
 
   const handleWhiteboardUpdate = useCallback((serverElements) => {
     if (!serverElements || !Array.isArray(serverElements) || serverElements.length === 0) {
@@ -30,15 +31,15 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
         if (!element || !element.id) return;
 
         if (element.type === 'diagram') {
-          const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
+          const existingObject = objectMapRef.current.get(element.id);
 
           if (existingObject) {
             existingObject.set({
-              left: element.data.left || existingObject.left,
-              top: element.data.top || existingObject.top,
-              scaleX: element.data.scaleX || existingObject.scaleX,
-              scaleY: element.data.scaleY || existingObject.scaleY,
-              angle: element.data.angle || existingObject.angle
+              left: element.data.left ?? existingObject.left,
+              top: element.data.top ?? existingObject.top,
+              scaleX: element.data.scaleX ?? existingObject.scaleX,
+              scaleY: element.data.scaleY ?? existingObject.scaleY,
+              angle: element.data.angle ?? existingObject.angle
             });
             existingObject.setCoords();
           } else {
@@ -50,7 +51,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
           return;
         }
 
-        const existingObject = canvas.getObjects().find(obj => obj.id === element.id);
+        const existingObject = objectMapRef.current.get(element.id);
 
         if (existingObject) {
           const data = element.data || {};
@@ -65,6 +66,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
           if (newObject) {
             canvas.add(newObject);
             newObject.setCoords();
+            objectMapRef.current.set(element.id, newObject);
           }
         }
 
@@ -101,6 +103,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
 
       canvas.clear();
       elementsMapRef.current.clear();
+      objectMapRef.current.clear();
 
       if (state.whiteboardElements && state.whiteboardElements.length > 0) {
         isUpdatingRef.current = true;
@@ -114,6 +117,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
               if (obj) {
                 canvas.add(obj);
                 elementsMapRef.current.set(element.id, element);
+                objectMapRef.current.set(element.id, obj);
               }
             }
           });
@@ -123,6 +127,10 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
               elementsMapRef.current.set(element.id, element);
               const isSelectable = canWrite && canWrite();
               loadDiagramToCanvas(canvas, element, isSelectable);
+              const diagramObj = canvas.getObjects().find(o => o.id === element.id);
+              if (diagramObj) {
+                objectMapRef.current.set(element.id, diagramObj);
+              }
             }
           });
 
@@ -153,6 +161,7 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
       if (canvas) {
         canvas.clear();
         elementsMapRef.current.clear();
+        objectMapRef.current.clear();
         setElements([]);
       }
     };
@@ -172,9 +181,10 @@ export function useWhiteboardSync(socket, canvasRef, elementsMapRef, isUpdatingR
 
       elementsMapRef.current.delete(elementId);
 
-      const obj = canvas.getObjects().find(o => o.id === elementId);
+      const obj = objectMapRef.current.get(elementId);
       if (obj) {
         canvas.remove(obj);
+        objectMapRef.current.delete(elementId);
       }
 
       const updatedElements = Array.from(elementsMapRef.current.values());

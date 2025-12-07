@@ -101,6 +101,11 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       const obj = e.target;
       if (!obj || isUpdatingRef.current) return;
 
+      if (obj.type === 'diagram' || (obj.type === 'image' && obj.data?.isDiagram)) {
+        obj.lockMovementX = false;
+        obj.lockMovementY = false;
+      }
+
       const isActiveSelection = obj.type === 'activeSelection';
       const objectsToUpdate = isActiveSelection ? obj.getObjects() : [obj];
 
@@ -299,18 +304,6 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
   useEffect(() => {
     if (!canvas) return;
 
-    const handleObjectMoving = (e) => {
-      if (disabled || tool !== TOOLS.SELECT) return;
-
-      const obj = e.target;
-      if (!obj) return;
-
-      if (obj.type === 'diagram' || (obj.type === 'image' && obj.data?.isDiagram)) {
-        obj.lockMovementX = false;
-        obj.lockMovementY = false;
-      }
-    };
-
     const handleObjectMoved = (e) => {
       if (disabled || tool !== TOOLS.SELECT) return;
 
@@ -330,12 +323,10 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       }
     };
 
-    canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
     canvas.on(FABRIC_EVENTS.OBJECT_MOVED, handleObjectMoved);
     canvas.on(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
 
     return () => {
-      canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving);
       canvas.off(FABRIC_EVENTS.OBJECT_MOVED, handleObjectMoved);
       canvas.off(FABRIC_EVENTS.MOUSE_DOWN, handleMouseDown);
     };

@@ -1,6 +1,8 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { WebSocketServer } from 'ws';
+import { setupWSConnection } from 'y-websocket/bin/utils.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -112,6 +114,14 @@ const io = new Server(httpServer, {
   cors: config.cors,
   ...config.socketIO,
 });
+
+const yjsPort = process.env.YJS_PORT || 1234;
+const yServer = createServer();
+const yWebsocketServer = new WebSocketServer({ server: yServer });
+yWebsocketServer.on('connection', (conn, req) => {
+  setupWSConnection(conn, req, { maxPayload: 1024 * 1024 });
+});
+yServer.listen(yjsPort);
 
 const updateQueues = new Map();
 

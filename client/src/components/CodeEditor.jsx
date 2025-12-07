@@ -1,25 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Editor } from '@monaco-editor/react';
+import { MonacoBinding } from 'y-monaco';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useCodeEditor } from '../context/CodeEditorContext';
 import { useSharing } from '../context/SharingContext';
+import { useYjs } from '../context/YjsContext';
+import UserCursors from './UserCursors';
 import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES } from '../constants';
 import { useClickOutside } from '../hooks';
 
 export default function CodeEditor() {
   const { t } = useTranslation(['editor', 'common']);
   const {
-    content,
     language,
     setContent,
     setLanguage
   } = useCodeEditor();
+  const { doc, provider } = useYjs();
 
   const { canWrite } = useSharing();
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const editorRef = useRef(null);
+  const bindingRef = useRef(null);
   const langMenuRef = useRef(null);
 
   useEffect(() => {
@@ -36,16 +40,6 @@ export default function CodeEditor() {
   const handleEditorDidMount = (editor) => {
     editorRef.current = editor;
     editor.focus();
-    
-    setTimeout(() => {
-      editor.layout();
-    }, 100);
-  };
-
-  const handleEditorChange = (value) => {
-    if (!isReadOnly) {
-      setContent(value);
-    }
   };
 
   const handleLanguageChange = (langValue) => {
@@ -62,6 +56,20 @@ export default function CodeEditor() {
       setContent(CODE_EXAMPLES[language]);
     }
   };
+
+  useEffect(() => {
+    if (!doc || !provider || !editorRef.current) return;
+
+    const model = editorRef.current.getModel();
+    const yText = doc.getText('code');
+    const binding = new MonacoBinding(yText, model, new Set([editorRef.current]), provider.awareness);
+    bindingRef.current = binding;
+
+    return () => {
+      binding.destroy();
+      bindingRef.current = null;
+    };
+  }, [doc, provider]);
 
   useEffect(() => {
     const updateLayout = () => {
@@ -125,14 +133,15 @@ export default function CodeEditor() {
             {t('common:permissions.readOnlyMode')}
           </div>
         )}
+        <div className="ml-auto">
+          <UserCursors />
+        </div>
       </div>
       <div className="flex-1 relative">
         <div className="absolute inset-0">
           <Editor
             height="100%"
             language={language}
-            value={content}
-            onChange={handleEditorChange}
             onMount={handleEditorDidMount}
             options={{
               minimap: { enabled: false },

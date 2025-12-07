@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSocket } from './SocketContext';
 import { getWorkspaceId } from '../utils';
-import { SOCKET_EVENTS } from '../constants';
-import { useSyncedEditor } from '../hooks/useSyncedEditor';
+import { SOCKET_EVENTS, CODE_EXAMPLES } from '../constants';
+import { useYjs } from './YjsContext';
 
 const CodeEditorContext = createContext(null);
 
@@ -13,56 +13,52 @@ export function useCodeEditor() {
 export function CodeEditorProvider({ children }) {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
+  const { doc } = useYjs();
   const [language, setLanguageState] = useState('javascript');
-  const [_lastEmittedLanguage, setLastEmittedLanguage] = useState('javascript');
+  const [content, setContentState] = useState('');
+  const yText = useMemo(() => doc?.getText('code') ?? null, [doc]);
 
-  const emitPayload = useCallback((workspaceId, content) => ({
-    workspaceId,
-    language,
-    content
-  }), [language]);
+  useEffect(() => {
+    if (!yText) return;
 
-  const {
-    content,
-    setContent: updateContent,
-    syncContent,
-    handleRemoteUpdate,
-    isEditing,
-    setIsEditing
-  } = useSyncedEditor({
-    socket,
-    socketEvent: SOCKET_EVENTS.CODE_UPDATE,
-    initialContent: '',
-    emitPayload
-  });
+    const syncContent = () => setContentState(yText.toString());
+    syncContent();
 
-  const emitLanguageChange = useCallback((workspaceId, newLanguage, newContent) => {
-    if (socket) {
-      socket.emit(SOCKET_EVENTS.CODE_UPDATE, {
-        workspaceId,
-        language: newLanguage,
-        content: newContent
-      });
-      setLastEmittedLanguage(newLanguage);
+    const observer = () => syncContent();
+    yText.observe(observer);
+
+    if (yText.length === 0 && CODE_EXAMPLES[language]) {
+      yText.insert(0, CODE_EXAMPLES[language]);
     }
-  }, [socket]);
+
+    return () => {
+      yText.unobserve(observer);
+    };
+  }, [yText, language]);
+
+  const setContent = useCallback((value) => {
+    if (!yText) return;
+    yText.delete(0, yText.length);
+    if (value) {
+      yText.insert(0, value);
+    }
+  }, [yText]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleCodeUpdate = ({ language: newLanguage, content: newContent }) => {
-      const updated = handleRemoteUpdate(newContent);
-      if (updated) {
+    const handleCodeUpdate = ({ language: newLanguage }) => {
+      if (newLanguage) {
         setLanguageState(newLanguage);
-        setLastEmittedLanguage(newLanguage);
       }
     };
 
     const handleWorkspaceState = (state) => {
-      if (state.codeSnippets) {
+      if (state.codeSnippets?.language) {
         setLanguageState(state.codeSnippets.language);
-        setLastEmittedLanguage(state.codeSnippets.language);
-        syncContent(state.codeSnippets.content);
+      }
+      if (state.codeSnippets?.content && yText && yText.length === 0) {
+        setContent(state.codeSnippets.content);
       }
     };
 
@@ -73,22 +69,25 @@ export function CodeEditorProvider({ children }) {
       socket.off(SOCKET_EVENTS.CODE_UPDATE, handleCodeUpdate);
       socket.off(SOCKET_EVENTS.WORKSPACE_STATE, handleWorkspaceState);
     };
-  }, [socket, handleRemoteUpdate, syncContent]);
+  }, [socket, setContent, yText]);
 
   const updateLanguage = useCallback((newLanguage) => {
     setLanguageState(newLanguage);
     const workspaceId = getWorkspaceId();
-    emitLanguageChange(workspaceId, newLanguage, content);
-  }, [content, emitLanguageChange]);
+    if (socket && workspaceId) {
+      socket.emit(SOCKET_EVENTS.CODE_UPDATE, {
+        workspaceId,
+        language: newLanguage
+      });
+    }
+  }, [socket]);
 
   const value = useMemo(() => ({
     content,
     language,
-    setContent: updateContent,
-    setLanguage: updateLanguage,
-    isEditing,
-    setIsEditing
-  }), [content, language, updateContent, updateLanguage, isEditing, setIsEditing]);
+    setContent,
+    setLanguage: updateLanguage
+  }), [content, language, setContent, updateLanguage]);
 
   return (
     <CodeEditorContext.Provider value={value}>
