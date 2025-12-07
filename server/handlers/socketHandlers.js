@@ -306,7 +306,7 @@ const handleCodeUpdateCore = (
   { socket, workspace }
 ) => {
   try {
-    if (typeof content !== 'string' || content.length > MAX_CODE_LENGTH) {
+    if (content !== undefined && (typeof content !== 'string' || content.length > MAX_CODE_LENGTH)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid code content' });
       return { success: false, reason: 'invalid_content' };
     }
@@ -316,7 +316,13 @@ const handleCodeUpdateCore = (
       return { success: false, reason: 'invalid_language' };
     }
 
-    workspace.codeSnippets = { language, content };
+    if (!workspace.codeSnippets) {
+      workspace.codeSnippets = {};
+    }
+    workspace.codeSnippets.language = language;
+    if (content !== undefined) {
+      workspace.codeSnippets.content = content;
+    }
     socket.broadcast.to(workspaceId).emit(SOCKET_EVENTS.CODE_UPDATE, { language, content });
 
     return { success: true };

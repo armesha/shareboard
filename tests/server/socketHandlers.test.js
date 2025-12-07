@@ -1152,7 +1152,7 @@ describe('socketHandlers', () => {
       expect(result1.success).toBe(false);
 
       const result2 = handleCodeUpdate({ workspaceId: 'ws-1', language: 'js', content: undefined }, { socket, currentUser });
-      expect(result2.success).toBe(false);
+      expect(result2.success).toBe(true);
 
       const result3 = handleCodeUpdate({ workspaceId: 'ws-1', language: 'js', content: [] }, { socket, currentUser });
       expect(result3.success).toBe(false);
