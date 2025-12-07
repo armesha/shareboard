@@ -30,6 +30,15 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          monaco: ['@monaco-editor/react', 'monaco-editor'],
+          fabric: ['fabric'],
+          mermaid: ['mermaid']
+        }
+      }
+    }
   },
   resolve: {
     alias: {

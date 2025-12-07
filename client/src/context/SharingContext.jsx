@@ -4,6 +4,29 @@ import { SOCKET_EVENTS, STORAGE_KEYS, SHARING_MODES } from '../constants';
 import { getPersistentUserId } from '../utils';
 
 const SharingContext = createContext(null);
+const TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+
+function setSessionToken(key, value) {
+  if (!value) return;
+  const payload = JSON.stringify({ value, expiresAt: Date.now() + TOKEN_TTL_MS });
+  sessionStorage.setItem(key, payload);
+}
+
+function getSessionToken(key) {
+  const raw = sessionStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed.expiresAt || parsed.expiresAt < Date.now()) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
+    return parsed.value;
+  } catch {
+    sessionStorage.removeItem(key);
+    return null;
+  }
+}
 
 export function useSharing() {
   return useContext(SharingContext);
@@ -31,7 +54,7 @@ export function SharingProvider({ children, workspaceId }) {
     const accessToken = urlParams.get('access');
 
     if (accessToken) {
-      localStorage.setItem(STORAGE_KEYS.accessToken(workspaceId), accessToken);
+      setSessionToken(STORAGE_KEYS.accessToken(workspaceId), accessToken);
     }
   }, [workspaceId]);
 
@@ -45,7 +68,7 @@ export function SharingProvider({ children, workspaceId }) {
 
       const urlParams = new URLSearchParams(window.location.search);
       const currentAccessToken = urlParams.get('access') ||
-        localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId));
+        getSessionToken(STORAGE_KEYS.accessToken(workspaceId));
 
       const currentUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
 
@@ -76,7 +99,7 @@ export function SharingProvider({ children, workspaceId }) {
       }
 
       if (data.editToken) {
-        localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
+        setSessionToken(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
 
       setSharingInfoReceived(true);
@@ -84,13 +107,16 @@ export function SharingProvider({ children, workspaceId }) {
 
     const handleEditTokenUpdate = (data) => {
       if (data.editToken) {
-        localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
+        setSessionToken(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
     };
 
     const handleSharingModeChanged = (data) => {
       if (data.sharingMode) {
         setSharingMode(data.sharingMode);
+        if (Array.isArray(data.allowedUsers)) {
+          setAllowedUsers(data.allowedUsers);
+        }
 
         if (data.sharingMode === SHARING_MODES.READ_ONLY) {
           setHasEditAccess(false);
@@ -98,7 +124,7 @@ export function SharingProvider({ children, workspaceId }) {
           setHasEditAccess(true);
         } else if (data.sharingMode === SHARING_MODES.READ_WRITE_SELECTED) {
           const currentAccessToken = new URLSearchParams(window.location.search).get('access') ||
-            localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId));
+            getSessionToken(STORAGE_KEYS.accessToken(workspaceId));
           if (data.editToken && currentAccessToken === data.editToken) {
             setHasEditAccess(true);
           } else {
@@ -107,7 +133,7 @@ export function SharingProvider({ children, workspaceId }) {
         }
       }
       if (data.editToken) {
-        localStorage.setItem(STORAGE_KEYS.editToken(workspaceId), data.editToken);
+        setSessionToken(STORAGE_KEYS.editToken(workspaceId), data.editToken);
       }
     };
 
@@ -125,7 +151,7 @@ export function SharingProvider({ children, workspaceId }) {
   const joinWorkspace = useCallback(() => {
     if (!socket || !workspaceId || !persistentUserId) return;
 
-    const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken(workspaceId)) ||
+    const accessToken = getSessionToken(STORAGE_KEYS.accessToken(workspaceId)) ||
       new URLSearchParams(window.location.search).get('access');
 
     socket.emit(SOCKET_EVENTS.GET_SHARING_INFO, {

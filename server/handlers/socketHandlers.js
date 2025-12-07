@@ -509,11 +509,15 @@ export function handleInviteUser({ workspaceId, email }, callback, { socket, cur
     }
     workspaceService.updateLastActivity(workspaceId);
 
+    const ownerInfo = permissionService.getSharingInfo(workspace, currentUser);
     if (socket) {
-      socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
+      socket.emit(SOCKET_EVENTS.SHARING_INFO, ownerInfo);
     }
     if (io) {
-      io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, { sharingMode: workspace.sharingMode });
+      io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
+        sharingMode: workspace.sharingMode,
+        allowedUsers: workspace.allowedUsers
+      });
     }
     callback?.({ userId });
     return { success: true, userId };
