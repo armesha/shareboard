@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
 import debounce from 'lodash/debounce';
-import DOMPurify from 'dompurify';
 import { loadMermaid } from '../utils/mermaid';
 
 const MERMAID_CONFIG = {
@@ -72,13 +71,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
-        USE_PROFILES: { svg: true, svgFilters: true },
-        ADD_TAGS: ['foreignObject'],
-        ADD_ATTR: ['xmlns', 'xmlns:xlink', 'viewBox', 'class', 'id', 'data-exportable', 'data-name']
-      });
-
-      diagramRef.current.innerHTML = sanitizedSvg;
+      diagramRef.current.innerHTML = svgWithAttrs;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {

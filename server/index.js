@@ -607,7 +607,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   });
 
   socket.on(SOCKET_EVENTS.INVITE_USER, (data, callback) => {
-    handlers.handleInviteUser(data, callback);
+    handlers.handleInviteUser(data, callback, { socket, io, currentUser });
   });
 
   socket.on(SOCKET_EVENTS.CHANGE_SHARING_MODE, (data) => {

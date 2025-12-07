@@ -16,7 +16,9 @@ export function checkWritePermission(workspace, user) {
   }
 
   if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
-    return Boolean(token && workspace.editToken && token === workspace.editToken);
+    if (token && workspace.editToken && token === workspace.editToken) return true;
+    if (Array.isArray(workspace.allowedUsers) && workspace.allowedUsers.includes(user.userId)) return true;
+    return false;
   }
 
   return false;
@@ -46,6 +48,8 @@ export function calculateEditAccess(workspace, user, accessToken) {
       hasEditAccess = true;
     } else if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
       if (token && workspace.editToken && token === workspace.editToken) {
+        hasEditAccess = true;
+      } else if (Array.isArray(workspace.allowedUsers) && workspace.allowedUsers.includes(user.userId)) {
         hasEditAccess = true;
       }
     }

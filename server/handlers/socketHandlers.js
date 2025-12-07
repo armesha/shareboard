@@ -485,7 +485,7 @@ export function handleDisconnect({ socket, io, currentWorkspaceRef }) {
   }
 }
 
-export function handleInviteUser({ workspaceId, email }, callback) {
+export function handleInviteUser({ workspaceId, email }, callback, { socket, currentUser, io }) {
   try {
     if (!isValidEmail(email)) {
       callback?.({ error: 'Invalid email format' });
@@ -498,7 +498,23 @@ export function handleInviteUser({ workspaceId, email }, callback) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
+    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+      callback?.({ error: 'Permission denied' });
+      return { success: false, reason: 'not_owner' };
+    }
+
     const userId = email.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    if (!workspace.allowedUsers.includes(userId)) {
+      workspace.allowedUsers.push(userId);
+    }
+    workspaceService.updateLastActivity(workspaceId);
+
+    if (socket) {
+      socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
+    }
+    if (io) {
+      io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, { sharingMode: workspace.sharingMode });
+    }
     callback?.({ userId });
     return { success: true, userId };
   } catch (error) {
