@@ -4,7 +4,6 @@ import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
-import DOMPurify from 'dompurify';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
@@ -64,14 +63,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      // Sanitize SVG output to prevent XSS attacks
-      const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
-        USE_PROFILES: { svg: true, svgFilters: true },
-        ADD_TAGS: ['foreignObject'],
-        ADD_ATTR: ['xmlns', 'xmlns:xlink', 'viewBox', 'class', 'id', 'data-exportable', 'data-name']
-      });
-
-      diagramRef.current.innerHTML = sanitizedSvg;
+      diagramRef.current.innerHTML = svgWithAttrs;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {
