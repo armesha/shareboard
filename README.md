@@ -33,8 +33,8 @@ docker-compose --profile prod up production --build
 ## Technologie
 
 ### Frontend
-- React + Vite + TailwindCSS
-- Fabric.js - kreslící plocha
+- React + Vite + TailwindCSS + TypeScript
+- Fabric.js 6.9.0 - kreslící plocha
 - Monaco Editor - editor kódu
 - Socket.IO Client - real-time komunikace (whiteboard)
 - Yjs + y-monaco - kolaborativní editace kódu (CRDT)

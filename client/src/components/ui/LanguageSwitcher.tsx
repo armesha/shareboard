@@ -1,0 +1,29 @@
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { STORAGE_KEYS } from '../../constants';
+
+const LanguageSwitcher = React.memo(function LanguageSwitcher() {
+  const { i18n } = useTranslation();
+
+  const currentLang = i18n.language?.startsWith('cs') ? 'cs' : 'en';
+  const nextLang = currentLang === 'cs' ? 'en' : 'cs';
+  const displayText = currentLang === 'cs' ? 'CZ' : 'EN';
+
+  const handleToggle = () => {
+    i18n.changeLanguage(nextLang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, nextLang);
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      className="bg-white rounded-lg shadow-md px-3 py-2 border border-gray-200 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-150"
+      aria-label={`Switch language to ${nextLang === 'cs' ? 'Czech' : 'English'}`}
+      title={`Switch to ${nextLang === 'cs' ? 'Cestina' : 'English'}`}
+    >
+      {displayText}
+    </button>
+  );
+});
+
+export default LanguageSwitcher;

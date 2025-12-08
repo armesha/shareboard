@@ -2,96 +2,82 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ARROW } from '../../client/src/constants';
 
 vi.mock('fabric', () => {
-  const mockLine = class {
-    constructor(points, options) {
-      this.points = points;
+  class MockLine {
+    static type = 'Line';
+    static cacheProperties = ['x1', 'y1', 'x2', 'y2'];
+
+    constructor(points = [0, 0, 0, 0], options = {}) {
       this.x1 = points[0];
       this.y1 = points[1];
       this.x2 = points[2];
       this.y2 = points[3];
+      this.strokeWidth = options.strokeWidth || 1;
+      this.strokeLineCap = options.strokeLineCap || 'butt';
+      this.stroke = options.stroke;
       Object.assign(this, options);
     }
-    set(key, value) {
-      if (typeof key === 'object') {
-        Object.assign(this, key);
-      } else {
-        this[key] = value;
-      }
+
+    get type() {
+      return 'line';
     }
-    callSuper(method, ..._args) {
-      if (method === 'initialize') {
-        return;
-      }
-      if (method === 'toObject') {
-        return {
-          type: 'line',
-          x1: this.x1,
-          y1: this.y1,
-          x2: this.x2,
-          y2: this.y2,
-          stroke: this.stroke,
-          strokeWidth: this.strokeWidth
-        };
-      }
-    }
+
     calcLinePoints() {
+      const width = this.x2 - this.x1;
+      const height = this.y2 - this.y1;
       return {
+        x1: -width / 2 || 0,
+        y1: -height / 2 || 0,
+        x2: width / 2 || 0,
+        y2: height / 2 || 0
+      };
+    }
+
+    toObject(propertiesToInclude = []) {
+      const base = {
+        type: this.type,
         x1: this.x1,
         y1: this.y1,
         x2: this.x2,
-        y2: this.y2
+        y2: this.y2,
+        stroke: this.stroke,
+        strokeWidth: this.strokeWidth
       };
+      propertiesToInclude.forEach(prop => {
+        if (this[prop] !== undefined) {
+          base[prop] = this[prop];
+        }
+      });
+      return base;
     }
-  };
+  }
 
-  const mockUtil = {
-    createClass: (parent, methods) => {
-      return class extends parent {
-        constructor(...args) {
-          super(...args);
-          if (methods.initialize) {
-            methods.initialize.call(this, ...args);
-          }
-          if (methods.type) {
-            this.type = methods.type;
-          }
-        }
-        _render(ctx) {
-          if (methods._render) {
-            methods._render.call(this, ctx);
-          }
-        }
-        toObject(propertiesToInclude) {
-          if (methods.toObject) {
-            return methods.toObject.call(this, propertiesToInclude);
-          }
-        }
-      };
-    },
-    object: {
-      extend: (...objects) => {
-        return Object.assign({}, ...objects);
-      }
+  class MockClassRegistry {
+    constructor() {
+      this.json = new Map();
+      this.svg = new Map();
     }
-  };
+    setClass(classConstructor, classType) {
+      const type = classType || classConstructor.type;
+      this.json.set(type, classConstructor);
+    }
+    getClass(classType) {
+      return this.json.get(classType);
+    }
+  }
 
   return {
-    fabric: {
-      Line: mockLine,
-      util: mockUtil,
-      Arrow: null
-    }
+    Line: MockLine,
+    classRegistry: new MockClassRegistry()
   };
 });
 
-describe('fabric.Arrow', () => {
+describe('Arrow', () => {
   let Arrow;
 
   beforeEach(async () => {
     vi.resetModules();
-    await import('../../client/src/utils/fabricArrow.js');
-    const { fabric } = await import('fabric');
-    Arrow = fabric.Arrow;
+    const module = await import('../../client/src/utils/fabricArrow');
+    Arrow = module.Arrow;
   });
 
   describe('initialization', () => {
@@ -145,6 +131,15 @@ describe('fabric.Arrow', () => {
       expect(arrow.headLength).toBe(ARROW.HEAD_LENGTH);
       expect(arrow.headAngle).toBe(ARROW.HEAD_ANGLE);
     });
+
+    it('should have static type property', () => {
+      expect(Arrow.type).toBe('Arrow');
+    });
+
+    it('should include headLength and headAngle in cacheProperties', () => {
+      expect(Arrow.cacheProperties).toContain('headLength');
+      expect(Arrow.cacheProperties).toContain('headAngle');
+    });
   });
 
   describe('_render', () => {
@@ -158,6 +153,7 @@ describe('fabric.Arrow', () => {
         lineTo: vi.fn(),
         stroke: vi.fn(),
         strokeStyle: '#000000',
+        fillStyle: '#FF0000',
         lineWidth: 1,
         lineCap: 'butt',
         lineJoin: 'miter'
@@ -175,10 +171,10 @@ describe('fabric.Arrow', () => {
       expect(mockCtx.beginPath).toHaveBeenCalledTimes(1);
     });
 
-    it('should draw main line from start to end', () => {
+    it('should draw main line from start to end using relative coordinates', () => {
       arrow._render(mockCtx);
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 0);
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(100, 0);
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(-50, 0);
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(50, 0);
     });
 
     it('should draw two arrowhead lines', () => {
@@ -238,8 +234,8 @@ describe('fabric.Arrow', () => {
       const [x1, y1] = lineToCallsForArrowhead[0];
       const [x2, y2] = lineToCallsForArrowhead[1];
 
-      expect(x1).toBeLessThan(100);
-      expect(x2).toBeLessThan(100);
+      expect(x1).toBeLessThan(50);
+      expect(x2).toBeLessThan(50);
       expect(y1).not.toBe(0);
       expect(y2).not.toBe(0);
       expect(y1 * y2).toBeLessThan(0);
@@ -250,13 +246,13 @@ describe('fabric.Arrow', () => {
       arrow._render(mockCtx);
 
       const allLineToCalls = mockCtx.lineTo.mock.calls;
-      expect(allLineToCalls[0]).toEqual([0, 100]);
+      expect(allLineToCalls[0]).toEqual([0, 50]);
 
       const [x1, y1] = allLineToCalls[1];
       const [x2, y2] = allLineToCalls[2];
 
-      expect(y1).toBeLessThan(100);
-      expect(y2).toBeLessThan(100);
+      expect(y1).toBeLessThan(50);
+      expect(y2).toBeLessThan(50);
       expect(x1).toBeLessThan(0);
       expect(x2).toBeGreaterThan(0);
     });
@@ -266,15 +262,15 @@ describe('fabric.Arrow', () => {
       arrow._render(mockCtx);
 
       const allLineToCalls = mockCtx.lineTo.mock.calls;
-      expect(allLineToCalls[0]).toEqual([100, 100]);
+      expect(allLineToCalls[0]).toEqual([50, 50]);
 
       const [x1, y1] = allLineToCalls[1];
       const [x2, y2] = allLineToCalls[2];
 
-      expect(x1).toBeLessThan(100);
-      expect(y1).toBeLessThan(100);
-      expect(x2).toBeLessThan(100);
-      expect(y2).toBeLessThan(100);
+      expect(x1).toBeLessThan(50);
+      expect(y1).toBeLessThan(50);
+      expect(x2).toBeLessThan(50);
+      expect(y2).toBeLessThan(50);
     });
 
     it('should use custom headLength when provided', () => {
@@ -285,7 +281,7 @@ describe('fabric.Arrow', () => {
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
       const [x1] = lineToCallsForArrowhead[0];
 
-      const distance = 100 - x1;
+      const distance = 50 - x1;
       expect(distance).toBeCloseTo(customHeadLength * Math.cos(ARROW.HEAD_ANGLE), 1);
     });
 
@@ -309,7 +305,7 @@ describe('fabric.Arrow', () => {
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
       const [x1] = lineToCallsForArrowhead[0];
-      const distance = 100 - x1;
+      const distance = 50 - x1;
       expect(distance).toBeCloseTo(ARROW.HEAD_LENGTH * Math.cos(ARROW.HEAD_ANGLE), 1);
     });
 
@@ -345,8 +341,8 @@ describe('fabric.Arrow', () => {
       const [x1] = lineToCallsForArrowhead[0];
       const [x2] = lineToCallsForArrowhead[1];
 
-      expect(x1).toBeGreaterThan(0);
-      expect(x2).toBeGreaterThan(0);
+      expect(x1).toBeGreaterThan(-50);
+      expect(x2).toBeGreaterThan(-50);
     });
 
     it('should handle arrow pointing up', () => {
@@ -357,8 +353,8 @@ describe('fabric.Arrow', () => {
       const [, y1] = lineToCallsForArrowhead[0];
       const [, y2] = lineToCallsForArrowhead[1];
 
-      expect(y1).toBeGreaterThan(0);
-      expect(y2).toBeGreaterThan(0);
+      expect(y1).toBeGreaterThan(-50);
+      expect(y2).toBeGreaterThan(-50);
     });
   });
 
@@ -394,7 +390,7 @@ describe('fabric.Arrow', () => {
       });
       const obj = arrow.toObject();
 
-      expect(obj.type).toBe('line');
+      expect(obj.type).toBe('arrow');
       expect(obj.stroke).toBe('#FF0000');
       expect(obj.strokeWidth).toBe(3);
     });
@@ -418,7 +414,7 @@ describe('fabric.Arrow', () => {
     });
   });
 
-  describe('fromObject', () => {
+  describe('fromObject (Promise-based)', () => {
     it('should deserialize arrow from object', async () => {
       const object = {
         x1: 10,
@@ -431,11 +427,7 @@ describe('fabric.Arrow', () => {
         strokeWidth: 3
       };
 
-      let deserializedArrow;
-      const { fabric } = await import('fabric');
-      fabric.Arrow.fromObject(object, (arrow) => {
-        deserializedArrow = arrow;
-      });
+      const deserializedArrow = await Arrow.fromObject(object);
 
       expect(deserializedArrow).toBeDefined();
       expect(deserializedArrow.headLength).toBe(20);
@@ -454,30 +446,12 @@ describe('fabric.Arrow', () => {
         headAngle: ARROW.HEAD_ANGLE
       };
 
-      let deserializedArrow;
-      const { fabric } = await import('fabric');
-      fabric.Arrow.fromObject(object, (arrow) => {
-        deserializedArrow = arrow;
-      });
+      const deserializedArrow = await Arrow.fromObject(object);
 
       expect(deserializedArrow.x1).toBe(50);
       expect(deserializedArrow.y1).toBe(60);
       expect(deserializedArrow.x2).toBe(150);
       expect(deserializedArrow.y2).toBe(160);
-    });
-
-    it('should handle callback being undefined', async () => {
-      const object = {
-        x1: 10,
-        y1: 20,
-        x2: 100,
-        y2: 200
-      };
-
-      const { fabric } = await import('fabric');
-      expect(() => {
-        fabric.Arrow.fromObject(object);
-      }).not.toThrow();
     });
 
     it('should work without headLength and headAngle in object', async () => {
@@ -488,11 +462,7 @@ describe('fabric.Arrow', () => {
         y2: 200
       };
 
-      let deserializedArrow;
-      const { fabric } = await import('fabric');
-      fabric.Arrow.fromObject(object, (arrow) => {
-        deserializedArrow = arrow;
-      });
+      const deserializedArrow = await Arrow.fromObject(object);
 
       expect(deserializedArrow).toBeDefined();
       expect(deserializedArrow.headLength).toBe(ARROW.HEAD_LENGTH);
@@ -513,21 +483,41 @@ describe('fabric.Arrow', () => {
         customProp: 'customValue'
       };
 
-      let deserializedArrow;
-      const { fabric } = await import('fabric');
-      fabric.Arrow.fromObject(object, (arrow) => {
-        deserializedArrow = arrow;
-      });
+      const deserializedArrow = await Arrow.fromObject(object);
 
       expect(deserializedArrow.opacity).toBe(0.5);
       expect(deserializedArrow.customProp).toBe('customValue');
     });
+
+    it('should return a Promise', () => {
+      const object = {
+        x1: 10,
+        y1: 20,
+        x2: 100,
+        y2: 200
+      };
+
+      const result = Arrow.fromObject(object);
+      expect(result).toBeInstanceOf(Promise);
+    });
+
+    it('should handle missing coordinates', async () => {
+      const object = {};
+
+      const deserializedArrow = await Arrow.fromObject(object);
+
+      expect(deserializedArrow.x1).toBe(0);
+      expect(deserializedArrow.y1).toBe(0);
+      expect(deserializedArrow.x2).toBe(0);
+      expect(deserializedArrow.y2).toBe(0);
+    });
   });
 
-  describe('async property', () => {
-    it('should have async property set to true', async () => {
-      const { fabric } = await import('fabric');
-      expect(fabric.Arrow.async).toBe(true);
+  describe('class registration', () => {
+    it('should register with classRegistry', async () => {
+      const { classRegistry } = await import('fabric');
+      const registeredClass = classRegistry.getClass('arrow');
+      expect(registeredClass).toBe(Arrow);
     });
   });
 
@@ -599,8 +589,8 @@ describe('fabric.Arrow', () => {
       };
 
       arrow._render(mockCtx);
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(10000, 10000);
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(20000, 20000);
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(-5000, -5000);
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(5000, 5000);
     });
 
     it('should handle floating point coordinates', () => {
@@ -627,8 +617,8 @@ describe('fabric.Arrow', () => {
       const [x1] = lineToCallsForArrowhead[0];
       const [x2] = lineToCallsForArrowhead[1];
 
-      expect(x1).toBeLessThan(100);
-      expect(x2).toBeLessThan(100);
+      expect(x1).toBe(50);
+      expect(x2).toBe(50);
     });
 
     it('should handle zero headAngle', () => {
@@ -647,8 +637,8 @@ describe('fabric.Arrow', () => {
       const [, y1] = lineToCallsForArrowhead[0];
       const [, y2] = lineToCallsForArrowhead[1];
 
-      expect(y1).not.toBe(0);
-      expect(y2).not.toBe(0);
+      expect(y1).toBe(0);
+      expect(y2).toBe(0);
     });
   });
 });

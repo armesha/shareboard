@@ -1,0 +1,249 @@
+import { useCallback, useRef, useMemo, type MutableRefObject } from 'react';
+import { Line, type Canvas } from 'fabric';
+import { v4 as uuidv4 } from 'uuid';
+import { TOOLS, SOCKET_EVENTS, TIMING } from '../constants';
+import { getWorkspaceId } from '../utils';
+import { createBatchedRender } from '../utils/batchedRender';
+import { Arrow } from '../utils/fabricArrow';
+import type { Socket } from 'socket.io-client';
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface LineElement {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+}
+
+interface UseLineDrawingProps {
+  canvas: Canvas | null;
+  tool: string;
+  color: string;
+  width: number;
+  addElement: (element: LineElement) => void;
+  disabled: boolean;
+  socket: Socket | null;
+}
+
+interface UseLineDrawingReturn {
+  isDrawingLine: MutableRefObject<boolean>;
+  startLine: (pointer: Point) => void;
+  updateLine: (pointer: Point, isShiftPressed?: boolean) => void;
+  finishLine: () => void;
+  cancelLine: () => void;
+}
+
+export function useLineDrawing({ canvas, tool, color, width, addElement, disabled, socket }: UseLineDrawingProps): UseLineDrawingReturn {
+  const isDrawing = useRef(false);
+  const currentLine = useRef<Line | Arrow | null>(null);
+  const startPoint = useRef<Point | null>(null);
+  const currentShapeIdRef = useRef<string | null>(null);
+  const lastEmitTimeRef = useRef(0);
+
+  const batchedRender = useMemo(() => createBatchedRender(canvas), [canvas]);
+
+  const startLine = useCallback((pointer: Point) => {
+    if (disabled || !canvas) return;
+    if (tool !== TOOLS.LINE && tool !== TOOLS.ARROW) return;
+
+    canvas.selection = false;
+    isDrawing.current = true;
+    startPoint.current = { x: pointer.x, y: pointer.y };
+
+    const points: [number, number, number, number] = [pointer.x, pointer.y, pointer.x, pointer.y];
+    const shapeId = uuidv4();
+    currentShapeIdRef.current = shapeId;
+
+    const commonProps = {
+      stroke: color,
+      strokeWidth: width,
+      strokeLineCap: 'round' as CanvasLineCap,
+      selectable: false,
+      evented: false,
+      hasControls: false,
+      hasBorders: false,
+      objectCaching: false,
+    };
+
+    let lineObj: Line | Arrow;
+    const shapeType = tool === TOOLS.ARROW ? 'arrow' : 'line';
+
+    if (tool === TOOLS.ARROW) {
+      lineObj = new Arrow(points, {
+        ...commonProps,
+        headLength: Math.max(width * 3, 12),
+      });
+    } else {
+      lineObj = new Line(points, commonProps);
+    }
+
+    (lineObj as unknown as { id: string }).id = shapeId;
+    canvas.add(lineObj);
+    currentLine.current = lineObj;
+
+    if (socket && !disabled) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_START, {
+          workspaceId,
+          shapeId,
+          shapeType,
+          data: {
+            x1: pointer.x,
+            y1: pointer.y,
+            x2: pointer.x,
+            y2: pointer.y,
+            stroke: color,
+            strokeWidth: width,
+            strokeLineCap: 'round',
+            headLength: tool === TOOLS.ARROW ? Math.max(width * 3, 12) : undefined,
+          }
+        });
+      }
+    }
+  }, [canvas, tool, color, width, disabled, socket]);
+
+  const updateLine = useCallback((pointer: Point, isShiftPressed = false) => {
+    if (disabled || !isDrawing.current || !startPoint.current || !currentLine.current) return;
+
+    const line = currentLine.current;
+    const startX = startPoint.current.x;
+    const startY = startPoint.current.y;
+
+    let endX = pointer.x;
+    let endY = pointer.y;
+
+    if (isShiftPressed) {
+      const deltaX = pointer.x - startX;
+      const deltaY = pointer.y - startY;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (absX > absY * 2) {
+        endY = startY;
+      } else if (absY > absX * 2) {
+        endX = startX;
+      } else {
+        const dist = Math.max(absX, absY);
+        endX = startX + (deltaX > 0 ? dist : -dist);
+        endY = startY + (deltaY > 0 ? dist : -dist);
+      }
+    }
+
+    line.set({
+      x1: startX,
+      y1: startY,
+      x2: endX,
+      y2: endY,
+    });
+
+    line.setCoords();
+    batchedRender();
+
+    if (socket && !disabled && currentShapeIdRef.current) {
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current >= TIMING.DRAWING_STREAM_THROTTLE) {
+        lastEmitTimeRef.current = now;
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current,
+            data: {
+              x1: startX,
+              y1: startY,
+              x2: endX,
+              y2: endY,
+              stroke: line.stroke,
+              strokeWidth: line.strokeWidth,
+              strokeLineCap: line.strokeLineCap,
+              headLength: (line as Arrow).headLength,
+            }
+          });
+        }
+      }
+    }
+  }, [disabled, socket, batchedRender]);
+
+  const finishLine = useCallback(() => {
+    if (disabled || !isDrawing.current || !canvas) return;
+
+    isDrawing.current = false;
+
+    if (currentLine.current) {
+      const line = currentLine.current;
+
+      line.set({
+        selectable: true,
+        evented: true,
+        hasControls: true,
+        hasBorders: true,
+      });
+      line.setCoords();
+
+      const additionalProps = line instanceof Arrow ? ['id', 'headLength', 'headAngle'] : ['id'];
+      // @ts-expect-error - Fabric.js toObject has strict parameter types, but string[] works at runtime
+      const baseData = line.toObject(additionalProps);
+      addElement({
+        id: (line as unknown as { id: string }).id,
+        type: line.type,
+        data: {
+          ...baseData,
+          x1: line.x1,
+          y1: line.y1,
+          x2: line.x2,
+          y2: line.y2,
+        }
+      });
+
+      if (socket && !disabled && currentShapeIdRef.current) {
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) {
+          socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+            workspaceId,
+            shapeId: currentShapeIdRef.current,
+          });
+        }
+      }
+
+      currentLine.current = null;
+    }
+
+    currentShapeIdRef.current = null;
+    startPoint.current = null;
+    batchedRender();
+  }, [canvas, addElement, disabled, socket, batchedRender]);
+
+  const cancelLine = useCallback(() => {
+    if (currentLine.current && canvas) {
+      canvas.remove(currentLine.current);
+      batchedRender();
+    }
+
+    if (socket && !disabled && currentShapeIdRef.current) {
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.SHAPE_DRAWING_END, {
+          workspaceId,
+          shapeId: currentShapeIdRef.current
+        });
+      }
+    }
+
+    isDrawing.current = false;
+    currentLine.current = null;
+    currentShapeIdRef.current = null;
+    startPoint.current = null;
+  }, [canvas, socket, disabled, batchedRender]);
+
+  return {
+    isDrawingLine: isDrawing,
+    startLine,
+    updateLine,
+    finishLine,
+    cancelLine
+  };
+}

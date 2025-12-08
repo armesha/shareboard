@@ -1,0 +1,77 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import { STORAGE_KEYS } from '../constants';
+
+import enCommon from './locales/en/common.json';
+import enLanding from './locales/en/landing.json';
+import enWorkspace from './locales/en/workspace.json';
+import enSharing from './locales/en/sharing.json';
+import enToolbar from './locales/en/toolbar.json';
+import enEditor from './locales/en/editor.json';
+import enMessages from './locales/en/messages.json';
+import enValidation from './locales/en/validation.json';
+
+import csCommon from './locales/cs/common.json';
+import csLanding from './locales/cs/landing.json';
+import csWorkspace from './locales/cs/workspace.json';
+import csSharing from './locales/cs/sharing.json';
+import csToolbar from './locales/cs/toolbar.json';
+import csEditor from './locales/cs/editor.json';
+import csMessages from './locales/cs/messages.json';
+import csValidation from './locales/cs/validation.json';
+
+const urlParams = new URLSearchParams(window.location.search);
+const urlLanguage = urlParams.get('lang');
+const savedLanguage = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+
+const supportedLanguages = ['en', 'cs'] as const;
+type SupportedLanguage = typeof supportedLanguages[number];
+
+const isValidLanguage = (lang: string | null): lang is SupportedLanguage => {
+  return lang !== null && supportedLanguages.includes(lang as SupportedLanguage);
+};
+
+let initialLanguage: SupportedLanguage = 'cs';
+
+if (isValidLanguage(urlLanguage)) {
+  initialLanguage = urlLanguage;
+  localStorage.setItem(STORAGE_KEYS.LANGUAGE, urlLanguage);
+} else if (isValidLanguage(savedLanguage)) {
+  initialLanguage = savedLanguage;
+}
+
+i18n
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: {
+        common: enCommon,
+        landing: enLanding,
+        workspace: enWorkspace,
+        sharing: enSharing,
+        toolbar: enToolbar,
+        editor: enEditor,
+        messages: enMessages,
+        validation: enValidation
+      },
+      cs: {
+        common: csCommon,
+        landing: csLanding,
+        workspace: csWorkspace,
+        sharing: csSharing,
+        toolbar: csToolbar,
+        editor: csEditor,
+        messages: csMessages,
+        validation: csValidation
+      }
+    },
+    lng: initialLanguage,
+    fallbackLng: 'cs',
+    defaultNS: 'common',
+    ns: ['common', 'landing', 'workspace', 'sharing', 'toolbar', 'editor', 'messages', 'validation'],
+    interpolation: {
+      escapeValue: false
+    }
+  });
+
+export default i18n;

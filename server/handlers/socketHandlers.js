@@ -14,6 +14,7 @@ function isValidWorkspaceId(id) {
 const ELEMENT_TYPES = new Set([
   'rect',
   'circle',
+  'ellipse',
   'triangle',
   'line',
   'arrow',
