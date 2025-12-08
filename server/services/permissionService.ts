@@ -1,6 +1,7 @@
-import { SHARING_MODES } from '../config.js';
+import { SHARING_MODES } from '../config';
+import type { Workspace, User, EditAccessResult, SharingInfo } from '../types';
 
-export function checkWritePermission(workspace, user) {
+export function checkWritePermission(workspace: Workspace | null | undefined, user: User | null | undefined): boolean {
   if (!workspace || !user) return false;
   if (workspace.owner === user.userId) return true;
 
@@ -24,11 +25,15 @@ export function checkWritePermission(workspace, user) {
   return false;
 }
 
-export function checkOwnership(workspace, userId) {
+export function checkOwnership(workspace: Workspace | null | undefined, userId: string): boolean {
   return workspace?.owner === userId;
 }
 
-export function calculateEditAccess(workspace, user, accessToken) {
+export function calculateEditAccess(
+  workspace: Workspace | null | undefined,
+  user: User | null | undefined,
+  accessToken?: string | null
+): EditAccessResult {
   if (!workspace || !user) {
     return { hasEditAccess: false, isOwner: false };
   }
@@ -60,7 +65,11 @@ export function calculateEditAccess(workspace, user, accessToken) {
 
 // Note: Token setting is only allowed via handleSetEditToken by owner
 // This function only validates existing tokens, it does NOT set new tokens
-export function validateAndSetToken(workspace, accessToken, user) {
+export function validateAndSetToken(
+  workspace: Workspace | null | undefined,
+  accessToken: string | null | undefined,
+  user?: User | null
+): boolean {
   if (!workspace || !accessToken) return false;
 
   // Only validate against existing token, never set a new one
@@ -75,7 +84,10 @@ export function validateAndSetToken(workspace, accessToken, user) {
   return false;
 }
 
-export function getSharingInfo(workspace, user) {
+export function getSharingInfo(
+  workspace: Workspace | null | undefined,
+  user?: User | null
+): SharingInfo | null {
   if (!workspace) return null;
 
   const isOwner = user ? workspace.owner === user.userId : false;

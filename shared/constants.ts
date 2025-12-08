@@ -39,10 +39,14 @@ export const SOCKET_EVENTS = {
   SESSION_ENDED: 'session-ended',
   CHANGE_SHARING_MODE: 'change-sharing-mode',
   SHARING_MODE_CHANGED: 'sharing-mode-changed',
-};
+} as const;
+
+export type SocketEvent = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
 
 export const SHARING_MODES = {
   READ_WRITE_ALL: 'read-write-all',
   READ_ONLY: 'read-only',
   READ_WRITE_SELECTED: 'read-write-selected',
-};
+} as const;
+
+export type SharingMode = typeof SHARING_MODES[keyof typeof SHARING_MODES];

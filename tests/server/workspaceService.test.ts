@@ -18,8 +18,10 @@ import {
   getWorkspaceState,
   findWorkspaceIdByRef,
   updateSharingMode
-} from '../../server/services/workspaceService.js';
-import { SHARING_MODES, config } from '../../server/config.js';
+} from '../../server/services/workspaceService';
+import { SHARING_MODES, config } from '../../server/config';
+import type { Workspace, UserSession } from '../../server/types';
+import type { SharingMode } from '../../shared/constants';
 
 describe('workspaceService', () => {
   beforeEach(() => {
@@ -195,7 +197,7 @@ describe('workspaceService', () => {
       const retrieved = getWorkspace('test-get');
       expect(retrieved).toBeDefined();
       expect(retrieved).toBe(created);
-      expect(retrieved.id).toBe('test-get');
+      expect(retrieved?.id).toBe('test-get');
     });
 
     it('returns undefined for non-existing workspace', () => {
@@ -212,7 +214,7 @@ describe('workspaceService', () => {
     it('removes workspace and connections', () => {
       createWorkspace('test-delete', 'owner-1');
       addConnection('test-delete', 'socket-1');
-      setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-delete' });
+      setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-delete' });
 
       expect(workspaceExists('test-delete')).toBe(true);
       expect(getActiveUserCount('test-delete')).toBe(1);
@@ -238,13 +240,13 @@ describe('workspaceService', () => {
 
       createWorkspace('test-activity', 'owner-1');
       const workspace = getWorkspace('test-activity');
-      expect(workspace.lastActivity).toBe(initialTime);
+      expect(workspace?.lastActivity).toBe(initialTime);
 
       const newTime = 2000000;
       vi.setSystemTime(newTime);
       updateLastActivity('test-activity');
 
-      expect(workspace.lastActivity).toBe(newTime);
+      expect(workspace?.lastActivity).toBe(newTime);
     });
 
     it('does nothing for non-existing workspace', () => {
@@ -332,11 +334,11 @@ describe('workspaceService', () => {
         expect(getActiveUserCount('test-conn')).toBe(0);
 
         addConnection('test-conn', 'socket-1');
-        setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-conn' });
+        setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-conn' });
         expect(getActiveUserCount('test-conn')).toBe(1);
 
         addConnection('test-conn', 'socket-2');
-        setUserSession('socket-2', { userId: 'user-2', workspaceId: 'test-conn' });
+        setUserSession('socket-2', { id: 'socket-2', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'test-conn' });
         expect(getActiveUserCount('test-conn')).toBe(2);
 
         removeConnection('test-conn', 'socket-1');
@@ -357,7 +359,7 @@ describe('workspaceService', () => {
 
     describe('setUserSession', () => {
       it('stores user session information', () => {
-        const userInfo = { userId: 'user-1', workspaceId: 'ws-1' };
+        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
         setUserSession('socket-1', userInfo);
 
         const retrieved = getUserSession('socket-1');
@@ -365,8 +367,8 @@ describe('workspaceService', () => {
       });
 
       it('overwrites existing session', () => {
-        const userInfo1 = { userId: 'user-1', workspaceId: 'ws-1' };
-        const userInfo2 = { userId: 'user-2', workspaceId: 'ws-2' };
+        const userInfo1: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
+        const userInfo2: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'ws-2' };
 
         setUserSession('socket-1', userInfo1);
         setUserSession('socket-1', userInfo2);
@@ -378,13 +380,13 @@ describe('workspaceService', () => {
 
     describe('getUserSession', () => {
       it('retrieves stored user session', () => {
-        const userInfo = { userId: 'user-1', workspaceId: 'ws-1' };
+        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
         setUserSession('socket-1', userInfo);
 
         const retrieved = getUserSession('socket-1');
         expect(retrieved).toBeDefined();
-        expect(retrieved.userId).toBe('user-1');
-        expect(retrieved.workspaceId).toBe('ws-1');
+        expect(retrieved?.userId).toBe('user-1');
+        expect(retrieved?.workspaceId).toBe('ws-1');
       });
 
       it('returns undefined for non-existing session', () => {
@@ -395,7 +397,7 @@ describe('workspaceService', () => {
 
     describe('removeUserSession', () => {
       it('removes user session', () => {
-        const userInfo = { userId: 'user-1', workspaceId: 'ws-1' };
+        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
         setUserSession('socket-1', userInfo);
 
         expect(getUserSession('socket-1')).toBeDefined();
@@ -422,9 +424,9 @@ describe('workspaceService', () => {
     it('returns list of active users with owner flag', () => {
       createWorkspace('test-users', 'owner-123');
 
-      setUserSession('socket-1', { userId: 'owner-123', workspaceId: 'test-users' });
-      setUserSession('socket-2', { userId: 'user-456', workspaceId: 'test-users' });
-      setUserSession('socket-3', { userId: 'user-789', workspaceId: 'test-users' });
+      setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'owner-123', workspaceId: 'test-users' });
+      setUserSession('socket-2', { id: 'socket-2', joinedAt: Date.now(), userId: 'user-456', workspaceId: 'test-users' });
+      setUserSession('socket-3', { id: 'socket-3', joinedAt: Date.now(), userId: 'user-789', workspaceId: 'test-users' });
 
       addConnection('test-users', 'socket-1');
       addConnection('test-users', 'socket-2');
@@ -452,13 +454,13 @@ describe('workspaceService', () => {
     it('excludes connections without user sessions', () => {
       createWorkspace('test-users', 'owner-1');
 
-      setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-users' });
+      setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-users' });
       addConnection('test-users', 'socket-1');
       addConnection('test-users', 'socket-2');
 
       const users = getWorkspaceUsers('test-users');
       expect(users).toHaveLength(1);
-      expect(users[0].id).toBe('user-1');
+      expect(users[0]?.id).toBe('user-1');
     });
   });
 
@@ -533,26 +535,26 @@ describe('workspaceService', () => {
       createWorkspace('test-state', 'owner-1');
       const workspace = getWorkspace('test-state');
 
-      workspace.drawingsMap.set('rect-1', { type: 'rect', x: 10, y: 20 });
-      workspace.allDrawingsMap.set('circle-1', { type: 'circle', x: 30, y: 40 });
-      workspace.codeSnippets = { language: 'python', content: 'print("hello")' };
-      workspace.diagramContent = 'graph TD; A-->B';
-      workspace.diagrams.set('diagram-1', { id: 'diagram-1', content: 'test' });
+      workspace!.drawingsMap.set('rect-1', { id: 'rect-1', type: 'rect', data: { x: 10, y: 20 } });
+      workspace!.allDrawingsMap.set('circle-1', { id: 'circle-1', type: 'circle', data: { x: 30, y: 40 } });
+      workspace!.codeSnippets = { language: 'python', content: 'print("hello")' };
+      workspace!.diagramContent = 'graph TD; A-->B';
+      workspace!.diagrams.set('diagram-1', { id: 'diagram-1', content: 'test' });
 
       addConnection('test-state', 'socket-1');
-      setUserSession('socket-1', { userId: 'user-1', workspaceId: 'test-state' });
+      setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-state' });
       addConnection('test-state', 'socket-2');
-      setUserSession('socket-2', { userId: 'user-2', workspaceId: 'test-state' });
+      setUserSession('socket-2', { id: 'socket-2', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'test-state' });
 
       const state = getWorkspaceState('test-state');
 
       expect(state).toBeDefined();
-      expect(state.whiteboardElements).toEqual([{ type: 'rect', x: 10, y: 20 }]);
-      expect(state.allDrawings).toEqual([{ type: 'circle', x: 30, y: 40 }]);
-      expect(state.codeSnippets).toEqual({ language: 'python', content: 'print("hello")' });
-      expect(state.diagramContent).toBe('graph TD; A-->B');
-      expect(state.diagrams).toEqual([{ id: 'diagram-1', content: 'test' }]);
-      expect(state.activeUsers).toBe(2);
+      expect(state?.whiteboardElements).toEqual([{ id: 'rect-1', type: 'rect', data: { x: 10, y: 20 } }]);
+      expect(state?.allDrawings).toEqual([{ id: 'circle-1', type: 'circle', data: { x: 30, y: 40 } }]);
+      expect(state?.codeSnippets).toEqual({ language: 'python', content: 'print("hello")' });
+      expect(state?.diagramContent).toBe('graph TD; A-->B');
+      expect(state?.diagrams).toEqual([{ id: 'diagram-1', content: 'test' }]);
+      expect(state?.activeUsers).toBe(2);
     });
 
     it('returns null for non-existing workspace', () => {
@@ -564,12 +566,12 @@ describe('workspaceService', () => {
       createWorkspace('test-state', 'owner-1');
       const state = getWorkspaceState('test-state');
 
-      expect(state.whiteboardElements).toEqual([]);
-      expect(state.diagrams).toEqual([]);
-      expect(state.activeUsers).toBe(0);
-      expect(state.allDrawings).toEqual([]);
-      expect(state.codeSnippets).toEqual({ language: 'javascript', content: '' });
-      expect(state.diagramContent).toBe('');
+      expect(state?.whiteboardElements).toEqual([]);
+      expect(state?.diagrams).toEqual([]);
+      expect(state?.activeUsers).toBe(0);
+      expect(state?.allDrawings).toEqual([]);
+      expect(state?.codeSnippets).toEqual({ language: 'javascript', content: '' });
+      expect(state?.diagramContent).toBe('');
     });
   });
 
@@ -590,7 +592,7 @@ describe('workspaceService', () => {
     it('returns id from workspace object even if not in Map', () => {
       createWorkspace('test-find-1', 'owner-1');
 
-      const fakeWorkspace = { id: 'fake', owner: 'fake-owner' };
+      const fakeWorkspace = { id: 'fake', owner: 'fake-owner' } as Partial<Workspace>;
       const foundId = findWorkspaceIdByRef(fakeWorkspace);
 
       expect(foundId).toBe('fake');
@@ -602,7 +604,7 @@ describe('workspaceService', () => {
     });
 
     it('returns null for object without id', () => {
-      const noIdWorkspace = { owner: 'fake-owner' };
+      const noIdWorkspace = { owner: 'fake-owner' } as Partial<Workspace>;
       const foundId = findWorkspaceIdByRef(noIdWorkspace);
       expect(foundId).toBe(null);
     });
@@ -617,26 +619,26 @@ describe('workspaceService', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
 
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
 
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
       expect(result).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
     });
 
     it('should return false for non-existent workspace', () => {
-      const result = updateSharingMode('non-existent', SHARING_MODES.READ_ONLY);
+      const result = updateSharingMode('non-existent', SHARING_MODES.READ_ONLY as SharingMode);
       expect(result).toBe(false);
     });
 
     it('should return false for invalid mode', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace.sharingMode;
+      const originalMode = workspace?.sharingMode;
 
-      const result = updateSharingMode('test-sharing-mode', 'invalid-mode');
+      const result = updateSharingMode('test-sharing-mode', 'invalid-mode' as SharingMode);
       expect(result).toBe(false);
-      expect(workspace.sharingMode).toBe(originalMode);
+      expect(workspace?.sharingMode).toBe(originalMode);
     });
 
     it('should update lastActivity when changing mode', () => {
@@ -645,105 +647,105 @@ describe('workspaceService', () => {
 
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      expect(workspace.lastActivity).toBe(initialTime);
+      expect(workspace?.lastActivity).toBe(initialTime);
 
       const newTime = 2000000;
       vi.setSystemTime(newTime);
 
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
-      expect(workspace.lastActivity).toBe(newTime);
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
+      expect(workspace?.lastActivity).toBe(newTime);
     });
 
     it('should update from READ_WRITE_SELECTED to READ_WRITE_ALL', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
 
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
 
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL);
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL as SharingMode);
       expect(result).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
     });
 
     it('should update from READ_WRITE_ALL to READ_ONLY', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
 
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL as SharingMode);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
 
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
       expect(result).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
     });
 
     it('should update from READ_ONLY to READ_WRITE_SELECTED', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
 
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
 
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_SELECTED);
+      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_SELECTED as SharingMode);
       expect(result).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
     });
 
     it('should handle setting same mode twice', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
 
-      const result1 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      const result1 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
       expect(result1).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
 
-      const result2 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      const result2 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
       expect(result2).toBe(true);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_ONLY);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
     });
 
     it('should not modify other workspace properties', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      const originalOwner = workspace.owner;
-      const originalEditToken = workspace.editToken;
-      const originalId = workspace.id;
+      const originalOwner = workspace?.owner;
+      const originalEditToken = workspace?.editToken;
+      const originalId = workspace?.id;
 
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY);
+      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
 
-      expect(workspace.owner).toBe(originalOwner);
-      expect(workspace.editToken).toBe(originalEditToken);
-      expect(workspace.id).toBe(originalId);
+      expect(workspace?.owner).toBe(originalOwner);
+      expect(workspace?.editToken).toBe(originalEditToken);
+      expect(workspace?.id).toBe(originalId);
     });
 
     it('should reject null as sharing mode', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace.sharingMode;
+      const originalMode = workspace?.sharingMode;
 
-      const result = updateSharingMode('test-sharing-mode', null);
+      const result = updateSharingMode('test-sharing-mode', null as unknown as SharingMode);
       expect(result).toBe(false);
-      expect(workspace.sharingMode).toBe(originalMode);
+      expect(workspace?.sharingMode).toBe(originalMode);
     });
 
     it('should reject undefined as sharing mode', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace.sharingMode;
+      const originalMode = workspace?.sharingMode;
 
-      const result = updateSharingMode('test-sharing-mode', undefined);
+      const result = updateSharingMode('test-sharing-mode', undefined as unknown as SharingMode);
       expect(result).toBe(false);
-      expect(workspace.sharingMode).toBe(originalMode);
+      expect(workspace?.sharingMode).toBe(originalMode);
     });
 
     it('should reject empty string as sharing mode', () => {
       createWorkspace('test-sharing-mode', 'owner-1');
       const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace.sharingMode;
+      const originalMode = workspace?.sharingMode;
 
-      const result = updateSharingMode('test-sharing-mode', '');
+      const result = updateSharingMode('test-sharing-mode', '' as SharingMode);
       expect(result).toBe(false);
-      expect(workspace.sharingMode).toBe(originalMode);
+      expect(workspace?.sharingMode).toBe(originalMode);
     });
   });
 });

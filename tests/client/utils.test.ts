@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
 import {
   getWorkspaceId,
   generateUserId,
@@ -6,12 +7,40 @@ import {
   getPersistentUserId,
   getAccessToken,
   setAccessToken,
-  removeAccessToken
+  removeAccessToken,
+  type ConstrainableObject,
+  type ConstrainableCanvas
 } from '../../client/src/utils';
 import { STORAGE_KEYS } from '../../client/src/constants';
 
+// Types for mock objects based on the utils/index.ts types
+interface BoundingRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface ViewportBoundaries {
+  tl: { x: number; y: number };
+  tr: { x: number; y: number };
+  bl: { x: number; y: number };
+  br: { x: number; y: number };
+}
+
+interface MockConstrainableObject {
+  left: number;
+  top: number;
+  getBoundingRect: Mock<() => BoundingRect>;
+  setCoords: Mock<() => void>;
+}
+
+interface MockConstrainableCanvas {
+  calcViewportBoundaries: Mock<() => ViewportBoundaries>;
+}
+
 describe('getWorkspaceId', () => {
-  let originalPathname;
+  let originalPathname: string;
 
   beforeEach(() => {
     originalPathname = global.window.location.pathname;
@@ -71,11 +100,11 @@ describe('generateUserId', () => {
 
   it('generates IDs with increasing timestamps', async () => {
     const userId1 = generateUserId();
-    await new Promise(resolve => setTimeout(resolve, 2));
+    await new Promise<void>(resolve => setTimeout(resolve, 2));
     const userId2 = generateUserId();
 
-    const timestamp1 = parseInt(userId1.split('-')[1]);
-    const timestamp2 = parseInt(userId2.split('-')[1]);
+    const timestamp1 = parseInt(userId1.split('-')[1] ?? '0', 10);
+    const timestamp2 = parseInt(userId2.split('-')[1] ?? '0', 10);
 
     expect(timestamp2).toBeGreaterThanOrEqual(timestamp1);
   });
@@ -90,8 +119,8 @@ describe('generateUserId', () => {
 });
 
 describe('constrainObjectToBounds', () => {
-  let mockObj;
-  let mockCanvas;
+  let mockObj: MockConstrainableObject;
+  let mockCanvas: MockConstrainableCanvas;
 
   beforeEach(() => {
     mockObj = {
@@ -109,13 +138,15 @@ describe('constrainObjectToBounds', () => {
     mockCanvas = {
       calcViewportBoundaries: vi.fn(() => ({
         tl: { x: 0, y: 0 },
+        tr: { x: 800, y: 0 },
+        bl: { x: 0, y: 600 },
         br: { x: 800, y: 600 }
       }))
     };
   });
 
   it('keeps object within canvas bounds when already inside', () => {
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(false);
     expect(mockObj.setCoords).not.toHaveBeenCalled();
   });
@@ -128,7 +159,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.left).toBe(135);
     expect(mockObj.setCoords).toHaveBeenCalled();
@@ -142,7 +173,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.left).toBe(50);
     expect(mockObj.setCoords).toHaveBeenCalled();
@@ -156,7 +187,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.top).toBe(135);
     expect(mockObj.setCoords).toHaveBeenCalled();
@@ -170,7 +201,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.top).toBe(50);
     expect(mockObj.setCoords).toHaveBeenCalled();
@@ -184,7 +215,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.left).toBe(130);
   });
@@ -197,7 +228,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas, 30);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas, 30);
     expect(result).toBe(true);
     expect(mockObj.left).toBe(120);
   });
@@ -210,7 +241,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(true);
     expect(mockObj.left).toBe(135);
     expect(mockObj.top).toBe(135);
@@ -225,7 +256,7 @@ describe('constrainObjectToBounds', () => {
       height: 50
     });
 
-    const result = constrainObjectToBounds(mockObj, mockCanvas);
+    const result = constrainObjectToBounds(mockObj as unknown as ConstrainableObject, mockCanvas as unknown as ConstrainableCanvas);
     expect(result).toBe(false);
   });
 });

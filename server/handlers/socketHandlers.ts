@@ -1,13 +1,33 @@
-import { SOCKET_EVENTS, SHARING_MODES } from '../config.js';
-import * as workspaceService from '../services/workspaceService.js';
-import * as permissionService from '../services/permissionService.js';
-import { withWorkspaceAuth, withOwnerAuth } from '../middleware/socketAuth.js';
+import { SOCKET_EVENTS, SHARING_MODES } from '../config';
+import * as workspaceService from '../services/workspaceService';
+import * as permissionService from '../services/permissionService';
+import { withWorkspaceAuth, withOwnerAuth } from '../middleware/socketAuth';
+import type {
+  WhiteboardElement,
+  HandlerContext,
+  HandlerResult,
+  HandlerData,
+  Handler,
+  JoinWorkspaceData,
+  WhiteboardUpdateData,
+  DeleteElementData,
+  DeleteDiagramData,
+  CodeUpdateData,
+  DiagramUpdateData,
+  ChangeSharingModeData,
+  EndSessionData,
+  InviteUserData,
+  GetEditTokenData,
+  SetEditTokenData,
+  User,
+  CurrentUser
+} from '../types';
 
 // Set to track workspaces currently being created (for race condition prevention)
-const workspacesBeingCreated = new Set();
+const workspacesBeingCreated = new Set<string>();
 
 const WORKSPACE_ID_REGEX = /^[a-zA-Z0-9_-]{1,32}$/;
-function isValidWorkspaceId(id) {
+function isValidWorkspaceId(id: unknown): id is string {
   return typeof id === 'string' && WORKSPACE_ID_REGEX.test(id);
 }
 
@@ -34,31 +54,52 @@ const MAX_ELEMENT_ID_LENGTH = 100;
 const MAX_TEXT_LENGTH = 2000;
 const MAX_SRC_LENGTH = 512000;
 
-function isValidElementData(data) {
+interface ElementData {
+  left?: number;
+  top?: number;
+  width?: number;
+  height?: number;
+  scaleX?: number;
+  scaleY?: number;
+  angle?: number;
+  strokeWidth?: number;
+  fontSize?: number;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  text?: string;
+  src?: string;
+  [key: string]: unknown;
+}
+
+function isValidElementData(data: unknown): data is ElementData {
   if (typeof data !== 'object' || data === null) return false;
+  const elementData = data as Record<string, unknown>;
   const numericKeys = [
     'left', 'top', 'width', 'height', 'scaleX', 'scaleY',
     'angle', 'strokeWidth', 'fontSize', 'x1', 'y1', 'x2', 'y2'
   ];
   for (const key of numericKeys) {
-    if (data[key] !== undefined && (typeof data[key] !== 'number' || !Number.isFinite(data[key]))) {
+    if (elementData[key] !== undefined && (typeof elementData[key] !== 'number' || !Number.isFinite(elementData[key] as number))) {
       return false;
     }
   }
-  if (data.text !== undefined && (typeof data.text !== 'string' || data.text.length > MAX_TEXT_LENGTH)) {
+  if (elementData.text !== undefined && (typeof elementData.text !== 'string' || elementData.text.length > MAX_TEXT_LENGTH)) {
     return false;
   }
-  if (data.src !== undefined && (typeof data.src !== 'string' || data.src.length > MAX_SRC_LENGTH)) {
+  if (elementData.src !== undefined && (typeof elementData.src !== 'string' || elementData.src.length > MAX_SRC_LENGTH)) {
     return false;
   }
   return true;
 }
 
-function isValidElement(element) {
+function isValidElement(element: unknown): element is WhiteboardElement {
   if (typeof element !== 'object' || element === null) return false;
-  if (typeof element.id !== 'string' || element.id.length === 0 || element.id.length > MAX_ELEMENT_ID_LENGTH) return false;
-  if (!ELEMENT_TYPES.has(element.type)) return false;
-  if (!isValidElementData(element.data)) return false;
+  const el = element as WhiteboardElement;
+  if (typeof el.id !== 'string' || el.id.length === 0 || el.id.length > MAX_ELEMENT_ID_LENGTH) return false;
+  if (!ELEMENT_TYPES.has(el.type)) return false;
+  if (!isValidElementData(el.data)) return false;
   return true;
 }
 
@@ -71,14 +112,28 @@ export const MAX_LANGUAGE_LENGTH = 32;
 
 // Basic email format validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function isValidEmail(email) {
+function isValidEmail(email: unknown): email is string {
   return typeof email === 'string' && email.length <= 254 && EMAIL_REGEX.test(email);
 }
 
+// Helper to convert CurrentUser to User for permission checks
+function toUser(currentUser: CurrentUser): User {
+  return {
+    userId: currentUser.userId || currentUser.id,
+    accessToken: currentUser.accessToken,
+    hasEditAccess: currentUser.hasEditAccess,
+    isOwner: currentUser.isOwner,
+  };
+}
+
+interface WhiteboardClearData extends HandlerData {
+  workspaceId: string;
+}
+
 export async function handleJoinWorkspace(
-  { workspaceId, userId, accessToken },
-  { socket, io, currentUser, currentWorkspaceRef }
-) {
+  { workspaceId, userId, accessToken }: JoinWorkspaceData,
+  { socket, io, currentUser, currentWorkspaceRef }: HandlerContext
+): Promise<HandlerResult> {
   try {
     if (!isValidWorkspaceId(workspaceId)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid workspace ID' });
@@ -129,7 +184,7 @@ export async function handleJoinWorkspace(
     currentUser.userId = userId || socket.id;
     currentUser.workspaceId = workspaceId;
 
-    const { hasEditAccess, isOwner } = permissionService.calculateEditAccess(workspace, currentUser, accessToken);
+    const { hasEditAccess, isOwner } = permissionService.calculateEditAccess(workspace, toUser(currentUser), accessToken);
     currentUser.hasEditAccess = hasEditAccess;
     currentUser.isOwner = isNewWorkspace || isOwner;
 
@@ -138,30 +193,36 @@ export async function handleJoinWorkspace(
       currentUser.hasEditAccess = true;
     }
 
-    permissionService.validateAndSetToken(workspace, accessToken, currentUser);
+    permissionService.validateAndSetToken(workspace, accessToken, toUser(currentUser));
 
-    if (currentWorkspaceRef.current) {
+    if (currentWorkspaceRef && currentWorkspaceRef.current) {
       const prevWorkspaceId = workspaceService.findWorkspaceIdByRef(currentWorkspaceRef.current);
       if (prevWorkspaceId) {
         socket.leave(prevWorkspaceId);
         workspaceService.removeConnection(prevWorkspaceId, socket.id);
         const activeUsers = workspaceService.getActiveUserCount(prevWorkspaceId);
-        io.to(prevWorkspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
+        if (io) {
+          io.to(prevWorkspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
+        }
       }
     }
 
     workspaceService.addConnection(workspaceId, socket.id);
     const activeUsers = workspaceService.getActiveUserCount(workspaceId);
     socket.join(workspaceId);
-    currentWorkspaceRef.current = workspace;
+    if (currentWorkspaceRef) {
+      currentWorkspaceRef.current = workspace;
+    }
     workspaceService.updateLastActivity(workspaceId);
 
     socket.emit(SOCKET_EVENTS.WORKSPACE_STATE, {
       ...workspaceService.getWorkspaceState(workspaceId),
       isNewWorkspace
     });
-    socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
-    io.to(workspaceId).emit(SOCKET_EVENTS.USER_JOINED, { userId: socket.id, activeUsers });
+    socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, toUser(currentUser)));
+    if (io) {
+      io.to(workspaceId).emit(SOCKET_EVENTS.USER_JOINED, { userId: socket.id, activeUsers });
+    }
 
     return { success: true, workspace, isNewWorkspace };
   } catch (error) {
@@ -170,10 +231,10 @@ export async function handleJoinWorkspace(
   }
 }
 
-const handleWhiteboardUpdateCore = (
+const handleWhiteboardUpdateCore: Handler<WhiteboardUpdateData> = (
   { workspaceId, elements },
   { socket, workspace, queueUpdate }
-) => {
+): HandlerResult => {
   try {
     if (!isValidWorkspaceId(workspaceId)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid workspace ID' });
@@ -194,6 +255,10 @@ const handleWhiteboardUpdateCore = (
       return { success: false, reason: 'invalid_element' };
     }
 
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
+    }
+
     const drawingsMap = workspace.drawingsMap;
     const allDrawingsMap = workspace.allDrawingsMap;
     const drawingOrder = workspace.drawingOrder;
@@ -212,10 +277,14 @@ const handleWhiteboardUpdateCore = (
 
     while (allDrawingsMap.size > MAX_DRAWINGS && drawingOrder.length > 0) {
       const oldestId = drawingOrder.shift();
-      allDrawingsMap.delete(oldestId);
+      if (oldestId) {
+        allDrawingsMap.delete(oldestId);
+      }
     }
 
-    queueUpdate(workspaceId, elements, socket.id);
+    if (queueUpdate) {
+      queueUpdate(workspaceId, elements, socket.id);
+    }
     return { success: true };
   } catch (error) {
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update whiteboard' });
@@ -225,11 +294,15 @@ const handleWhiteboardUpdateCore = (
 
 export const handleWhiteboardUpdate = withWorkspaceAuth(handleWhiteboardUpdateCore);
 
-const handleWhiteboardClearCore = (
+const handleWhiteboardClearCore: Handler<WhiteboardClearData> = (
   { workspaceId },
   { socket, workspace }
-) => {
+): HandlerResult => {
   try {
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
+    }
+
     workspace.drawingsMap.clear();
     workspace.allDrawingsMap.clear();
     workspace.drawingOrder.length = 0;
@@ -246,13 +319,17 @@ export const handleWhiteboardClear = withWorkspaceAuth(handleWhiteboardClearCore
   permissionErrorMessage: 'You do not have permission to clear'
 });
 
-const handleDeleteElementCore = (
+const handleDeleteElementCore: Handler<DeleteElementData> = (
   { workspaceId, elementId },
   { socket, workspace }
-) => {
+): HandlerResult => {
   try {
     if (!elementId) {
       return { success: false, reason: 'invalid_input' };
+    }
+
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
     }
 
     workspace.drawingsMap.delete(elementId);
@@ -276,11 +353,15 @@ export const handleDeleteElement = withWorkspaceAuth(handleDeleteElementCore, {
   permissionErrorMessage: 'You do not have permission to delete'
 });
 
-const handleDeleteDiagramCore = (
+const handleDeleteDiagramCore: Handler<DeleteDiagramData> = (
   { workspaceId, diagramId },
   { socket, workspace }
-) => {
+): HandlerResult => {
   try {
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
+    }
+
     workspace.diagrams.delete(diagramId);
     // Also remove from drawing maps and order array if present
     workspace.drawingsMap.delete(diagramId);
@@ -302,10 +383,10 @@ export const handleDeleteDiagram = withWorkspaceAuth(handleDeleteDiagramCore, {
   permissionErrorMessage: 'You do not have permission to delete diagram'
 });
 
-const handleCodeUpdateCore = (
+const handleCodeUpdateCore: Handler<CodeUpdateData> = (
   { workspaceId, language, content },
   { socket, workspace }
-) => {
+): HandlerResult => {
   try {
     if (content !== undefined && (typeof content !== 'string' || content.length > MAX_CODE_LENGTH)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid code content' });
@@ -317,8 +398,12 @@ const handleCodeUpdateCore = (
       return { success: false, reason: 'invalid_language' };
     }
 
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
+    }
+
     if (!workspace.codeSnippets) {
-      workspace.codeSnippets = {};
+      workspace.codeSnippets = { language: 'javascript', content: '' };
     }
     workspace.codeSnippets.language = language;
     if (content !== undefined) {
@@ -337,14 +422,18 @@ export const handleCodeUpdate = withWorkspaceAuth(handleCodeUpdateCore, {
   permissionErrorMessage: 'You do not have permission to edit code'
 });
 
-const handleDiagramUpdateCore = (
+const handleDiagramUpdateCore: Handler<DiagramUpdateData> = (
   { workspaceId, content },
   { socket, workspace }
-) => {
+): HandlerResult => {
   try {
     if (typeof content !== 'string' || content.length > MAX_DIAGRAM_LENGTH) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid diagram content' });
       return { success: false, reason: 'invalid_content' };
+    }
+
+    if (!workspace) {
+      return { success: false, reason: 'workspace_not_found' };
     }
 
     workspace.diagramContent = content;
@@ -361,7 +450,11 @@ export const handleDiagramUpdate = withWorkspaceAuth(handleDiagramUpdateCore, {
   permissionErrorMessage: 'You do not have permission to edit diagram'
 });
 
-export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
+export function handleGetEditToken(
+  { workspaceId }: GetEditTokenData,
+  callback: ((response: { error?: string; editToken?: string | null }) => void) | undefined,
+  { currentUser }: HandlerContext
+): HandlerResult {
   try {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
@@ -370,7 +463,7 @@ export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
     }
 
     // Use checkOwnership as single source of truth for ownership verification
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+    if (!permissionService.checkOwnership(workspace, currentUser.userId || currentUser.id)) {
       callback?.({ error: 'Permission denied' });
       return { success: false, reason: 'not_owner' };
     }
@@ -386,7 +479,10 @@ export function handleGetEditToken({ workspaceId }, callback, { currentUser }) {
 // Minimum token length: edit_ (5 chars) + 8 chars = 13 total
 const MIN_EDIT_TOKEN_LENGTH = 13;
 
-export function handleSetEditToken({ workspaceId, editToken }, { socket, currentUser }) {
+export function handleSetEditToken(
+  { workspaceId, editToken }: SetEditTokenData,
+  { socket, currentUser }: HandlerContext
+): HandlerResult {
   try {
     const workspace = workspaceService.getWorkspace(workspaceId);
     if (!workspace) {
@@ -394,7 +490,7 @@ export function handleSetEditToken({ workspaceId, editToken }, { socket, current
     }
 
     // Use checkOwnership as single source of truth for ownership verification
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+    if (!permissionService.checkOwnership(workspace, currentUser.userId || currentUser.id)) {
       return { success: false, reason: 'not_owner' };
     }
 
@@ -413,10 +509,10 @@ export function handleSetEditToken({ workspaceId, editToken }, { socket, current
   }
 }
 
-const handleChangeSharingModeCore = (
+const handleChangeSharingModeCore: Handler<ChangeSharingModeData> = (
   { workspaceId, sharingMode },
   { socket, io }
-) => {
+): HandlerResult => {
   try {
     const validModes = Object.values(SHARING_MODES);
     if (!validModes.includes(sharingMode)) {
@@ -427,9 +523,11 @@ const handleChangeSharingModeCore = (
     const success = workspaceService.updateSharingMode(workspaceId, sharingMode);
     if (success) {
       // SECURITY: Do not include editToken in broadcast - it should only be known to the owner
-      io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
-        sharingMode
-      });
+      if (io) {
+        io.to(workspaceId).emit(SOCKET_EVENTS.SHARING_MODE_CHANGED, {
+          sharingMode
+        });
+      }
       return { success: true };
     }
 
@@ -444,26 +542,29 @@ export const handleChangeSharingMode = withOwnerAuth(handleChangeSharingModeCore
   errorMessage: 'Only the workspace owner can change sharing mode'
 });
 
-const handleEndSessionCore = (
+const handleEndSessionCore: Handler<EndSessionData> = (
   { workspaceId },
   { socket, io }
-) => {
+): HandlerResult => {
   try {
-    io.to(workspaceId).emit(SOCKET_EVENTS.SESSION_ENDED, { message: 'The workspace owner has ended this session' });
+    if (io) {
+      io.to(workspaceId).emit(SOCKET_EVENTS.SESSION_ENDED, { message: 'The workspace owner has ended this session' });
 
-    const connections = workspaceService.getActiveConnections(workspaceId);
-    const disconnectedClients = [];
-    for (const socketId of connections) {
-      const clientSocket = io.sockets?.sockets?.get(socketId);
-      if (clientSocket && clientSocket.id !== socket.id) {
-        // Clean up connection state before removing from room to prevent stale state
-        workspaceService.removeConnection(workspaceId, socketId);
-        clientSocket.leave(workspaceId);
-        disconnectedClients.push(socketId);
+      const connections = workspaceService.getActiveConnections(workspaceId);
+      const disconnectedClients: string[] = [];
+      for (const socketId of connections) {
+        const clientSocket = io.sockets?.sockets?.get(socketId);
+        if (clientSocket && clientSocket.id !== socket.id) {
+          // Clean up connection state before removing from room to prevent stale state
+          workspaceService.removeConnection(workspaceId, socketId);
+          clientSocket.leave(workspaceId);
+          disconnectedClients.push(socketId);
+        }
       }
+      return { success: true, disconnectedClients };
     }
 
-    return { success: true, disconnectedClients };
+    return { success: false, reason: 'io_not_available' };
   } catch (error) {
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to end session' });
     return { success: false, error };
@@ -474,14 +575,16 @@ export const handleEndSession = withOwnerAuth(handleEndSessionCore, {
   errorMessage: 'Only the workspace owner can end the session'
 });
 
-export function handleDisconnect({ socket, io, currentWorkspaceRef }) {
+export function handleDisconnect({ socket, io, currentWorkspaceRef }: HandlerContext): HandlerResult {
   try {
-    if (currentWorkspaceRef.current) {
+    if (currentWorkspaceRef && currentWorkspaceRef.current) {
       const workspaceId = workspaceService.findWorkspaceIdByRef(currentWorkspaceRef.current);
       if (workspaceId) {
         workspaceService.removeConnection(workspaceId, socket.id);
         const activeUsers = workspaceService.getActiveUserCount(workspaceId);
-        io.to(workspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
+        if (io) {
+          io.to(workspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
+        }
       }
     }
 
@@ -492,7 +595,11 @@ export function handleDisconnect({ socket, io, currentWorkspaceRef }) {
   }
 }
 
-export function handleInviteUser({ workspaceId, email }, callback, { socket, currentUser, io }) {
+export function handleInviteUser(
+  { workspaceId, email }: InviteUserData,
+  callback: ((response: { error?: string; userId?: string }) => void) | undefined,
+  { socket, currentUser, io }: HandlerContext
+): HandlerResult {
   try {
     if (!isValidEmail(email)) {
       callback?.({ error: 'Invalid email format' });
@@ -505,7 +612,7 @@ export function handleInviteUser({ workspaceId, email }, callback, { socket, cur
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+    if (!permissionService.checkOwnership(workspace, currentUser.userId || currentUser.id)) {
       callback?.({ error: 'Permission denied' });
       return { success: false, reason: 'not_owner' };
     }
@@ -516,7 +623,7 @@ export function handleInviteUser({ workspaceId, email }, callback, { socket, cur
     }
     workspaceService.updateLastActivity(workspaceId);
 
-    const ownerInfo = permissionService.getSharingInfo(workspace, currentUser);
+    const ownerInfo = permissionService.getSharingInfo(workspace, toUser(currentUser));
     if (socket) {
       socket.emit(SOCKET_EVENTS.SHARING_INFO, ownerInfo);
     }

@@ -371,25 +371,37 @@ export function useWhiteboardCanvas(): UseWhiteboardCanvasReturn {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
       objects.forEach(obj => {
-        const coords = obj.getBoundingRect();
-        if (coords.left < minX) minX = coords.left;
-        if (coords.top < minY) minY = coords.top;
-        if (coords.left + coords.width > maxX) maxX = coords.left + coords.width;
-        if (coords.top + coords.height > maxY) maxY = coords.top + coords.height;
+        // Use aCoords (absolute coords in canvas space, without viewport transform)
+        // setCoords() ensures aCoords is calculated
+        obj.setCoords();
+        const aCoords = obj.aCoords;
+        if (aCoords) {
+          // aCoords has tl, tr, br, bl (corners)
+          const corners = [aCoords.tl, aCoords.tr, aCoords.br, aCoords.bl];
+          corners.forEach(corner => {
+            if (corner.x < minX) minX = corner.x;
+            if (corner.y < minY) minY = corner.y;
+            if (corner.x > maxX) maxX = corner.x;
+            if (corner.y > maxY) maxY = corner.y;
+          });
+        }
       });
 
-      const padding = CANVAS.EXPORT_PADDING;
-      const boundsLeft = Math.max(0, (minX - viewportLeft - padding)) * multiplier;
-      const boundsTop = Math.max(0, (minY - viewportTop - padding)) * multiplier;
-      const boundsWidth = (maxX - minX + padding * 2) * multiplier;
-      const boundsHeight = (maxY - minY + padding * 2) * multiplier;
+      if (minX !== Infinity) {
+        const padding = CANVAS.EXPORT_PADDING;
+        // Convert from canvas coords to image coords (relative to viewport)
+        const boundsLeft = Math.max(0, (minX - viewportLeft - padding)) * multiplier;
+        const boundsTop = Math.max(0, (minY - viewportTop - padding)) * multiplier;
+        const boundsRight = Math.min(viewportWidth, maxX - viewportLeft + padding) * multiplier;
+        const boundsBottom = Math.min(viewportHeight, maxY - viewportTop + padding) * multiplier;
 
-      objectsBounds = {
-        left: boundsLeft,
-        top: boundsTop,
-        width: boundsWidth,
-        height: boundsHeight
-      };
+        objectsBounds = {
+          left: boundsLeft,
+          top: boundsTop,
+          width: Math.max(0, boundsRight - boundsLeft),
+          height: Math.max(0, boundsBottom - boundsTop)
+        };
+      }
     }
 
     return {

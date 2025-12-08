@@ -1,70 +1,163 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { ARROW } from '../../client/src/constants';
 
-vi.mock('fabric', () => {
-  class MockLine {
-    static type = 'Line';
-    static cacheProperties = ['x1', 'y1', 'x2', 'y2'];
+// Types for the mock implementations
+interface MockLinePoints {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
 
-    constructor(points = [0, 0, 0, 0], options = {}) {
-      this.x1 = points[0];
-      this.y1 = points[1];
-      this.x2 = points[2];
-      this.y2 = points[3];
-      this.strokeWidth = options.strokeWidth || 1;
-      this.strokeLineCap = options.strokeLineCap || 'butt';
-      this.stroke = options.stroke;
-      Object.assign(this, options);
-    }
+interface MockLineOptions {
+  strokeWidth?: number;
+  strokeLineCap?: CanvasLineCap;
+  stroke?: string;
+  [key: string]: unknown;
+}
 
-    get type() {
-      return 'line';
-    }
+interface MockCanvasRenderingContext2D {
+  beginPath: Mock;
+  moveTo: Mock;
+  lineTo: Mock;
+  stroke: Mock;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
+  fillStyle: string | CanvasGradient | CanvasPattern;
+  lineWidth: number;
+  lineCap: CanvasLineCap;
+  lineJoin: CanvasLineJoin;
+}
 
-    calcLinePoints() {
-      const width = this.x2 - this.x1;
-      const height = this.y2 - this.y1;
-      return {
-        x1: -width / 2 || 0,
-        y1: -height / 2 || 0,
-        x2: width / 2 || 0,
-        y2: height / 2 || 0
-      };
-    }
+interface ArrowOptions extends MockLineOptions {
+  headLength?: number;
+  headAngle?: number;
+  opacity?: number;
+  customProp?: string;
+}
 
-    toObject(propertiesToInclude = []) {
-      const base = {
-        type: this.type,
-        x1: this.x1,
-        y1: this.y1,
-        x2: this.x2,
-        y2: this.y2,
-        stroke: this.stroke,
-        strokeWidth: this.strokeWidth
-      };
-      propertiesToInclude.forEach(prop => {
-        if (this[prop] !== undefined) {
-          base[prop] = this[prop];
-        }
-      });
-      return base;
-    }
+interface SerializedArrowObject {
+  type?: string;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  stroke?: string;
+  strokeWidth?: number;
+  headLength?: number;
+  headAngle?: number;
+  opacity?: number;
+  customProp?: string;
+  [key: string]: unknown;
+}
+
+interface ArrowInstance {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  strokeWidth: number;
+  strokeLineCap: CanvasLineCap;
+  stroke?: string;
+  headLength?: number;
+  headAngle?: number;
+  type: string;
+  _render(ctx: MockCanvasRenderingContext2D): void;
+  toObject(propertiesToInclude?: string[]): SerializedArrowObject;
+  [key: string]: unknown;
+}
+
+interface ArrowConstructor {
+  new (points?: [number, number, number, number], options?: ArrowOptions): ArrowInstance;
+  type: string;
+  cacheProperties: string[];
+  fromObject(object: SerializedArrowObject): Promise<ArrowInstance>;
+}
+
+class MockLine {
+  static type = 'Line';
+  static cacheProperties = ['x1', 'y1', 'x2', 'y2'];
+
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  strokeWidth: number;
+  strokeLineCap: CanvasLineCap;
+  stroke?: string;
+  [key: string]: unknown;
+
+  constructor(points: [number, number, number, number] = [0, 0, 0, 0], options: MockLineOptions = {}) {
+    this.x1 = points[0];
+    this.y1 = points[1];
+    this.x2 = points[2];
+    this.y2 = points[3];
+    this.strokeWidth = options.strokeWidth ?? 1;
+    this.strokeLineCap = options.strokeLineCap ?? 'butt';
+    this.stroke = options.stroke;
+    Object.assign(this, options);
   }
 
-  class MockClassRegistry {
-    constructor() {
-      this.json = new Map();
-      this.svg = new Map();
-    }
-    setClass(classConstructor, classType) {
-      const type = classType || classConstructor.type;
+  get type(): string {
+    return 'line';
+  }
+
+  calcLinePoints(): MockLinePoints {
+    const width = this.x2 - this.x1;
+    const height = this.y2 - this.y1;
+    return {
+      x1: -width / 2 || 0,
+      y1: -height / 2 || 0,
+      x2: width / 2 || 0,
+      y2: height / 2 || 0
+    };
+  }
+
+  toObject(propertiesToInclude: string[] = []): SerializedArrowObject {
+    const base: SerializedArrowObject = {
+      type: this.type,
+      x1: this.x1,
+      y1: this.y1,
+      x2: this.x2,
+      y2: this.y2,
+      stroke: this.stroke,
+      strokeWidth: this.strokeWidth
+    };
+    propertiesToInclude.forEach(prop => {
+      if (this[prop] !== undefined) {
+        base[prop] = this[prop];
+      }
+    });
+    return base;
+  }
+}
+
+type ClassConstructor = new (...args: unknown[]) => unknown;
+
+interface ClassConstructorWithType extends ClassConstructor {
+  type?: string;
+}
+
+class MockClassRegistry {
+  private json: Map<string, ClassConstructor>;
+
+  constructor() {
+    this.json = new Map();
+  }
+
+  setClass(classConstructor: ClassConstructorWithType, classType?: string): void {
+    const type = classType ?? classConstructor.type;
+    if (type) {
       this.json.set(type, classConstructor);
     }
-    getClass(classType) {
-      return this.json.get(classType);
-    }
   }
 
+  getClass(classType: string): ClassConstructor | undefined {
+    return this.json.get(classType);
+  }
+}
+
+vi.mock('fabric', () => {
   return {
     Line: MockLine,
     classRegistry: new MockClassRegistry()
@@ -72,12 +165,12 @@ vi.mock('fabric', () => {
 });
 
 describe('Arrow', () => {
-  let Arrow;
+  let Arrow: ArrowConstructor;
 
   beforeEach(async () => {
     vi.resetModules();
     const module = await import('../../client/src/utils/fabricArrow');
-    Arrow = module.Arrow;
+    Arrow = module.Arrow as unknown as ArrowConstructor;
   });
 
   describe('initialization', () => {
@@ -143,8 +236,8 @@ describe('Arrow', () => {
   });
 
   describe('_render', () => {
-    let mockCtx;
-    let arrow;
+    let mockCtx: MockCanvasRenderingContext2D;
+    let arrow: ArrowInstance;
 
     beforeEach(() => {
       mockCtx = {
@@ -231,8 +324,8 @@ describe('Arrow', () => {
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
       expect(lineToCallsForArrowhead).toHaveLength(2);
 
-      const [x1, y1] = lineToCallsForArrowhead[0];
-      const [x2, y2] = lineToCallsForArrowhead[1];
+      const [x1, y1] = lineToCallsForArrowhead[0] as [number, number];
+      const [x2, y2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(x1).toBeLessThan(50);
       expect(x2).toBeLessThan(50);
@@ -248,8 +341,8 @@ describe('Arrow', () => {
       const allLineToCalls = mockCtx.lineTo.mock.calls;
       expect(allLineToCalls[0]).toEqual([0, 50]);
 
-      const [x1, y1] = allLineToCalls[1];
-      const [x2, y2] = allLineToCalls[2];
+      const [x1, y1] = allLineToCalls[1] as [number, number];
+      const [x2, y2] = allLineToCalls[2] as [number, number];
 
       expect(y1).toBeLessThan(50);
       expect(y2).toBeLessThan(50);
@@ -264,8 +357,8 @@ describe('Arrow', () => {
       const allLineToCalls = mockCtx.lineTo.mock.calls;
       expect(allLineToCalls[0]).toEqual([50, 50]);
 
-      const [x1, y1] = allLineToCalls[1];
-      const [x2, y2] = allLineToCalls[2];
+      const [x1, y1] = allLineToCalls[1] as [number, number];
+      const [x2, y2] = allLineToCalls[2] as [number, number];
 
       expect(x1).toBeLessThan(50);
       expect(y1).toBeLessThan(50);
@@ -279,7 +372,7 @@ describe('Arrow', () => {
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [x1] = lineToCallsForArrowhead[0];
+      const [x1] = lineToCallsForArrowhead[0] as [number, number];
 
       const distance = 50 - x1;
       expect(distance).toBeCloseTo(customHeadLength * Math.cos(ARROW.HEAD_ANGLE), 1);
@@ -291,8 +384,8 @@ describe('Arrow', () => {
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [, y1] = lineToCallsForArrowhead[0];
-      const [, y2] = lineToCallsForArrowhead[1];
+      const [, y1] = lineToCallsForArrowhead[0] as [number, number];
+      const [, y2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(Math.abs(y1)).toBeGreaterThan(Math.abs(ARROW.HEAD_LENGTH * Math.sin(ARROW.HEAD_ANGLE)));
       expect(Math.abs(y2)).toBeGreaterThan(Math.abs(ARROW.HEAD_LENGTH * Math.sin(ARROW.HEAD_ANGLE)));
@@ -304,7 +397,7 @@ describe('Arrow', () => {
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [x1] = lineToCallsForArrowhead[0];
+      const [x1] = lineToCallsForArrowhead[0] as [number, number];
       const distance = 50 - x1;
       expect(distance).toBeCloseTo(ARROW.HEAD_LENGTH * Math.cos(ARROW.HEAD_ANGLE), 1);
     });
@@ -338,8 +431,8 @@ describe('Arrow', () => {
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [x1] = lineToCallsForArrowhead[0];
-      const [x2] = lineToCallsForArrowhead[1];
+      const [x1] = lineToCallsForArrowhead[0] as [number, number];
+      const [x2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(x1).toBeGreaterThan(-50);
       expect(x2).toBeGreaterThan(-50);
@@ -350,8 +443,8 @@ describe('Arrow', () => {
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [, y1] = lineToCallsForArrowhead[0];
-      const [, y2] = lineToCallsForArrowhead[1];
+      const [, y1] = lineToCallsForArrowhead[0] as [number, number];
+      const [, y2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(y1).toBeGreaterThan(-50);
       expect(y2).toBeGreaterThan(-50);
@@ -416,7 +509,7 @@ describe('Arrow', () => {
 
   describe('fromObject (Promise-based)', () => {
     it('should deserialize arrow from object', async () => {
-      const object = {
+      const object: SerializedArrowObject = {
         x1: 10,
         y1: 20,
         x2: 100,
@@ -437,7 +530,7 @@ describe('Arrow', () => {
     });
 
     it('should construct points array from coordinates', async () => {
-      const object = {
+      const object: SerializedArrowObject = {
         x1: 50,
         y1: 60,
         x2: 150,
@@ -455,7 +548,7 @@ describe('Arrow', () => {
     });
 
     it('should work without headLength and headAngle in object', async () => {
-      const object = {
+      const object: SerializedArrowObject = {
         x1: 10,
         y1: 20,
         x2: 100,
@@ -470,7 +563,7 @@ describe('Arrow', () => {
     });
 
     it('should preserve all object properties', async () => {
-      const object = {
+      const object: SerializedArrowObject = {
         x1: 10,
         y1: 20,
         x2: 100,
@@ -490,7 +583,7 @@ describe('Arrow', () => {
     });
 
     it('should return a Promise', () => {
-      const object = {
+      const object: SerializedArrowObject = {
         x1: 10,
         y1: 20,
         x2: 100,
@@ -502,7 +595,7 @@ describe('Arrow', () => {
     });
 
     it('should handle missing coordinates', async () => {
-      const object = {};
+      const object: SerializedArrowObject = {};
 
       const deserializedArrow = await Arrow.fromObject(object);
 
@@ -524,12 +617,16 @@ describe('Arrow', () => {
   describe('edge cases', () => {
     it('should handle very small headLength', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headLength: 0.1 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
@@ -538,12 +635,16 @@ describe('Arrow', () => {
 
     it('should handle very large headLength', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headLength: 200 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
@@ -552,12 +653,16 @@ describe('Arrow', () => {
 
     it('should handle very small headAngle', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headAngle: 0.01 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
@@ -566,12 +671,16 @@ describe('Arrow', () => {
 
     it('should handle very large headAngle', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headAngle: Math.PI / 2 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
@@ -580,12 +689,16 @@ describe('Arrow', () => {
 
     it('should handle large coordinate values', () => {
       const arrow = new Arrow([10000, 10000, 20000, 20000], {});
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
@@ -603,19 +716,23 @@ describe('Arrow', () => {
 
     it('should handle zero headLength', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headLength: 0 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [x1] = lineToCallsForArrowhead[0];
-      const [x2] = lineToCallsForArrowhead[1];
+      const [x1] = lineToCallsForArrowhead[0] as [number, number];
+      const [x2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(x1).toBe(50);
       expect(x2).toBe(50);
@@ -623,19 +740,23 @@ describe('Arrow', () => {
 
     it('should handle zero headAngle', () => {
       const arrow = new Arrow([0, 0, 100, 0], { headAngle: 0 });
-      const mockCtx = {
+      const mockCtx: MockCanvasRenderingContext2D = {
         beginPath: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
-        strokeStyle: '#000000'
+        strokeStyle: '#000000',
+        fillStyle: '#FF0000',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter'
       };
 
       arrow._render(mockCtx);
 
       const lineToCallsForArrowhead = mockCtx.lineTo.mock.calls.slice(1);
-      const [, y1] = lineToCallsForArrowhead[0];
-      const [, y2] = lineToCallsForArrowhead[1];
+      const [, y1] = lineToCallsForArrowhead[0] as [number, number];
+      const [, y2] = lineToCallsForArrowhead[1] as [number, number];
 
       expect(y1).toBe(0);
       expect(y2).toBe(0);

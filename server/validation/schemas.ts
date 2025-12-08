@@ -8,6 +8,7 @@ export const WHITEBOARD_LIMITS = {
 export const MAX_POINTS_PER_STREAM = 100;
 
 export const WorkspaceIdSchema = z.string().regex(/^[a-zA-Z0-9_-]{1,32}$/);
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
 
 export const ElementDataSchema = z.object({
   left: z.number().optional(),
@@ -35,6 +36,7 @@ export const ElementDataSchema = z.object({
     y: z.number()
   })).optional()
 }).strict();
+export type ElementData = z.infer<typeof ElementDataSchema>;
 
 export const WhiteboardElementSchema = z.object({
   id: z.string().min(1).max(100),
@@ -57,11 +59,13 @@ export const WhiteboardElementSchema = z.object({
   ]),
   data: ElementDataSchema
 });
+export type WhiteboardElement = z.infer<typeof WhiteboardElementSchema>;
 
 export const WhiteboardUpdateSchema = z.object({
   workspaceId: WorkspaceIdSchema,
   elements: z.array(WhiteboardElementSchema).max(WHITEBOARD_LIMITS.elementsPerUpdate)
 });
+export type WhiteboardUpdate = z.infer<typeof WhiteboardUpdateSchema>;
 
 export const CursorPositionSchema = z.object({
   workspaceId: WorkspaceIdSchema,
@@ -72,6 +76,7 @@ export const CursorPositionSchema = z.object({
   userColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   animalKey: z.string().max(50).optional()
 });
+export type CursorPosition = z.infer<typeof CursorPositionSchema>;
 
 export const DrawingStreamSchema = z.object({
   workspaceId: WorkspaceIdSchema,
@@ -81,5 +86,7 @@ export const DrawingStreamSchema = z.object({
     y: z.number()
   })).max(MAX_POINTS_PER_STREAM)
 });
+export type DrawingStream = z.infer<typeof DrawingStreamSchema>;
 
 export const ShapeTypeSchema = z.enum(['rect', 'circle', 'triangle', 'line', 'arrow', 'polygon']);
+export type ShapeType = z.infer<typeof ShapeTypeSchema>;

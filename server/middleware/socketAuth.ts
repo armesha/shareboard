@@ -1,11 +1,26 @@
-import { SOCKET_EVENTS } from '../../shared/constants.js';
-import * as workspaceService from '../services/workspaceService.js';
-import * as permissionService from '../services/permissionService.js';
+import { SOCKET_EVENTS } from '../../shared/constants';
+import * as workspaceService from '../services/workspaceService';
+import * as permissionService from '../services/permissionService';
+import type {
+  HandlerData,
+  HandlerContext,
+  HandlerResult,
+  Handler,
+  User
+} from '../types';
 
-export function withWorkspaceAuth(handler, options = {}) {
+export interface AuthOptions {
+  permissionErrorMessage?: string;
+  errorMessage?: string;
+}
+
+export function withWorkspaceAuth<T extends HandlerData>(
+  handler: Handler<T>,
+  options: AuthOptions = {}
+): Handler<T> {
   const { permissionErrorMessage = 'You do not have permission to edit' } = options;
 
-  return function wrappedHandler(data, context) {
+  return async function wrappedHandler(data: T, context: HandlerContext): Promise<HandlerResult> {
     const { workspaceId } = data;
     const { socket, currentUser } = context;
 
@@ -19,19 +34,29 @@ export function withWorkspaceAuth(handler, options = {}) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkWritePermission(workspace, currentUser)) {
+    // Convert CurrentUser to User for permission check
+    const user: User = {
+      userId: currentUser.userId || currentUser.id,
+      accessToken: currentUser.accessToken,
+      hasEditAccess: currentUser.hasEditAccess,
+      isOwner: currentUser.isOwner,
+    };
+
+    if (!permissionService.checkWritePermission(workspace, user)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: permissionErrorMessage });
       return { success: false, reason: 'no_permission' };
     }
 
     workspaceService.updateLastActivity(workspaceId);
 
-    return handler(data, { ...context, workspace });
+    return await handler(data, { ...context, workspace });
   };
 }
 
-export function withRoomAuth(handler) {
-  return function wrappedHandler(data, context) {
+export function withRoomAuth<T extends HandlerData>(
+  handler: Handler<T>
+): Handler<T> {
+  return async function wrappedHandler(data: T, context: HandlerContext): Promise<HandlerResult> {
     const { workspaceId } = data;
     const { socket } = context;
 
@@ -45,14 +70,17 @@ export function withRoomAuth(handler) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    return handler(data, { ...context, workspace });
+    return await handler(data, { ...context, workspace });
   };
 }
 
-export function withOwnerAuth(handler, options = {}) {
+export function withOwnerAuth<T extends HandlerData>(
+  handler: Handler<T>,
+  options: AuthOptions = {}
+): Handler<T> {
   const { errorMessage = 'Only the workspace owner can perform this action' } = options;
 
-  return function wrappedHandler(data, context) {
+  return async function wrappedHandler(data: T, context: HandlerContext): Promise<HandlerResult> {
     const { workspaceId } = data;
     const { socket, currentUser } = context;
 
@@ -62,11 +90,12 @@ export function withOwnerAuth(handler, options = {}) {
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkOwnership(workspace, currentUser.userId)) {
+    const userId = currentUser.userId || currentUser.id;
+    if (!permissionService.checkOwnership(workspace, userId)) {
       socket.emit(SOCKET_EVENTS.ERROR, { message: errorMessage });
       return { success: false, reason: 'not_owner' };
     }
 
-    return handler(data, { ...context, workspace });
+    return await handler(data, { ...context, workspace });
   };
 }

@@ -48,14 +48,14 @@ interface BoundingRect {
   height: number;
 }
 
-type ConstrainableObject = FabricObject & {
+export type ConstrainableObject = FabricObject & {
   left: number;
   top: number;
   getBoundingRect(): BoundingRect;
   setCoords(): void;
 };
 
-type ConstrainableCanvas = FabricCanvas & {
+export type ConstrainableCanvas = FabricCanvas & {
   calcViewportBoundaries(): ViewportBoundaries;
 };
 

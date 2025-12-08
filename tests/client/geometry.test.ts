@@ -14,7 +14,43 @@ import { describe, it, expect } from 'vitest';
  * (Ctrl for constrained proportions, Shift for line snapping).
  */
 
-function calculateRectangle(startX, startY, currentX, currentY, ctrlPressed = false) {
+interface RectangleResult {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+interface CircleResult {
+  radius: number;
+  left: number;
+  top: number;
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface TriangleResult {
+  points: Point[];
+  isUpsideDown: boolean;
+}
+
+interface LineSnapResult {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+const calculateRectangle = (
+  startX: number,
+  startY: number,
+  currentX: number,
+  currentY: number,
+  ctrlPressed: boolean = false
+): RectangleResult => {
   const deltaWidth = currentX - startX;
   const deltaHeight = currentY - startY;
 
@@ -34,9 +70,14 @@ function calculateRectangle(startX, startY, currentX, currentY, ctrlPressed = fa
       top: deltaHeight > 0 ? startY : currentY
     };
   }
-}
+};
 
-function calculateCircle(startX, startY, currentX, currentY) {
+const calculateCircle = (
+  startX: number,
+  startY: number,
+  currentX: number,
+  currentY: number
+): CircleResult => {
   const deltaWidth = currentX - startX;
   const deltaHeight = currentY - startY;
   const radius = Math.sqrt(deltaWidth * deltaWidth + deltaHeight * deltaHeight) / 2;
@@ -46,9 +87,15 @@ function calculateCircle(startX, startY, currentX, currentY) {
     left: startX - radius,
     top: startY - radius
   };
-}
+};
 
-function calculateTriangle(startX, startY, currentX, currentY, ctrlPressed = false) {
+const calculateTriangle = (
+  startX: number,
+  startY: number,
+  currentX: number,
+  currentY: number,
+  ctrlPressed: boolean = false
+): TriangleResult => {
   const deltaWidth = currentX - startX;
   const deltaHeight = currentY - startY;
   const isUpsideDown = deltaHeight < 0;
@@ -65,7 +112,7 @@ function calculateTriangle(startX, startY, currentX, currentY, ctrlPressed = fal
   }
 
   const halfWidth = triWidth / 2;
-  let points;
+  let points: Point[];
 
   if (isUpsideDown) {
     points = [
@@ -82,9 +129,15 @@ function calculateTriangle(startX, startY, currentX, currentY, ctrlPressed = fal
   }
 
   return { points, isUpsideDown };
-}
+};
 
-function calculateLineSnap(startX, startY, endX, endY, shiftPressed = false) {
+const calculateLineSnap = (
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  shiftPressed: boolean = false
+): LineSnapResult => {
   if (!shiftPressed) {
     return { x1: startX, y1: startY, x2: endX, y2: endY };
   }
@@ -108,7 +161,7 @@ function calculateLineSnap(startX, startY, endX, endY, shiftPressed = false) {
   }
 
   return { x1: startX, y1: startY, x2: newEndX, y2: newEndY };
-}
+};
 
 describe('Rectangle geometry calculations', () => {
   it('should calculate width and height from positive drag (right-down)', () => {
@@ -480,15 +533,15 @@ describe('Edge cases and boundary conditions', () => {
   it('should handle triangle with minimal width', () => {
     const result = calculateTriangle(100, 100, 100, 200);
     expect(result.points[0]).toEqual({ x: 100, y: 100 });
-    expect(result.points[1].x).toBeCloseTo(99.5, 1);
-    expect(result.points[2].x).toBeCloseTo(100.5, 1);
+    expect(result.points[1]!.x).toBeCloseTo(99.5, 1);
+    expect(result.points[2]!.x).toBeCloseTo(100.5, 1);
   });
 
   it('should handle triangle with minimal height', () => {
     const result = calculateTriangle(100, 100, 200, 100);
     expect(result.points[0]).toEqual({ x: 100, y: 100 });
-    expect(result.points[1].y).toBe(101);
-    expect(result.points[2].y).toBe(101);
+    expect(result.points[1]!.y).toBe(101);
+    expect(result.points[2]!.y).toBe(101);
   });
 
   it('should handle line snap with very small deltas', () => {

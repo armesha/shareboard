@@ -70,7 +70,7 @@ const ZoomControls = React.memo(function ZoomControls({ zoom, onZoomChange }: Zo
           <div className="dropdown-base absolute bottom-full right-0 mb-2 rounded-xl p-3 animate-fadeIn w-max">
             <div className="space-y-2">
               {CONTROL_TIPS.map((tip) => (
-                <div key={tip.key} className="flex items-center gap-3">
+                <div key={tip.translationKey} className="flex items-center gap-3">
                   <kbd className="shrink-0 w-24 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs font-code text-gray-700 text-center whitespace-nowrap">
                     {t(`toolbar:controls.${tip.keyTranslationKey}`)}
                   </kbd>

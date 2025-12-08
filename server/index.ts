@@ -1,22 +1,61 @@
-import express from 'express';
+import express, { Express, Request, Response } from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
-import { WebSocketServer } from 'ws';
+import { Server, Socket } from 'socket.io';
+import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { config, SOCKET_EVENTS } from './config.js';
-import * as workspaceService from './services/workspaceService.js';
-import * as permissionService from './services/permissionService.js';
-import * as handlers from './handlers/socketHandlers.js';
+import { config, SOCKET_EVENTS } from './config';
+import * as workspaceService from './services/workspaceService';
+import * as permissionService from './services/permissionService';
+import * as handlers from './handlers/socketHandlers';
+import { setupWSConnection } from './yjs-utils';
+import type { Server as HttpServer } from 'http';
+import type {
+  CurrentUser,
+  CurrentWorkspaceRef,
+  Position,
+  UpdateQueue,
+  RateLimitRecord,
+  WhiteboardElement,
+  User
+} from './types';
+
+// Helper to convert CurrentUser to User for permission checks
+function toUser(currentUser: CurrentUser): User {
+  return {
+    userId: currentUser.userId || currentUser.id,
+    accessToken: currentUser.accessToken,
+    hasEditAccess: currentUser.hasEditAccess,
+    isOwner: currentUser.isOwner,
+  };
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Types for validation constants
+interface DrawingValidation {
+  MAX_DRAWING_ID_LENGTH: number;
+  MAX_SHAPE_ID_LENGTH: number;
+  MAX_SHAPE_TYPE_LENGTH: number;
+  MIN_BRUSH_WIDTH: number;
+  MAX_BRUSH_WIDTH: number;
+  MAX_POINTS_LENGTH: number;
+  COLOR_REGEX: RegExp;
+}
+
+interface CursorValidation {
+  MIN_POSITION: number;
+  MAX_POSITION: number;
+  MAX_COLOR_LENGTH: number;
+  MAX_ANIMAL_KEY_LENGTH: number;
+}
+
 // Input validation constants for drawing events
-const DRAWING_VALIDATION = {
+const DRAWING_VALIDATION: DrawingValidation = {
   MAX_DRAWING_ID_LENGTH: 64,
   MAX_SHAPE_ID_LENGTH: 64,
   MAX_SHAPE_TYPE_LENGTH: 32,
@@ -28,127 +67,122 @@ const DRAWING_VALIDATION = {
 };
 
 // Input validation constants for cursor position
-const CURSOR_VALIDATION = {
+const CURSOR_VALIDATION: CursorValidation = {
   MIN_POSITION: 0,
   MAX_POSITION: 10000,
   MAX_COLOR_LENGTH: 32,
   MAX_ANIMAL_KEY_LENGTH: 32
 };
 
-function isValidCursorPosition(position) {
+function isValidCursorPosition(position: unknown): position is Position {
   return typeof position === 'object' &&
          position !== null &&
-         typeof position.x === 'number' &&
-         typeof position.y === 'number' &&
-         Number.isFinite(position.x) &&
-         Number.isFinite(position.y) &&
-         position.x >= CURSOR_VALIDATION.MIN_POSITION &&
-         position.x <= CURSOR_VALIDATION.MAX_POSITION &&
-         position.y >= CURSOR_VALIDATION.MIN_POSITION &&
-         position.y <= CURSOR_VALIDATION.MAX_POSITION;
+         'x' in position &&
+         'y' in position &&
+         typeof (position as Position).x === 'number' &&
+         typeof (position as Position).y === 'number' &&
+         Number.isFinite((position as Position).x) &&
+         Number.isFinite((position as Position).y) &&
+         (position as Position).x >= CURSOR_VALIDATION.MIN_POSITION &&
+         (position as Position).x <= CURSOR_VALIDATION.MAX_POSITION &&
+         (position as Position).y >= CURSOR_VALIDATION.MIN_POSITION &&
+         (position as Position).y <= CURSOR_VALIDATION.MAX_POSITION;
 }
 
-function isValidUserColor(color) {
+function isValidUserColor(color: unknown): color is string {
   return typeof color === 'string' && color.length <= CURSOR_VALIDATION.MAX_COLOR_LENGTH;
 }
 
-function isValidAnimalKey(key) {
+function isValidAnimalKey(key: unknown): key is string {
   return typeof key === 'string' && key.length <= CURSOR_VALIDATION.MAX_ANIMAL_KEY_LENGTH;
 }
 
 // Validation helper functions
-function isValidDrawingId(id) {
+function isValidDrawingId(id: unknown): id is string {
   return typeof id === 'string' && id.length > 0 && id.length <= DRAWING_VALIDATION.MAX_DRAWING_ID_LENGTH;
 }
 
-function isValidShapeId(id) {
+function isValidShapeId(id: unknown): id is string {
   return typeof id === 'string' && id.length > 0 && id.length <= DRAWING_VALIDATION.MAX_SHAPE_ID_LENGTH;
 }
 
-function isValidShapeType(type) {
+function isValidShapeType(type: unknown): type is string {
   return typeof type === 'string' && type.length > 0 && type.length <= DRAWING_VALIDATION.MAX_SHAPE_TYPE_LENGTH;
 }
 
-function isValidColor(color) {
+function isValidColor(color: unknown): color is string {
   return typeof color === 'string' && DRAWING_VALIDATION.COLOR_REGEX.test(color);
 }
 
-function isValidBrushWidth(width) {
+function isValidBrushWidth(width: unknown): width is number {
   return typeof width === 'number' &&
          width >= DRAWING_VALIDATION.MIN_BRUSH_WIDTH &&
          width <= DRAWING_VALIDATION.MAX_BRUSH_WIDTH &&
          Number.isFinite(width);
 }
 
-function isValidPoints(points) {
+function isValidPoints(points: unknown): points is (number | Position)[] {
   if (!Array.isArray(points)) return false;
   if (points.length > DRAWING_VALIDATION.MAX_POINTS_LENGTH) return false;
   // Points can be either array of numbers or array of {x, y} objects
   return points.every(p => {
     if (typeof p === 'number') return Number.isFinite(p);
     if (typeof p === 'object' && p !== null) {
-      return typeof p.x === 'number' && Number.isFinite(p.x) &&
-             typeof p.y === 'number' && Number.isFinite(p.y);
+      return typeof (p as any).x === 'number' && Number.isFinite((p as any).x) &&
+             typeof (p as any).y === 'number' && Number.isFinite((p as any).y);
     }
     return false;
   });
 }
 
-function isValidShapeData(data) {
+function isValidShapeData(data: unknown): data is Record<string, any> {
   // Shape data should be an object with numeric coordinates
   if (typeof data !== 'object' || data === null) return false;
   // Check common properties are numbers if present
   const numericProps = ['left', 'top', 'width', 'height', 'scaleX', 'scaleY', 'angle', 'x1', 'y1', 'x2', 'y2'];
   for (const prop of numericProps) {
-    if (data[prop] !== undefined && (typeof data[prop] !== 'number' || !Number.isFinite(data[prop]))) {
+    if ((data as any)[prop] !== undefined && (typeof (data as any)[prop] !== 'number' || !Number.isFinite((data as any)[prop]))) {
       return false;
     }
   }
   return true;
 }
 
-const app = express();
-const httpServer = createServer(app);
+const app: Express = express();
+const httpServer: HttpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: config.cors,
+  cors: {
+    origin: config.cors.origin,
+    credentials: true
+  },
   ...config.socketIO,
 });
 
-let yWebsocketServer = null;
-(async () => {
-  try {
-    const yUtils = await import('y-websocket/bin/utils');
-    const setupWSConnection = yUtils.setupWSConnection;
+const yWebsocketServer = new WebSocketServer({ noServer: true });
+yWebsocketServer.on('connection', (conn: WebSocket, req: import('http').IncomingMessage) => {
+  setupWSConnection(conn, req);
+});
 
-    yWebsocketServer = new WebSocketServer({ noServer: true });
-    yWebsocketServer.on('connection', (conn, req) => {
-      setupWSConnection(conn, req, { maxPayload: 1024 * 1024 });
+httpServer.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+  if (pathname === '/yjs' || pathname.startsWith('/yjs/')) {
+    yWebsocketServer.handleUpgrade(request, socket, head, (ws) => {
+      yWebsocketServer.emit('connection', ws, request);
     });
-
-    httpServer.on('upgrade', (request, socket, head) => {
-      const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
-      if (pathname === '/yjs' || pathname.startsWith('/yjs/')) {
-        yWebsocketServer.handleUpgrade(request, socket, head, (ws) => {
-          yWebsocketServer.emit('connection', ws, request);
-        });
-      }
-    });
-    console.log('Y-websocket server initialized');
-  } catch (err) {
-    console.error('Failed to initialize y-websocket:', err.message);
   }
-})();
+});
+console.log('Y-websocket server initialized');
 
-const updateQueues = new Map();
+const updateQueues = new Map<string, UpdateQueue>();
 
-function queueUpdate(workspaceId, elements, senderSocketId) {
+function queueUpdate(workspaceId: string, elements: WhiteboardElement[], senderSocketId: string): void {
   if (!workspaceService.workspaceExists(workspaceId)) {
     return;
   }
   if (!updateQueues.has(workspaceId)) {
     updateQueues.set(workspaceId, { elements: new Map(), senders: new Set() });
   }
-  const queue = updateQueues.get(workspaceId);
+  const queue = updateQueues.get(workspaceId)!;
   queue.senders.add(senderSocketId);
   elements.forEach(el => {
     if (el?.id) queue.elements.set(el.id, el);
@@ -213,7 +247,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(cors(config.cors));
+app.use(cors({
+  origin: config.cors.origin,
+  credentials: true
+}));
 app.use(express.json());
 
 const createWorkspaceLimiter = rateLimit({
@@ -234,49 +271,49 @@ if (config.isProduction) {
   app.use(express.static(join(__dirname, '../client')));
 }
 
-app.get('/', (req, res) => {
+app.get('/', (_req: Request, res: Response) => {
   const indexPath = config.isProduction
     ? join(__dirname, '../dist/index.html')
     : join(__dirname, '../client/index.html');
   res.sendFile(indexPath);
 });
 
-app.post('/api/workspaces', createWorkspaceLimiter, (req, res) => {
+app.post('/api/workspaces', createWorkspaceLimiter, (req: Request, res: Response) => {
   const workspaceId = workspaceService.generateKey();
   const userId = req.body.userId || workspaceService.generateKey(config.workspace.userIdLength);
   workspaceService.createWorkspace(workspaceId, userId);
   res.json({ workspaceId });
 });
 
-app.get('/w/:workspaceId', (req, res) => {
+app.get('/w/:workspaceId', (_req: Request, res: Response) => {
   const indexPath = config.isProduction
     ? join(__dirname, '../dist/index.html')
     : join(__dirname, '../client/index.html');
   res.sendFile(indexPath);
 });
 
-app.get('/api/workspace/:workspaceId', apiLimiter, (req, res) => {
-  const { workspaceId } = req.params;
-  if (!workspaceService.workspaceExists(workspaceId)) {
+app.get('/api/workspace/:workspaceId', apiLimiter, (req: Request, res: Response) => {
+  const workspaceId = req.params.workspaceId;
+  if (!workspaceId || !workspaceService.workspaceExists(workspaceId)) {
     return res.status(404).json({ error: 'Workspace not found' });
   }
   res.json({ exists: true });
 });
 
-io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
-  const currentWorkspaceRef = { current: null };
-  const currentUser = { id: socket.id, joinedAt: Date.now() };
+io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
+  const currentWorkspaceRef: CurrentWorkspaceRef = { current: null };
+  const currentUser: CurrentUser = { id: socket.id, joinedAt: Date.now() };
   workspaceService.setUserSession(socket.id, currentUser);
 
-  socket.on('error', (error) => {
+  socket.on('error', (error: Error) => {
     console.error(`Socket error for ${socket.id}:`, error);
   });
 
-  const eventCounts = new Map();
+  const eventCounts = new Map<string, RateLimitRecord>();
   const RATE_LIMIT_WINDOW = 1000;
   const MAX_EVENTS_PER_WINDOW = 50;
 
-  const checkRateLimit = (eventName) => {
+  const checkRateLimit = (eventName: string): boolean => {
     const now = Date.now();
     const key = `${socket.id}:${eventName}`;
     const record = eventCounts.get(key) || { count: 0, windowStart: now };
@@ -292,7 +329,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     return record.count <= MAX_EVENTS_PER_WINDOW;
   };
 
-  socket.on(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, ({ workspaceId }) => {
+  socket.on(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, ({ workspaceId }: { workspaceId: string }) => {
     try {
       const exists = workspaceService.workspaceExists(workspaceId);
       socket.emit(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, { workspaceId, exists });
@@ -302,8 +339,8 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.JOIN_WORKSPACE, (data) => {
-    const result = handlers.handleJoinWorkspace(data, {
+  socket.on(SOCKET_EVENTS.JOIN_WORKSPACE, async (data: any) => {
+    const result = await handlers.handleJoinWorkspace(data, {
       socket,
       io,
       currentUser,
@@ -318,7 +355,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.GET_SHARING_INFO, ({ workspaceId, userId, accessToken }) => {
+  socket.on(SOCKET_EVENTS.GET_SHARING_INFO, ({ workspaceId, userId, accessToken }: { workspaceId: string; userId?: string; accessToken?: string }) => {
     try {
       const workspace = workspaceService.getWorkspace(workspaceId);
       if (!workspace) return;
@@ -326,19 +363,19 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
       currentUser.accessToken = accessToken || currentUser.accessToken || null;
       if (userId) currentUser.userId = userId;
 
-      const { hasEditAccess, isOwner } = permissionService.calculateEditAccess(workspace, currentUser, accessToken);
+      const { hasEditAccess, isOwner } = permissionService.calculateEditAccess(workspace, toUser(currentUser), accessToken);
       currentUser.isOwner = isOwner;
       currentUser.hasEditAccess = hasEditAccess;
 
-      permissionService.validateAndSetToken(workspace, accessToken, currentUser);
-      socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, currentUser));
+      permissionService.validateAndSetToken(workspace, accessToken, toUser(currentUser));
+      socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, toUser(currentUser)));
     } catch (error) {
       console.error('GET_SHARING_INFO error:', error);
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to get sharing info' });
     }
   });
 
-  socket.on(SOCKET_EVENTS.GET_ACTIVE_USERS, ({ workspaceId }) => {
+  socket.on(SOCKET_EVENTS.GET_ACTIVE_USERS, ({ workspaceId }: { workspaceId: string }) => {
     try {
       const users = workspaceService.getWorkspaceUsers(workspaceId);
       socket.emit(SOCKET_EVENTS.ACTIVE_USERS_UPDATE, { activeUsers: users });
@@ -348,7 +385,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.WHITEBOARD_UPDATE, (data) => {
+  socket.on(SOCKET_EVENTS.WHITEBOARD_UPDATE, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.WHITEBOARD_UPDATE)) {
       return;
     }
@@ -359,7 +396,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, (data) => {
+  socket.on(SOCKET_EVENTS.WHITEBOARD_CLEAR, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.WHITEBOARD_CLEAR)) {
       return;
     }
@@ -369,7 +406,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.REQUEST_CANVAS_STATE, (workspaceId) => {
+  socket.on(SOCKET_EVENTS.REQUEST_CANVAS_STATE, (workspaceId: string) => {
     try {
       const state = workspaceService.getWorkspaceState(workspaceId);
       if (state) socket.emit(SOCKET_EVENTS.WORKSPACE_STATE, state);
@@ -379,7 +416,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.DELETE_ELEMENT, (data) => {
+  socket.on(SOCKET_EVENTS.DELETE_ELEMENT, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.DELETE_ELEMENT)) {
       return;
     }
@@ -389,7 +426,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.DELETE_DIAGRAM, (data) => {
+  socket.on(SOCKET_EVENTS.DELETE_DIAGRAM, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.DELETE_DIAGRAM)) {
       return;
     }
@@ -399,7 +436,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.CODE_UPDATE, (data) => {
+  socket.on(SOCKET_EVENTS.CODE_UPDATE, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.CODE_UPDATE)) {
       return;
     }
@@ -409,7 +446,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, (data) => {
+  socket.on(SOCKET_EVENTS.DIAGRAM_UPDATE, (data: any) => {
     if (!checkRateLimit(SOCKET_EVENTS.DIAGRAM_UPDATE)) {
       return;
     }
@@ -419,7 +456,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.CURSOR_POSITION, ({ workspaceId, position, userColor, animalKey }) => {
+  socket.on(SOCKET_EVENTS.CURSOR_POSITION, ({ workspaceId, position, userColor, animalKey }: { workspaceId: string; position: unknown; userColor: unknown; animalKey: unknown }) => {
     if (!checkRateLimit(SOCKET_EVENTS.CURSOR_POSITION)) {
       return;
     }
@@ -448,7 +485,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_START, ({ workspaceId, drawingId, color, brushWidth }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_START, ({ workspaceId, drawingId, color, brushWidth }: { workspaceId: string; drawingId: unknown; color: unknown; brushWidth: unknown }) => {
     try {
       // Validate input parameters
       if (!isValidDrawingId(drawingId)) {
@@ -477,7 +514,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_STREAM, ({ workspaceId, drawingId, points }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_STREAM, ({ workspaceId, drawingId, points }: { workspaceId: string; drawingId: unknown; points: unknown }) => {
     if (!checkRateLimit(SOCKET_EVENTS.DRAWING_STREAM)) {
       return;
     }
@@ -503,7 +540,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_END, ({ workspaceId, drawingId }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_END, ({ workspaceId, drawingId }: { workspaceId: string; drawingId: unknown }) => {
     try {
       // Validate input parameter
       if (!isValidDrawingId(drawingId)) {
@@ -521,7 +558,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, ({ workspaceId, shapeId, shapeType, data }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, ({ workspaceId, shapeId, shapeType, data }: { workspaceId: string; shapeId: unknown; shapeType: unknown; data: unknown }) => {
     try {
       // Validate input parameters
       if (!isValidShapeId(shapeId)) {
@@ -550,7 +587,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, ({ workspaceId, shapeId, data }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, ({ workspaceId, shapeId, data }: { workspaceId: string; shapeId: unknown; data: unknown }) => {
     if (!checkRateLimit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE)) {
       return;
     }
@@ -576,7 +613,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, ({ workspaceId, shapeId }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, ({ workspaceId, shapeId }: { workspaceId: string; shapeId: unknown }) => {
     try {
       // Validate input parameter
       if (!isValidShapeId(shapeId)) {
@@ -594,11 +631,11 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.GET_EDIT_TOKEN, (data, callback) => {
-    handlers.handleGetEditToken(data, callback, { currentUser });
+  socket.on(SOCKET_EVENTS.GET_EDIT_TOKEN, (data: any, callback: (result: any) => void) => {
+    handlers.handleGetEditToken(data, callback, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.SET_EDIT_TOKEN, (data) => {
+  socket.on(SOCKET_EVENTS.SET_EDIT_TOKEN, (data: any) => {
     handlers.handleSetEditToken(data, {
       socket,
       io,
@@ -606,11 +643,11 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.INVITE_USER, (data, callback) => {
+  socket.on(SOCKET_EVENTS.INVITE_USER, (data: any, callback: (result: any) => void) => {
     handlers.handleInviteUser(data, callback, { socket, io, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.CHANGE_SHARING_MODE, (data) => {
+  socket.on(SOCKET_EVENTS.CHANGE_SHARING_MODE, (data: any) => {
     handlers.handleChangeSharingMode(data, {
       socket,
       io,
@@ -618,7 +655,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     });
   });
 
-  socket.on(SOCKET_EVENTS.END_SESSION, (data) => {
+  socket.on(SOCKET_EVENTS.END_SESSION, (data: any) => {
     handlers.handleEndSession(data, {
       socket,
       io,
@@ -637,20 +674,21 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
     handlers.handleDisconnect({
       socket,
       io,
+      currentUser,
       currentWorkspaceRef
     });
   });
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   console.error('Uncaught Exception:', error);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-io.on('error', (error) => {
+io.on('error', (error: Error) => {
   console.error('Socket.io error:', error);
 });
 

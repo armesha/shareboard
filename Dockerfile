@@ -21,7 +21,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY shared ./shared
 
-RUN npm ci --omit=dev --include=optional
+# Install all dependencies including dev dependencies for tsx
+RUN npm ci --include=optional
 
 COPY server ./server
 COPY --from=builder /app/dist ./dist
@@ -31,4 +32,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "server/index.js"]
+CMD ["npx", "tsx", "server/index.ts"]
