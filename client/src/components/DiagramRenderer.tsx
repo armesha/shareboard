@@ -33,7 +33,7 @@ interface PanPosition {
 }
 
 export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }: DiagramRendererProps) {
-  const { t } = useTranslation(['editor', 'common', 'workspace']);
+  const { t } = useTranslation(['editor', 'common', 'workspace', 'messages']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState<string | null>(null);
   const [editorHeight, setEditorHeight] = useState(50);
@@ -60,12 +60,38 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         setMermaidReady(true);
       }
     }).catch(err => {
-      setError((err as Error).message || 'Failed to load diagram renderer');
+      setError((err as Error).message || t('messages:errors.diagramRenderFailed'));
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
+
+  const formatMermaidError = useCallback((err: unknown) => {
+    const fallback = t('messages:errors.diagramRenderFailed');
+    if (!err) return fallback;
+
+    const rawMessage = typeof err === 'string'
+      ? err
+      : (err as Error)?.message || fallback;
+
+    // Keep only the useful part of Mermaid parse errors and drop noisy tokens
+    const lines = rawMessage.replace(/^\[mermaid\]\s*/i, '').trim().split('\n').map(line => line.trimEnd());
+    const parseIdx = lines.findIndex(line => line.toLowerCase().includes('parse error'));
+
+    if (parseIdx !== -1) {
+      const parseLines = [lines[parseIdx], lines[parseIdx + 1], lines[parseIdx + 2]].filter(Boolean);
+
+      // If Mermaid packed everything into one line with a long "Expecting ..." list, strip the noisy part
+      if (parseLines.length === 1 && /Expecting\s+/i.test(parseLines[0])) {
+        return parseLines[0].split(/Expecting\s+/i)[0].trim();
+      }
+
+      return parseLines.join('\n');
+    }
+
+    return rawMessage || fallback;
+  }, [t]);
 
   const renderDiagram = useCallback(async (diagramContent: string) => {
     if (!diagramRef.current || !diagramContent.trim() || isRenderingRef.current) return;
@@ -91,7 +117,10 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
 
       // Sanitize SVG content to prevent XSS attacks
       const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
-        USE_PROFILES: { svg: true, svgFilters: true }
+        // Allow foreignObject + HTML tags so Mermaid labels survive while keeping SVG sanitized
+        USE_PROFILES: { svg: true, svgFilters: true, html: true },
+        ADD_TAGS: ['foreignObject'],
+        ADD_ATTR: ['class', 'style', 'xmlns']
       });
 
       diagramRef.current.innerHTML = sanitizedSvg;
@@ -113,11 +142,11 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
 
       setError(null);
     } catch (err) {
-      setError((err as Error).message || 'Failed to render diagram');
+      setError(formatMermaidError(err));
     } finally {
       isRenderingRef.current = false;
     }
-  }, []);
+  }, [formatMermaidError]);
 
   useEffect(() => {
     if (!mermaidReady || !content.trim()) return;
@@ -291,7 +320,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
             placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
           />
           {error && (
-            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200 shrink-0">
+            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200 shrink-0" style={{ whiteSpace: 'pre-wrap' }}>
               {error}
             </div>
           )}
