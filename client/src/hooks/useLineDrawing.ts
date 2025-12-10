@@ -1,7 +1,7 @@
 import { useCallback, useRef, useMemo, type MutableRefObject } from 'react';
 import { Line, type Canvas } from 'fabric';
 import { v4 as uuidv4 } from 'uuid';
-import { TOOLS, SOCKET_EVENTS, TIMING } from '../constants';
+import { ARROW, TOOLS, SOCKET_EVENTS, TIMING } from '../constants';
 import { getWorkspaceId } from '../utils';
 import { createBatchedRender } from '../utils/batchedRender';
 import { Arrow } from '../utils/fabricArrow';
@@ -74,7 +74,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
     if (tool === TOOLS.ARROW) {
       lineObj = new Arrow(points, {
         ...commonProps,
-        headLength: Math.max(width * 3, 12),
+        headLength: Math.max(width * ARROW.HEAD_LENGTH_MULTIPLIER, ARROW.MIN_HEAD_LENGTH),
       });
     } else {
       lineObj = new Line(points, commonProps);
@@ -99,7 +99,7 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
             stroke: color,
             strokeWidth: width,
             strokeLineCap: 'round',
-            headLength: tool === TOOLS.ARROW ? Math.max(width * 3, 12) : undefined,
+            headLength: tool === TOOLS.ARROW ? Math.max(width * ARROW.HEAD_LENGTH_MULTIPLIER, ARROW.MIN_HEAD_LENGTH) : undefined,
           }
         });
       }
@@ -184,9 +184,9 @@ export function useLineDrawing({ canvas, tool, color, width, addElement, disable
       });
       line.setCoords();
 
-      const additionalProps = line instanceof Arrow ? ['id', 'headLength', 'headAngle'] : ['id'];
-      // @ts-expect-error - Fabric.js toObject has strict parameter types, but string[] works at runtime
-      const baseData = line.toObject(additionalProps);
+      const baseData = line instanceof Arrow
+        ? (line as Arrow).toObject(['id', 'headLength', 'headAngle'])
+        : (line.toObject as (props?: string[]) => Record<string, unknown>)(['id']);
       addElement({
         id: (line as unknown as { id: string }).id,
         type: line.type,

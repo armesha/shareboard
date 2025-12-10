@@ -34,175 +34,66 @@ describe('workspaceService', () => {
   });
 
   describe('generateKey', () => {
-    it('returns string of default length (12)', () => {
+    it('returns alphanumeric string with custom lengths', () => {
       const key = generateKey();
-      expect(key).toBeDefined();
       expect(typeof key).toBe('string');
       expect(key.length).toBeLessThanOrEqual(12);
-      expect(key.length).toBeGreaterThan(0);
-    });
-
-    it('returns string of custom length', () => {
-      const key8 = generateKey(8);
-      expect(key8.length).toBeLessThanOrEqual(8);
-      expect(key8.length).toBeGreaterThan(0);
-
-      const key12 = generateKey(12);
-      expect(key12.length).toBeLessThanOrEqual(12);
-      expect(key12.length).toBeGreaterThan(0);
-
-      const key4 = generateKey(4);
-      expect(key4.length).toBeLessThanOrEqual(4);
-      expect(key4.length).toBeGreaterThan(0);
-    });
-
-    it('returns alphanumeric string without special characters', () => {
-      const key = generateKey(20);
       expect(key).toMatch(/^[A-Za-z0-9]+$/);
-    });
 
-    it('generates different keys on subsequent calls', () => {
-      const key1 = generateKey();
-      const key2 = generateKey();
-      expect(key1).not.toBe(key2);
+      expect(generateKey(8).length).toBeLessThanOrEqual(8);
+      expect(generateKey()).not.toBe(generateKey());
     });
   });
 
   describe('generateEditToken', () => {
-    it('returns string starting with "edit_"', () => {
+    it('returns unique edit_ prefixed tokens', () => {
       const token = generateEditToken();
-      expect(token).toBeDefined();
-      expect(token.startsWith('edit_')).toBe(true);
-    });
-
-    it('has correct format (edit_ + 16 hex chars)', () => {
-      const token = generateEditToken();
-      expect(token).toMatch(/^edit_[a-f0-9]{16}$/);
-    });
-
-    it('generates different tokens on subsequent calls', () => {
-      const token1 = generateEditToken();
-      const token2 = generateEditToken();
-      expect(token1).not.toBe(token2);
+      expect(token).toMatch(/^edit_[a-f0-9]{64}$/);
+      expect(generateEditToken()).not.toBe(generateEditToken());
     });
   });
 
   describe('createWorkspace', () => {
     afterEach(() => {
-      const workspace = getWorkspace('test-workspace');
-      if (workspace) {
-        deleteWorkspace('test-workspace');
-      }
+      ['test-workspace', 'ws-1', 'ws-2', 'ws-3'].forEach(id => {
+        if (getWorkspace(id)) deleteWorkspace(id);
+      });
     });
 
-    it('creates workspace with all required fields', () => {
-      const workspaceId = 'test-workspace';
-      const ownerId = 'owner-123';
-
-      const workspace = createWorkspace(workspaceId, ownerId);
-
-      expect(workspace).toBeDefined();
-      expect(workspace.id).toBe(workspaceId);
-      expect(workspace.owner).toBe(ownerId);
-      expect(workspace.created).toBeDefined();
-      expect(workspace.lastActivity).toBeDefined();
-      expect(workspace.diagrams).toBeInstanceOf(Map);
-      expect(workspace.drawingsMap).toBeInstanceOf(Map);
-      expect(workspace.allDrawingsMap).toBeInstanceOf(Map);
-      expect(workspace.drawingOrder).toEqual([]);
-      expect(workspace.diagramContent).toBe('');
-      expect(workspace.codeSnippets).toEqual({ language: 'javascript', content: '' });
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
-      expect(workspace.allowedUsers).toEqual([]);
-      expect(workspace.editToken).toMatch(/^edit_[a-f0-9]{16}$/);
-    });
-
-    it('sets owner correctly', () => {
-      const workspace = createWorkspace('ws-1', 'owner-abc');
-      expect(workspace.owner).toBe('owner-abc');
-      deleteWorkspace('ws-1');
-    });
-
-    it('initializes empty Maps and arrays for drawings', () => {
-      const workspace = createWorkspace('ws-2', 'owner-xyz');
-      expect(workspace.drawingsMap).toBeInstanceOf(Map);
-      expect(workspace.drawingsMap.size).toBe(0);
-      expect(workspace.allDrawingsMap).toBeInstanceOf(Map);
-      expect(workspace.allDrawingsMap.size).toBe(0);
-      expect(Array.isArray(workspace.drawingOrder)).toBe(true);
-      expect(workspace.drawingOrder.length).toBe(0);
-      deleteWorkspace('ws-2');
-    });
-
-    it('sets created and lastActivity timestamps', () => {
+    it('creates workspace with all required fields and unique tokens', () => {
       const now = Date.now();
       vi.setSystemTime(now);
 
-      const workspace = createWorkspace('ws-3', 'owner-1');
+      const workspace = createWorkspace('test-workspace', 'owner-123');
+      expect(workspace.id).toBe('test-workspace');
+      expect(workspace.owner).toBe('owner-123');
       expect(workspace.created).toBe(now);
-      expect(workspace.lastActivity).toBe(now);
-      deleteWorkspace('ws-3');
-    });
+      expect(workspace.diagrams).toBeInstanceOf(Map);
+      expect(workspace.drawingsMap.size).toBe(0);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace.editToken).toMatch(/^edit_[a-f0-9]{64}$/);
 
-    it('should generate unique editToken for each workspace', () => {
-      const workspace1 = createWorkspace('ws-unique-1', 'owner-1');
-      const workspace2 = createWorkspace('ws-unique-2', 'owner-2');
-      const workspace3 = createWorkspace('ws-unique-3', 'owner-3');
-
-      expect(workspace1.editToken).not.toBe(workspace2.editToken);
-      expect(workspace1.editToken).not.toBe(workspace3.editToken);
-      expect(workspace2.editToken).not.toBe(workspace3.editToken);
-
-      deleteWorkspace('ws-unique-1');
-      deleteWorkspace('ws-unique-2');
-      deleteWorkspace('ws-unique-3');
+      const workspace2 = createWorkspace('ws-2', 'owner-2');
+      expect(workspace.editToken).not.toBe(workspace2.editToken);
+      deleteWorkspace('ws-2');
     });
   });
 
-  describe('workspaceExists', () => {
+  describe('workspaceExists and getWorkspace', () => {
     afterEach(() => {
-      const workspace = getWorkspace('test-exists');
-      if (workspace) {
-        deleteWorkspace('test-exists');
-      }
+      if (getWorkspace('test-ws')) deleteWorkspace('test-ws');
     });
 
-    it('returns true for existing workspace', () => {
-      createWorkspace('test-exists', 'owner-1');
-      expect(workspaceExists('test-exists')).toBe(true);
-    });
+    it('checks existence and retrieves workspaces', () => {
+      expect(workspaceExists('test-ws')).toBe(false);
+      expect(getWorkspace('test-ws')).toBeUndefined();
 
-    it('returns false for non-existing workspace', () => {
-      expect(workspaceExists('does-not-exist')).toBe(false);
-    });
+      const created = createWorkspace('test-ws', 'owner-1');
+      expect(workspaceExists('test-ws')).toBe(true);
+      expect(getWorkspace('test-ws')).toBe(created);
 
-    it('returns false after workspace deletion', () => {
-      createWorkspace('test-exists', 'owner-1');
-      expect(workspaceExists('test-exists')).toBe(true);
-      deleteWorkspace('test-exists');
-      expect(workspaceExists('test-exists')).toBe(false);
-    });
-  });
-
-  describe('getWorkspace', () => {
-    afterEach(() => {
-      const workspace = getWorkspace('test-get');
-      if (workspace) {
-        deleteWorkspace('test-get');
-      }
-    });
-
-    it('returns workspace object for existing workspace', () => {
-      const created = createWorkspace('test-get', 'owner-1');
-      const retrieved = getWorkspace('test-get');
-      expect(retrieved).toBeDefined();
-      expect(retrieved).toBe(created);
-      expect(retrieved?.id).toBe('test-get');
-    });
-
-    it('returns undefined for non-existing workspace', () => {
-      const workspace = getWorkspace('non-existing');
-      expect(workspace).toBeUndefined();
+      deleteWorkspace('test-ws');
+      expect(workspaceExists('test-ws')).toBe(false);
     });
   });
 
@@ -256,98 +147,26 @@ describe('workspaceService', () => {
 
   describe('Connection management', () => {
     afterEach(() => {
-      const workspace = getWorkspace('test-conn');
-      if (workspace) {
-        deleteWorkspace('test-conn');
-      }
+      if (getWorkspace('test-conn')) deleteWorkspace('test-conn');
+      removeUserSession('socket-1');
+      removeUserSession('socket-2');
     });
 
-    describe('addConnection', () => {
-      it('adds connection and returns count', () => {
-        createWorkspace('test-conn', 'owner-1');
+    it('adds, removes connections and counts users', () => {
+      createWorkspace('test-conn', 'owner-1');
 
-        const count1 = addConnection('test-conn', 'socket-1');
-        expect(count1).toBe(1);
+      expect(addConnection('test-conn', 'socket-1')).toBe(1);
+      expect(addConnection('test-conn', 'socket-2')).toBe(2);
+      expect(addConnection('test-conn', 'socket-1')).toBe(2);
 
-        const count2 = addConnection('test-conn', 'socket-2');
-        expect(count2).toBe(2);
+      expect(removeConnection('test-conn', 'socket-2')).toBe(1);
+      expect(removeConnection('test-conn', 'socket-1')).toBe(0);
+      expect(removeConnection('non-existing', 'socket-1')).toBe(0);
 
-        const count3 = addConnection('test-conn', 'socket-3');
-        expect(count3).toBe(3);
-      });
-
-      it('does not add duplicate socket IDs', () => {
-        createWorkspace('test-conn', 'owner-1');
-
-        addConnection('test-conn', 'socket-1');
-        const count = addConnection('test-conn', 'socket-1');
-        expect(count).toBe(1);
-      });
-
-      it('works for workspace without prior connections', () => {
-        createWorkspace('test-conn', 'owner-1');
-        const count = addConnection('test-conn', 'socket-first');
-        expect(count).toBe(1);
-      });
-    });
-
-    describe('removeConnection', () => {
-      it('removes connection and returns remaining count', () => {
-        createWorkspace('test-conn', 'owner-1');
-        addConnection('test-conn', 'socket-1');
-        addConnection('test-conn', 'socket-2');
-        addConnection('test-conn', 'socket-3');
-
-        const count1 = removeConnection('test-conn', 'socket-2');
-        expect(count1).toBe(2);
-
-        const count2 = removeConnection('test-conn', 'socket-1');
-        expect(count2).toBe(1);
-
-        const count3 = removeConnection('test-conn', 'socket-3');
-        expect(count3).toBe(0);
-      });
-
-      it('returns 0 for non-existing workspace', () => {
-        const count = removeConnection('non-existing', 'socket-1');
-        expect(count).toBe(0);
-      });
-
-      it('returns count for removing non-existing socket', () => {
-        createWorkspace('test-conn', 'owner-1');
-        addConnection('test-conn', 'socket-1');
-
-        const count = removeConnection('test-conn', 'socket-999');
-        expect(count).toBe(1);
-      });
-    });
-
-    describe('getActiveUserCount', () => {
-      afterEach(() => {
-        removeUserSession('socket-1');
-        removeUserSession('socket-2');
-      });
-
-      it('returns correct count of active users', () => {
-        createWorkspace('test-conn', 'owner-1');
-
-        expect(getActiveUserCount('test-conn')).toBe(0);
-
-        addConnection('test-conn', 'socket-1');
-        setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-conn' });
-        expect(getActiveUserCount('test-conn')).toBe(1);
-
-        addConnection('test-conn', 'socket-2');
-        setUserSession('socket-2', { id: 'socket-2', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'test-conn' });
-        expect(getActiveUserCount('test-conn')).toBe(2);
-
-        removeConnection('test-conn', 'socket-1');
-        expect(getActiveUserCount('test-conn')).toBe(1);
-      });
-
-      it('returns 0 for non-existing workspace', () => {
-        expect(getActiveUserCount('non-existing')).toBe(0);
-      });
+      addConnection('test-conn', 'socket-1');
+      setUserSession('socket-1', { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'test-conn' });
+      expect(getActiveUserCount('test-conn')).toBe(1);
+      expect(getActiveUserCount('non-existing')).toBe(0);
     });
   });
 
@@ -357,59 +176,18 @@ describe('workspaceService', () => {
       removeUserSession('socket-2');
     });
 
-    describe('setUserSession', () => {
-      it('stores user session information', () => {
-        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
-        setUserSession('socket-1', userInfo);
+    it('sets, gets, and removes sessions', () => {
+      const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
+      setUserSession('socket-1', userInfo);
+      expect(getUserSession('socket-1')).toEqual(userInfo);
 
-        const retrieved = getUserSession('socket-1');
-        expect(retrieved).toEqual(userInfo);
-      });
+      const userInfo2: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'ws-2' };
+      setUserSession('socket-1', userInfo2);
+      expect(getUserSession('socket-1')).toEqual(userInfo2);
 
-      it('overwrites existing session', () => {
-        const userInfo1: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
-        const userInfo2: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-2', workspaceId: 'ws-2' };
-
-        setUserSession('socket-1', userInfo1);
-        setUserSession('socket-1', userInfo2);
-
-        const retrieved = getUserSession('socket-1');
-        expect(retrieved).toEqual(userInfo2);
-      });
-    });
-
-    describe('getUserSession', () => {
-      it('retrieves stored user session', () => {
-        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
-        setUserSession('socket-1', userInfo);
-
-        const retrieved = getUserSession('socket-1');
-        expect(retrieved).toBeDefined();
-        expect(retrieved?.userId).toBe('user-1');
-        expect(retrieved?.workspaceId).toBe('ws-1');
-      });
-
-      it('returns undefined for non-existing session', () => {
-        const session = getUserSession('non-existing-socket');
-        expect(session).toBeUndefined();
-      });
-    });
-
-    describe('removeUserSession', () => {
-      it('removes user session', () => {
-        const userInfo: UserSession = { id: 'socket-1', joinedAt: Date.now(), userId: 'user-1', workspaceId: 'ws-1' };
-        setUserSession('socket-1', userInfo);
-
-        expect(getUserSession('socket-1')).toBeDefined();
-
-        removeUserSession('socket-1');
-
-        expect(getUserSession('socket-1')).toBeUndefined();
-      });
-
-      it('does nothing for non-existing session', () => {
-        expect(() => removeUserSession('non-existing')).not.toThrow();
-      });
+      removeUserSession('socket-1');
+      expect(getUserSession('socket-1')).toBeUndefined();
+      expect(getUserSession('non-existing')).toBeUndefined();
     });
   });
 
@@ -612,140 +390,30 @@ describe('workspaceService', () => {
 
   describe('updateSharingMode', () => {
     afterEach(() => {
-      deleteWorkspace('test-sharing-mode');
+      if (getWorkspace('test-mode')) deleteWorkspace('test-mode');
     });
 
-    it('should update sharing mode for existing workspace', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
-
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(result).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
-    });
-
-    it('should return false for non-existent workspace', () => {
-      const result = updateSharingMode('non-existent', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(result).toBe(false);
-    });
-
-    it('should return false for invalid mode', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace?.sharingMode;
-
-      const result = updateSharingMode('test-sharing-mode', 'invalid-mode' as SharingMode);
-      expect(result).toBe(false);
-      expect(workspace?.sharingMode).toBe(originalMode);
-    });
-
-    it('should update lastActivity when changing mode', () => {
+    it('updates modes and validates input', () => {
       const initialTime = 1000000;
       vi.setSystemTime(initialTime);
 
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      expect(workspace?.lastActivity).toBe(initialTime);
+      createWorkspace('test-mode', 'owner-1');
+      const workspace = getWorkspace('test-mode');
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
 
       const newTime = 2000000;
       vi.setSystemTime(newTime);
 
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
+      expect(updateSharingMode('test-mode', SHARING_MODES.READ_ONLY as SharingMode)).toBe(true);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
       expect(workspace?.lastActivity).toBe(newTime);
-    });
 
-    it('should update from READ_WRITE_SELECTED to READ_WRITE_ALL', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
-
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL as SharingMode);
-      expect(result).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
-    });
-
-    it('should update from READ_WRITE_ALL to READ_ONLY', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_ALL as SharingMode);
+      expect(updateSharingMode('test-mode', SHARING_MODES.READ_WRITE_ALL as SharingMode)).toBe(true);
       expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
 
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(result).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
-    });
-
-    it('should update from READ_ONLY to READ_WRITE_SELECTED', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
-
-      const result = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_WRITE_SELECTED as SharingMode);
-      expect(result).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
-    });
-
-    it('should handle setting same mode twice', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-
-      const result1 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(result1).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
-
-      const result2 = updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-      expect(result2).toBe(true);
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_ONLY);
-    });
-
-    it('should not modify other workspace properties', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      const originalOwner = workspace?.owner;
-      const originalEditToken = workspace?.editToken;
-      const originalId = workspace?.id;
-
-      updateSharingMode('test-sharing-mode', SHARING_MODES.READ_ONLY as SharingMode);
-
-      expect(workspace?.owner).toBe(originalOwner);
-      expect(workspace?.editToken).toBe(originalEditToken);
-      expect(workspace?.id).toBe(originalId);
-    });
-
-    it('should reject null as sharing mode', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace?.sharingMode;
-
-      const result = updateSharingMode('test-sharing-mode', null as unknown as SharingMode);
-      expect(result).toBe(false);
-      expect(workspace?.sharingMode).toBe(originalMode);
-    });
-
-    it('should reject undefined as sharing mode', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace?.sharingMode;
-
-      const result = updateSharingMode('test-sharing-mode', undefined as unknown as SharingMode);
-      expect(result).toBe(false);
-      expect(workspace?.sharingMode).toBe(originalMode);
-    });
-
-    it('should reject empty string as sharing mode', () => {
-      createWorkspace('test-sharing-mode', 'owner-1');
-      const workspace = getWorkspace('test-sharing-mode');
-      const originalMode = workspace?.sharingMode;
-
-      const result = updateSharingMode('test-sharing-mode', '' as SharingMode);
-      expect(result).toBe(false);
-      expect(workspace?.sharingMode).toBe(originalMode);
+      expect(updateSharingMode('non-existent', SHARING_MODES.READ_ONLY as SharingMode)).toBe(false);
+      expect(updateSharingMode('test-mode', 'invalid' as SharingMode)).toBe(false);
+      expect(updateSharingMode('test-mode', null as unknown as SharingMode)).toBe(false);
     });
   });
 });

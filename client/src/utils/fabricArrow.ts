@@ -85,14 +85,14 @@ export class Arrow<
     ctx.strokeStyle = origStrokeStyle;
   }
 
-  // @ts-expect-error - Fabric.js generic types are too strict for extension
+  // @ts-expect-error Fabric.js 6.x generic typing limitation for toObject override
   toObject(propertiesToInclude?: string[]): SerializedArrowProps {
+    const parentObj = (super.toObject as (props?: string[]) => Record<string, unknown>)(propertiesToInclude);
     return {
-      // @ts-expect-error - Fabric.js toObject parameter type mismatch
-      ...super.toObject(propertiesToInclude),
+      ...parentObj,
       headLength: this.headLength,
       headAngle: this.headAngle,
-    };
+    } as SerializedArrowProps;
   }
 
   static async fromObject<T extends TOptions<SerializedArrowProps>>(

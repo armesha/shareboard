@@ -21,7 +21,63 @@ export const GRID = {
 export const ARROW = {
   HEAD_LENGTH: 15,
   HEAD_ANGLE: Math.PI / 6,
+  MIN_HEAD_LENGTH: 12,
+  HEAD_LENGTH_MULTIPLIER: 3,
 } as const;
+
+export const SHAPE_GEOMETRY = {
+  STAR: {
+    POINTS: 10,
+    INNER_RADIUS_RATIO: 0.4,
+    ANGLE_START: Math.PI / 2,
+    ANGLE_STEP: Math.PI / 5,
+  },
+  PENTAGON: {
+    SIDES: 5,
+    ANGLE_STEP: (2 * Math.PI) / 5,
+  },
+  HEXAGON: {
+    SIDES: 6,
+    ANGLE_STEP: Math.PI / 3,
+  },
+  OCTAGON: {
+    SIDES: 8,
+    ANGLE_STEP: Math.PI / 4,
+  },
+  CROSS: {
+    ARM_WIDTH_DIVISOR: 3,
+  },
+  LINE_SNAP: {
+    HORIZONTAL_VERTICAL_RATIO: 2,
+  },
+} as const;
+
+export const FABRIC_TYPES = {
+  LINE: 'line',
+  ARROW: 'arrow',
+  RECT: 'rect',
+  CIRCLE: 'circle',
+  ELLIPSE: 'ellipse',
+  TRIANGLE: 'triangle',
+  TEXT: 'text',
+  I_TEXT: 'i-text',
+  PATH: 'path',
+  POLYGON: 'polygon',
+  IMAGE: 'image',
+  DIAGRAM: 'diagram',
+  GROUP: 'group',
+  STAR: 'star',
+  DIAMOND: 'diamond',
+  PENTAGON: 'pentagon',
+  HEXAGON: 'hexagon',
+  OCTAGON: 'octagon',
+  CROSS: 'cross',
+} as const;
+
+export type FabricType = typeof FABRIC_TYPES[keyof typeof FABRIC_TYPES];
+
+export const POLYGON_SHAPE_TYPES = ['triangle', 'star', 'diamond', 'pentagon', 'hexagon', 'octagon', 'cross'] as const;
+export type PolygonShapeType = typeof POLYGON_SHAPE_TYPES[number];
 
 export const ZOOM = {
   WHEEL_OUT_MULTIPLIER: 0.95,
@@ -94,13 +150,6 @@ export const INTERACTIVE_TYPES = [
 
 export type InteractiveType = typeof INTERACTIVE_TYPES[number];
 
-export const EXPORT_MODES = {
-  ALL_OBJECTS: 'all-objects',
-  CUSTOM_AREA: 'custom-area',
-} as const;
-
-export type ExportMode = typeof EXPORT_MODES[keyof typeof EXPORT_MODES];
-
 export const COLORS = {
   BG_WHITEBOARD: 'rgb(249, 250, 251)',
   DIAGRAM_BG: 'rgba(240, 240, 240, 0.5)',
@@ -119,6 +168,7 @@ export const DEFAULT_COLORS = {
   BLACK: '#000000',
   SELECTION: '#2196F3',
   SELECTION_BORDER: '#2196F3',
+  TRANSPARENT: 'transparent',
 } as const;
 
 export const FONT_SIZES = [12, 16, 20, 24, 32, 40, 48, 64, 80] as const;
@@ -173,6 +223,9 @@ export const TIMING = {
   CURSOR_TIMEOUT: 5000,
   DRAWING_STREAM_THROTTLE: 50,
   TOKEN_TTL_MS: 4 * 60 * 60 * 1000,
+  REMOTE_DRAWING_CLEANUP_DELAY: 100,
+  ELEMENT_Z_INDEX_UPDATE_DELAY: 0,
+  REMOTE_UPDATE_BLOCK_TIME: 500,
 } as const;
 
 export const CURSOR_COLORS = [
@@ -212,6 +265,16 @@ export const EXPORT = {
   FILENAME_PREFIX: 'shareboard-export',
 } as const;
 
+export const DIAGRAM_POSITION = {
+  HORIZONTAL_OFFSET_RATIO: 0.15,
+  VERTICAL_OFFSET_RATIO: 0.2,
+  SCALE_RATIO: 0.18,
+  FALLBACK_CENTER_X_RATIO: 0.3,
+  FALLBACK_CENTER_Y_RATIO: 0.2,
+  FALLBACK_SCALE_RATIO: 0.15,
+  IMAGE_SCALE_MULTIPLIER: 2.0,
+} as const;
+
 export const CANVAS = {
   EDGE_BUFFER: 40,
   DEFAULT_FONT_SIZE: 20,
@@ -226,6 +289,7 @@ export const CANVAS = {
   AUTO_PAN_INTERVAL: 16,
   EXPORT_PADDING: 50,
   EXPORT_MULTIPLIER: 2,
+  STROKE_MITER_LIMIT: 10,
   CUSTOM_CURSOR: "url(\"data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.48 0 .72-.58.38-.92L6.35 2.85a.5.5 0 0 0-.85.36Z' fill='%233b82f6' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E\") 5 3, auto",
 } as const;
 
@@ -270,7 +334,6 @@ export const CODE_EDITOR_LANGUAGES = [
 ] as const;
 
 export type CodeEditorLanguage = typeof CODE_EDITOR_LANGUAGES[number];
-export type LanguageValue = CodeEditorLanguage['value'];
 
 export const CODE_EXAMPLES = {
   javascript: `function greet(name) {
@@ -378,9 +441,6 @@ SELECT * FROM greetings WHERE name = 'World';`,
   }
 }`
 } as const;
-
-export type CodeExample = typeof CODE_EXAMPLES;
-export type CodeExampleKey = keyof CodeExample;
 
 export const SAMPLE_DIAGRAM = `graph TD
   A[Start] --> B{Is it?}

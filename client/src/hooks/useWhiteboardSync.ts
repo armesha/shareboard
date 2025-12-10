@@ -57,6 +57,10 @@ export function useWhiteboardSync(
       return;
     }
 
+    if (isUpdatingRef.current) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -111,8 +115,6 @@ export function useWhiteboardSync(
           });
           existingObject.setCoords();
         } else {
-          // Remove any temp remote shape with matching ID before adding permanent object
-          // This prevents duplicate shapes when temp and permanent sync overlap
           const tempObject = canvas.getObjects().find((obj) => {
             const tempObj = obj as unknown as { _shapeId?: string; _drawingId?: string };
             return tempObj._shapeId === element.id || tempObj._drawingId === element.id;

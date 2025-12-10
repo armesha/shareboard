@@ -28,6 +28,51 @@ export interface BatchConfig {
   interval: number;
 }
 
+export interface ValidationLimits {
+  drawing: {
+    maxIdLength: number;
+    maxShapeIdLength: number;
+    maxShapeTypeLength: number;
+    minBrushWidth: number;
+    maxBrushWidth: number;
+    maxPointsLength: number;
+  };
+  cursor: {
+    minPosition: number;
+    maxPosition: number;
+    maxColorLength: number;
+    maxAnimalKeyLength: number;
+  };
+  element: {
+    maxIdLength: number;
+    maxTextLength: number;
+    maxSrcLength: number;
+  };
+  workspace: {
+    maxElementsPerUpdate: number;
+    maxCodeLength: number;
+    maxDiagramLength: number;
+    maxDrawings: number;
+    maxUsersPerWorkspace: number;
+    maxLanguageLength: number;
+    minEditTokenLength: number;
+  };
+  rateLimit: {
+    ttlMs: number;
+    cleanupIntervalMs: number;
+    windowMs: number;
+    maxEventsPerWindow: number;
+    apiWindowMs: number;
+    apiMaxRequests: number;
+    wsWindowMs: number;
+    wsMaxRequests: number;
+  };
+  lock: {
+    retryDelayMs: number;
+    timeoutMs: number;
+  };
+}
+
 export interface Config {
   port: number | string;
   isProduction: boolean;
@@ -36,6 +81,7 @@ export interface Config {
   cleanup: CleanupConfig;
   workspace: WorkspaceConfig;
   batch: BatchConfig;
+  validation: ValidationLimits;
 }
 
 export const config: Config = {
@@ -63,5 +109,49 @@ export const config: Config = {
   },
   batch: {
     interval: 50
-  }
+  },
+  validation: {
+    drawing: {
+      maxIdLength: 64,
+      maxShapeIdLength: 64,
+      maxShapeTypeLength: 32,
+      minBrushWidth: 1,
+      maxBrushWidth: 100,
+      maxPointsLength: 10000,
+    },
+    cursor: {
+      minPosition: 0,
+      maxPosition: 10000,
+      maxColorLength: 32,
+      maxAnimalKeyLength: 32,
+    },
+    element: {
+      maxIdLength: 100,
+      maxTextLength: 2000,
+      maxSrcLength: 512000,
+    },
+    workspace: {
+      maxElementsPerUpdate: 100,
+      maxCodeLength: 500000,
+      maxDiagramLength: 100000,
+      maxDrawings: 5000,
+      maxUsersPerWorkspace: 100,
+      maxLanguageLength: 32,
+      minEditTokenLength: 13,
+    },
+    rateLimit: {
+      ttlMs: 60000,
+      cleanupIntervalMs: 30000,
+      windowMs: 1000,
+      maxEventsPerWindow: 50,
+      apiWindowMs: 60000,
+      apiMaxRequests: 10,
+      wsWindowMs: 60000,
+      wsMaxRequests: 100,
+    },
+    lock: {
+      retryDelayMs: 100,
+      timeoutMs: 5000,
+    },
+  },
 };

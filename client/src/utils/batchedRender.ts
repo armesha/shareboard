@@ -53,18 +53,3 @@ export function cancelBatchedRender(canvas: FabricCanvas): void {
 
   canvasRenderQueues.delete(canvas);
 }
-
-export function forceImmediateRender(canvas: FabricCanvas | null): void {
-  if (!canvas || !canvas.requestRenderAll) {
-    return;
-  }
-
-  const queue = canvasRenderQueues.get(canvas);
-  if (queue && queue.frameId !== null) {
-    cancelAnimationFrame(queue.frameId);
-    queue.pending = false;
-    queue.frameId = null;
-  }
-
-  canvas.requestRenderAll();
-}

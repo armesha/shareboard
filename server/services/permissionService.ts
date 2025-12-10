@@ -1,5 +1,6 @@
 import { SHARING_MODES } from '../config';
 import type { Workspace, User, EditAccessResult, SharingInfo } from '../types';
+import { safeCompareTokens } from '../utils/securityUtils';
 
 export function checkWritePermission(workspace: Workspace | null | undefined, user: User | null | undefined): boolean {
   if (!workspace || !user) return false;
@@ -17,7 +18,7 @@ export function checkWritePermission(workspace: Workspace | null | undefined, us
   }
 
   if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
-    if (token && workspace.editToken && token === workspace.editToken) return true;
+    if (safeCompareTokens(token, workspace.editToken)) return true;
     if (Array.isArray(workspace.allowedUsers) && workspace.allowedUsers.includes(user.userId)) return true;
     return false;
   }
@@ -52,7 +53,7 @@ export function calculateEditAccess(
     } else if (mode === SHARING_MODES.READ_WRITE_ALL) {
       hasEditAccess = true;
     } else if (mode === SHARING_MODES.READ_WRITE_SELECTED) {
-      if (token && workspace.editToken && token === workspace.editToken) {
+      if (safeCompareTokens(token, workspace.editToken)) {
         hasEditAccess = true;
       } else if (Array.isArray(workspace.allowedUsers) && workspace.allowedUsers.includes(user.userId)) {
         hasEditAccess = true;
@@ -63,8 +64,6 @@ export function calculateEditAccess(
   return { hasEditAccess, isOwner };
 }
 
-// Note: Token setting is only allowed via handleSetEditToken by owner
-// This function only validates existing tokens, it does NOT set new tokens
 export function validateAndSetToken(
   workspace: Workspace | null | undefined,
   accessToken: string | null | undefined,
@@ -72,9 +71,7 @@ export function validateAndSetToken(
 ): boolean {
   if (!workspace || !accessToken) return false;
 
-  // Only validate against existing token, never set a new one
-  // Token must be at least edit_ + 8 characters (13 total) for security
-  if (accessToken && workspace.editToken && accessToken === workspace.editToken) {
+  if (safeCompareTokens(accessToken, workspace.editToken)) {
     if (user) {
       user.hasEditAccess = true;
     }

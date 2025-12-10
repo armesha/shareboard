@@ -45,6 +45,7 @@ interface WhiteboardContextValue {
   elements: Element[];
   canvasRef: MutableRefObject<Canvas | null>;
   batchedRenderRef: MutableRefObject<(() => void) | null>;
+  isUpdatingRef: MutableRefObject<boolean>;
   isConnected: boolean;
   isLoading: boolean;
   connectionStatus: string;
@@ -186,6 +187,7 @@ export function WhiteboardProvider({ children }: WhiteboardProviderProps) {
     elements,
     canvasRef,
     batchedRenderRef,
+    isUpdatingRef,
     isConnected,
     isLoading,
     connectionStatus,
@@ -212,6 +214,7 @@ export function WhiteboardProvider({ children }: WhiteboardProviderProps) {
     elements,
     canvasRef,
     batchedRenderRef,
+    isUpdatingRef,
     isConnected,
     isLoading,
     connectionStatus,

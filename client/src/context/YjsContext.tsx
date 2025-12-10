@@ -34,13 +34,15 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
   const { t } = useTranslation('common');
   const sharingContext = useSharing();
   const currentUser = sharingContext?.currentUser;
+  const accessToken = sharingContext?.accessToken;
+  const sharingInfoReceived = sharingContext?.sharingInfoReceived;
   const [doc] = useState(() => new Y.Doc());
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [status, setStatus] = useState<YjsStatus>('disconnected');
   const [synced, setSynced] = useState(false);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId || !sharingInfoReceived) return;
 
     const seed = currentUser || workspaceId;
     const color = pickColor(seed);
@@ -49,7 +51,19 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
     const animalName = t(`animals.${animalKey}`);
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const port = window.location.port ? `:${window.location.port}` : '';
-    const url = `${protocol}://${window.location.hostname}${port}/yjs`;
+    const params = new URLSearchParams();
+
+    if (currentUser) {
+      params.set('userId', currentUser);
+    }
+    if (accessToken) {
+      params.set('accessToken', accessToken);
+    }
+
+    const query = params.toString();
+    const baseUrl = `${protocol}://${window.location.hostname}${port}/yjs`;
+    const url = query ? `${baseUrl}?${query}` : baseUrl;
+
     const wsProvider = new WebsocketProvider(
       url,
       workspaceId,
@@ -83,7 +97,7 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
       setStatus('disconnected');
       setSynced(false);
     };
-  }, [workspaceId, currentUser, doc, t]);
+  }, [workspaceId, currentUser, accessToken, sharingInfoReceived, doc, t]);
 
   const value = useMemo((): YjsContextValue => ({
     doc,

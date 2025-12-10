@@ -57,7 +57,6 @@ export function useWhiteboardElements(): UseWhiteboardElementsReturn {
 
     switch (element.type) {
       case 'path': {
-        // Exclude read-only 'type' property (Fabric.js 6.x)
         const { type: _type, ...pathOptions } = data;
         obj = new Path(data.path as string, {
           ...pathOptions,
@@ -66,14 +65,13 @@ export function useWhiteboardElements(): UseWhiteboardElementsReturn {
           fill: undefined,
           strokeLineCap: 'round',
           strokeLineJoin: 'round',
-          strokeMiterLimit: 10,
+          strokeMiterLimit: CANVAS.STROKE_MITER_LIMIT,
           perPixelTargetFind: true
         });
         break;
       }
 
       case 'text': {
-        // Exclude read-only 'type' property (Fabric.js 6.x)
         const { type: _textType, ...textOptions } = data;
         obj = new IText((data.text as string) || '', {
           ...textOptions,
@@ -108,7 +106,6 @@ export function useWhiteboardElements(): UseWhiteboardElementsReturn {
         break;
       }
       case 'line': {
-        // Exclude read-only 'type' and coordinates (passed as points array)
         const { left: _left1, top: _top1, type: _type1, x1, y1, x2, y2, ...lineOptions } = data;
         obj = new Line(
           [x1 as number, y1 as number, x2 as number, y2 as number],
@@ -117,7 +114,6 @@ export function useWhiteboardElements(): UseWhiteboardElementsReturn {
         break;
       }
       case 'arrow': {
-        // Exclude read-only 'type' and coordinates (passed as points array)
         const { left: _left2, top: _top2, type: _type2, x1, y1, x2, y2, ...arrowOptions } = data;
         obj = new Arrow(
           [x1 as number, y1 as number, x2 as number, y2 as number],

@@ -93,8 +93,6 @@ export function useCursorSync(): UseCursorSyncReturn {
       const translatedName = animalKey ? t(`animals.${animalKey}`) : 'User';
       const color = userColor || (CURSOR_COLORS[0] as CursorColor).color;
 
-      // Update cursor position directly without interpolation
-      // This syncs with drawing which also updates without interpolation
       setRemoteCursors(prev => ({
         ...prev,
         [userId]: {

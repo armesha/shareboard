@@ -8,6 +8,7 @@ import type {
   WorkspaceState,
   WhiteboardElement
 } from '../types';
+import * as yjsUtils from '../yjs-utils';
 
 const workspaces = new Map<string, Workspace>();
 const activeConnections = new Map<string, Set<string>>();
@@ -22,7 +23,7 @@ export function generateKey(length: number = config.workspace.keyLength): string
 }
 
 export function generateEditToken(): string {
-  return `edit_${crypto.randomBytes(8).toString('hex')}`;
+  return `edit_${crypto.randomBytes(32).toString('hex')}`;
 }
 
 export function createWorkspace(workspaceId: string, ownerId: string): Workspace {
@@ -57,6 +58,8 @@ export function workspaceExists(workspaceId: string): boolean {
 export function deleteWorkspace(workspaceId: string): void {
   workspaces.delete(workspaceId);
   activeConnections.delete(workspaceId);
+
+  yjsUtils.cleanupYjsDoc(workspaceId);
 }
 
 export function updateLastActivity(workspaceId: string): void {
@@ -147,6 +150,9 @@ export function cleanupInactiveWorkspaces(): string[] {
       console.log(`Cleaning up inactive workspace: ${workspaceId}`);
       workspaces.delete(workspaceId);
       activeConnections.delete(workspaceId);
+
+      yjsUtils.cleanupYjsDoc(workspaceId);
+
       removed.push(workspaceId);
     }
   }

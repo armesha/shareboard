@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
 import debounce from 'lodash/debounce';
@@ -88,7 +89,12 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      diagramRef.current.innerHTML = svgWithAttrs;
+      // Sanitize SVG content to prevent XSS attacks
+      const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
+        USE_PROFILES: { svg: true, svgFilters: true }
+      });
+
+      diagramRef.current.innerHTML = sanitizedSvg;
 
       const svgElement = diagramRef.current.querySelector('svg');
       if (svgElement) {

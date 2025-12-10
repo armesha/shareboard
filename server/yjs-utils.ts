@@ -10,14 +10,27 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import type { IncomingMessage } from 'http';
 import type WebSocket from 'ws';
+import * as workspaceService from './services/workspaceService';
+import * as permissionService from './services/permissionService';
+import { SHARING_MODES } from './config';
+import type { User } from './types';
 
 const messageSync = 0;
 const messageAwareness = 1;
+const messageSyncStep2 = 1;
 
 // Store docs in memory (no persistence needed)
 const docs = new Map<string, WSSharedDoc>();
 
+// Store write permissions per connection
+const connPermissions = new WeakMap<WebSocket, boolean>();
+
 const PING_TIMEOUT = 30000;
+
+// Rate limiting for connection attempts
+const connectionAttempts = new Map<string, { count: number; windowStart: number }>();
+const MAX_ATTEMPTS_PER_MINUTE = 10;
+const RATE_LIMIT_WINDOW = 60000; // 1 minute in milliseconds
 
 export class WSSharedDoc extends Y.Doc {
   name: string;
@@ -78,13 +91,24 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
     const messageType = decoding.readVarUint(decoder);
 
     switch (messageType) {
-      case messageSync:
+      case messageSync: {
+        const syncMessageType = decoding.readVarUint(decoder);
+        const hasWriteAccess = connPermissions.get(conn) ?? false;
+
+        if (syncMessageType === messageSyncStep2 && !hasWriteAccess) {
+          return;
+        }
+
+        const syncDecoder = decoding.createDecoder(message);
+        decoding.readVarUint(syncDecoder);
+
         encoding.writeVarUint(encoder, messageSync);
-        syncProtocol.readSyncMessage(decoder, encoder, doc, conn);
+        syncProtocol.readSyncMessage(syncDecoder, encoder, doc, conn);
         if (encoding.length(encoder) > 1) {
           send(doc, conn, encoding.toUint8Array(encoder));
         }
         break;
+      }
       case messageAwareness:
         awarenessProtocol.applyAwarenessUpdate(
           doc.awareness,
@@ -132,16 +156,109 @@ function send(doc: WSSharedDoc, conn: WebSocket, message: Uint8Array): void {
   }
 }
 
+/**
+ * Cleanup Yjs document for a specific workspace
+ * Should be called when workspace is deleted or cleaned up
+ */
+export function cleanupYjsDoc(workspaceId: string): void {
+  const doc = docs.get(workspaceId);
+  if (!doc) {
+    return;
+  }
+
+  // Close all active connections
+  const connections = Array.from(doc.conns.keys());
+  connections.forEach((conn) => {
+    closeConn(doc, conn);
+  });
+
+  // Remove the document from the docs map
+  docs.delete(workspaceId);
+
+  console.log(`Cleaned up Yjs document for workspace: ${workspaceId}`);
+}
+
 export function setupWSConnection(
   conn: WebSocket,
   req: IncomingMessage,
-  options: { docName?: string; gc?: boolean } = {}
+  options?: { docName?: string; gc?: boolean }
 ): void {
   conn.binaryType = 'arraybuffer';
+  const opts = options ?? {};
 
-  // Get doc name from URL or options
-  const docName = options.docName || req.url?.slice(1).split('?')[0] || 'default';
-  const doc = getYDoc(docName);
+  // Extract client IP for rate limiting
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const clientIp = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.toString())
+    || req.socket.remoteAddress
+    || 'unknown';
+
+  // Rate limiting: check connection attempts per IP
+  const now = Date.now();
+  const attempts = connectionAttempts.get(clientIp) || { count: 0, windowStart: now };
+
+  // Reset window if expired
+  if (now - attempts.windowStart > RATE_LIMIT_WINDOW) {
+    attempts.count = 0;
+    attempts.windowStart = now;
+  }
+
+  // Check if rate limit exceeded
+  if (attempts.count >= MAX_ATTEMPTS_PER_MINUTE) {
+    console.log(`Yjs connection rejected: rate limit exceeded for IP ${clientIp}`);
+    conn.close(4429, 'Too many connection attempts');
+    connectionAttempts.set(clientIp, attempts);
+    return;
+  }
+
+  // Increment attempt counter
+  attempts.count++;
+  connectionAttempts.set(clientIp, attempts);
+
+  // Extract workspaceId from URL path
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const pathname = url.pathname;
+  const pathPart = pathname.slice(1).split('?')[0] ?? '';
+  const workspaceId = opts.docName ?? (pathPart.replace(/^yjs\//, '') || 'default');
+
+  // Extract user identity and access token from query params
+  const userId = url.searchParams.get('userId') || 'yjs-connection';
+  const accessToken = url.searchParams.get('accessToken');
+
+  // Validate workspace access
+  const workspace = workspaceService.getWorkspace(workspaceId);
+  if (!workspace) {
+    console.log(`Yjs connection rejected: workspace ${workspaceId} not found`);
+    conn.close(4404, 'Workspace not found');
+    return;
+  }
+
+  // Create a user object for permission checks
+  const user: User = {
+    userId,
+    accessToken: accessToken || null,
+    hasEditAccess: false,
+    isOwner: userId === workspace.owner
+  };
+
+  // Check access based on sharing mode
+  const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
+  let hasWriteAccess = false;
+
+  if (mode === SHARING_MODES.READ_WRITE_ALL) {
+    hasWriteAccess = true;
+  } else if (mode === SHARING_MODES.READ_ONLY) {
+    hasWriteAccess = false;
+  } else {
+    hasWriteAccess = permissionService.checkWritePermission(workspace, user);
+  }
+
+  if (hasWriteAccess) {
+    user.hasEditAccess = true;
+  }
+
+  connPermissions.set(conn, hasWriteAccess);
+
+  const doc = getYDoc(workspaceId);
 
   doc.conns.set(conn, new Set());
 

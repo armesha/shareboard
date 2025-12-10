@@ -114,6 +114,7 @@ export interface HandlerResult {
   editToken?: string;
   userId?: string;
   disconnectedClients?: string[];
+  skippedDuplicate?: boolean;
 }
 
 export interface HandlerData {
@@ -140,17 +141,9 @@ export interface DeleteElementData extends HandlerData {
   elementId: string;
 }
 
-export interface DeleteDiagramData extends HandlerData {
-  diagramId: string;
-}
-
 export interface CodeUpdateData extends HandlerData {
   language: string;
   content?: string;
-}
-
-export interface DiagramUpdateData extends HandlerData {
-  content: string;
 }
 
 export interface ChangeSharingModeData extends HandlerData {
@@ -161,10 +154,6 @@ export interface GetEditTokenData extends HandlerData {}
 
 export interface SetEditTokenData extends HandlerData {
   editToken: string;
-}
-
-export interface InviteUserData extends HandlerData {
-  email: string;
 }
 
 export interface EndSessionData extends HandlerData {}
