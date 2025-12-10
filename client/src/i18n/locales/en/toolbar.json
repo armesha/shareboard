@@ -63,7 +63,8 @@
     "title": "Export Preview",
     "selectAll": "Select All",
     "clearSelection": "Clear",
-    "customAreaSelected": "Area selected",
+    "fullAreaSelected": "Full area selected",
+    "customAreaSelected": "Custom area selected",
     "drawOrSelectAll": "Draw selection or click 'Select All'",
     "downloadImage": "Download",
     "generatingPreview": "Generating preview..."

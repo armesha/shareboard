@@ -63,7 +63,8 @@
     "title": "Náhled exportu",
     "selectAll": "Vybrat vše",
     "clearSelection": "Zrušit",
-    "customAreaSelected": "Oblast vybrána",
+    "fullAreaSelected": "Celá oblast vybrána",
+    "customAreaSelected": "Vlastní oblast vybrána",
     "drawOrSelectAll": "Nakreslete výběr nebo klikněte 'Vybrat vše'",
     "downloadImage": "Stáhnout",
     "generatingPreview": "Generování náhledu..."

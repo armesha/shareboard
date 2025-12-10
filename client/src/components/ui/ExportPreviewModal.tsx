@@ -50,27 +50,21 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
 }: ExportPreviewModalProps) {
   const { t } = useTranslation(['toolbar', 'common']);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [isFullAreaSelected, setIsFullAreaSelected] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const handleSelectAll = useCallback(() => {
-    if (!objectsBounds || !imgRef.current || !canvasDimensions) return;
-    const img = imgRef.current;
-    const scaleX = img.clientWidth / canvasDimensions.width;
-    const scaleY = img.clientHeight / canvasDimensions.height;
-
-    setSelection({
-      left: objectsBounds.left * scaleX,
-      top: objectsBounds.top * scaleY,
-      width: objectsBounds.width * scaleX,
-      height: objectsBounds.height * scaleY
-    });
-  }, [objectsBounds, canvasDimensions]);
+    if (!objectsBounds) return;
+    setSelection(null);
+    setIsFullAreaSelected(true);
+  }, [objectsBounds]);
 
   const handleClearSelection = useCallback(() => {
     setSelection(null);
+    setIsFullAreaSelected(false);
   }, []);
 
   const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
@@ -86,6 +80,7 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
     setIsSelecting(true);
     setStartPoint({ x, y });
     setSelection({ left: x, top: y, width: 0, height: 0 });
+    setIsFullAreaSelected(false);
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
@@ -114,21 +109,32 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
   const handleDownload = useCallback(() => {
     if (!fullCanvasImage || !canvasDimensions) return;
 
-    if (!selection || selection.width < 10 || !imgRef.current) {
+    const hasCustomSelection = selection && selection.width >= 10 && imgRef.current;
+    const hasFullArea = isFullAreaSelected && objectsBounds;
+
+    if (!hasCustomSelection && !hasFullArea) {
       onDownload(fullCanvasImage);
       return;
     }
 
-    const img = imgRef.current;
-    const scaleX = canvasDimensions.width / img.clientWidth;
-    const scaleY = canvasDimensions.height / img.clientHeight;
+    let cropBounds: { left: number; top: number; width: number; height: number };
 
-    const cropBounds = {
-      left: selection.left * scaleX,
-      top: selection.top * scaleY,
-      width: selection.width * scaleX,
-      height: selection.height * scaleY
-    };
+    if (hasFullArea) {
+      cropBounds = objectsBounds;
+    } else if (hasCustomSelection) {
+      const img = imgRef.current!;
+      const scaleX = canvasDimensions.width / img.clientWidth;
+      const scaleY = canvasDimensions.height / img.clientHeight;
+      cropBounds = {
+        left: selection!.left * scaleX,
+        top: selection!.top * scaleY,
+        width: selection!.width * scaleX,
+        height: selection!.height * scaleY
+      };
+    } else {
+      onDownload(fullCanvasImage);
+      return;
+    }
 
     const image = new Image();
     image.onload = () => {
@@ -150,11 +156,12 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
       }
     };
     image.src = fullCanvasImage;
-  }, [fullCanvasImage, canvasDimensions, selection, onDownload]);
+  }, [fullCanvasImage, canvasDimensions, selection, isFullAreaSelected, objectsBounds, onDownload]);
 
   if (!isOpen) return null;
 
-  const hasSelection = selection && selection.width > 10;
+  const hasCustomSelection = selection && selection.width > 10;
+  const hasAnySelection = hasCustomSelection || isFullAreaSelected;
 
   return createPortal(
     <div className="modal-overlay">
@@ -170,12 +177,16 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
           <button
             onClick={handleSelectAll}
             disabled={!objectsBounds}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isFullAreaSelected
+                ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
           >
             <SelectAllIcon fontSize="small" />
             {t('export.selectAll')}
           </button>
-          {hasSelection && (
+          {hasAnySelection && (
             <button
               onClick={handleClearSelection}
               className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
@@ -203,7 +214,7 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
                 className="block max-w-full max-h-[60vh] select-none border border-gray-300 rounded"
                 draggable={false}
               />
-              {hasSelection && (
+              {hasCustomSelection && selection && (
                 <div
                   className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
                   style={{
@@ -224,7 +235,11 @@ const ExportPreviewModal = React.memo(function ExportPreviewModal({
 
         <div className="flex justify-between items-center mt-3">
           <div className="text-sm text-gray-500">
-            {hasSelection ? t('export.customAreaSelected') : t('export.drawOrSelectAll')}
+            {isFullAreaSelected
+              ? t('export.fullAreaSelected')
+              : hasCustomSelection
+                ? t('export.customAreaSelected')
+                : t('export.drawOrSelectAll')}
           </div>
           <div className="flex gap-3">
             <button
