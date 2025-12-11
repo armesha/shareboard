@@ -32,10 +32,16 @@ interface PanPosition {
   y: number;
 }
 
+interface ParsedError {
+  message: string;
+  line: number | null;
+}
+
 export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }: DiagramRendererProps) {
   const { t } = useTranslation(['editor', 'common', 'workspace', 'messages']);
   const { content, setContent, isReadOnly } = useDiagramEditor();
   const [error, setError] = useState<string | null>(null);
+  const [errorLine, setErrorLine] = useState<number | null>(null);
   const [editorHeight, setEditorHeight] = useState(50);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<PanPosition>({ x: 0, y: 0 });
@@ -67,30 +73,37 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     };
   }, [t]);
 
-  const formatMermaidError = useCallback((err: unknown) => {
+  const formatMermaidError = useCallback((err: unknown): ParsedError => {
     const fallback = t('messages:errors.diagramRenderFailed');
-    if (!err) return fallback;
+    if (!err) return { message: fallback, line: null };
 
     const rawMessage = typeof err === 'string'
       ? err
       : (err as Error)?.message || fallback;
 
-    // Keep only the useful part of Mermaid parse errors and drop noisy tokens
-    const lines = rawMessage.replace(/^\[mermaid\]\s*/i, '').trim().split('\n').map(line => line.trimEnd());
+    const cleaned = rawMessage.replace(/^\[mermaid\]\s*/i, '').trim();
+
+    const lineMatch = cleaned.match(/(?:line|строк[аи])\s*(\d+)/i);
+    const errorLineNum = lineMatch?.[1] ? parseInt(lineMatch[1], 10) : null;
+
+    if (/no diagram type detected/i.test(cleaned)) {
+      return { message: t('messages:errors.diagramTypeNotRecognized'), line: 1 };
+    }
+
+    const lines = cleaned.split('\n').map(line => line.trimEnd());
     const parseIdx = lines.findIndex(line => line.toLowerCase().includes('parse error'));
 
     if (parseIdx !== -1) {
-      const parseLines = [lines[parseIdx], lines[parseIdx + 1], lines[parseIdx + 2]].filter(Boolean);
-
-      // If Mermaid packed everything into one line with a long "Expecting ..." list, strip the noisy part
-      if (parseLines.length === 1 && /Expecting\s+/i.test(parseLines[0])) {
-        return parseLines[0].split(/Expecting\s+/i)[0].trim();
+      let parseLine = lines[parseIdx] ?? '';
+      if (/Expecting\s+/i.test(parseLine)) {
+        parseLine = parseLine.split(/Expecting\s+/i)[0]?.trim() ?? parseLine;
       }
-
-      return parseLines.join('\n');
+      return { message: parseLine, line: errorLineNum };
     }
 
-    return rawMessage || fallback;
+    // For other errors, truncate if too long
+    const shortMessage = cleaned.length > 100 ? cleaned.slice(0, 100) + '...' : cleaned;
+    return { message: shortMessage, line: errorLineNum };
   }, [t]);
 
   const renderDiagram = useCallback(async (diagramContent: string) => {
@@ -141,8 +154,11 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
       }
 
       setError(null);
+      setErrorLine(null);
     } catch (err) {
-      setError(formatMermaidError(err));
+      const parsed = formatMermaidError(err);
+      setError(parsed.message);
+      setErrorLine(parsed.line);
     } finally {
       isRenderingRef.current = false;
     }
@@ -312,15 +328,26 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
           className="border-b border-gray-200 flex flex-col overflow-hidden"
           style={{ height: `${editorHeight}%` }}
         >
-          <textarea
-            value={content}
-            onChange={handleContentChange}
-            className="flex-1 p-2 font-mono text-sm focus:outline-none resize-none"
-            disabled={isReadOnly}
-            placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
-          />
+          <div className="relative flex-1 overflow-hidden">
+            {errorLine && (
+              <div
+                className="absolute left-0 right-0 bg-red-200/50 pointer-events-none"
+                style={{
+                  top: `calc(8px + ${(errorLine - 1) * 20}px)`,
+                  height: '20px'
+                }}
+              />
+            )}
+            <textarea
+              value={content}
+              onChange={handleContentChange}
+              className="absolute inset-0 p-2 font-mono text-sm focus:outline-none resize-none bg-transparent leading-5"
+              disabled={isReadOnly}
+              placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
+            />
+          </div>
           {error && (
-            <div className="p-2 bg-red-100 text-red-700 text-sm border-t border-red-200 shrink-0" style={{ whiteSpace: 'pre-wrap' }}>
+            <div className="px-2 py-1 bg-red-100 text-red-700 text-xs border-t border-red-200 shrink-0">
               {error}
             </div>
           )}

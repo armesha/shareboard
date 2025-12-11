@@ -13,6 +13,7 @@
   },
   "errors": {
     "diagramRenderFailed": "Vykreslení diagramu selhalo",
+    "diagramTypeNotRecognized": "Typ diagramu nebyl rozpoznán",
     "connectionError": "Došlo k chybě připojení",
     "permissionDenied": "Přístup odepřen",
     "diagramAddFailed": "Přidání diagramu selhalo",

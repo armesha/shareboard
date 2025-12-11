@@ -13,6 +13,7 @@
   },
   "errors": {
     "diagramRenderFailed": "Failed to render diagram",
+    "diagramTypeNotRecognized": "Diagram type not recognized",
     "connectionError": "Connection error occurred",
     "permissionDenied": "Permission denied",
     "diagramAddFailed": "Failed to add diagram",
