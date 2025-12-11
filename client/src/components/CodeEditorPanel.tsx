@@ -9,10 +9,11 @@ interface CodeEditorPanelProps {
   canWrite: () => boolean;
   onAddDiagramToWhiteboard: () => void;
   onAddCodeToWhiteboard: () => void;
+  onCodeEmptyWarning: () => void;
   onClose: () => void;
 }
 
-export default function CodeEditorPanel({ canWrite, onAddDiagramToWhiteboard, onAddCodeToWhiteboard, onClose }: CodeEditorPanelProps) {
+export default function CodeEditorPanel({ canWrite, onAddDiagramToWhiteboard, onAddCodeToWhiteboard, onCodeEmptyWarning, onClose }: CodeEditorPanelProps) {
   const { t } = useTranslation(['workspace', 'editor', 'common']);
   const [activeTab, setActiveTab] = useState<ActiveTab>('code');
 
@@ -67,6 +68,7 @@ export default function CodeEditorPanel({ canWrite, onAddDiagramToWhiteboard, on
       {activeTab === 'code' ? (
         <CodeEditor
           onAddToWhiteboard={onAddCodeToWhiteboard}
+          onEmptyWarning={onCodeEmptyWarning}
           canAddToWhiteboard={canWrite()}
         />
       ) : (

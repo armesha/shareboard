@@ -91,6 +91,10 @@ export default function WorkspaceContent({
     onError: () => setNotification({ visible: true, message: t('messages:errors.codeAddFailed'), type: 'error' })
   });
 
+  const handleCodeEmptyWarning = useCallback(() => {
+    setNotification({ visible: true, message: t('messages:errors.codeEmpty'), type: 'warning' });
+  }, [t]);
+
   useEffect(() => {
     const canvas = canvasRef.current as Canvas | null;
     if (!canvas) return;
@@ -187,6 +191,7 @@ export default function WorkspaceContent({
                 canWrite={canWrite}
                 onAddDiagramToWhiteboard={handleAddDiagram}
                 onAddCodeToWhiteboard={handleAddCode}
+                onCodeEmptyWarning={handleCodeEmptyWarning}
                 onClose={cycleViewMode}
               />
             </div>

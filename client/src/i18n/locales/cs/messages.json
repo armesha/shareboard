@@ -20,6 +20,7 @@
     "permissionDenied": "Přístup odepřen",
     "diagramAddFailed": "Přidání diagramu selhalo",
     "codeAddFailed": "Přidání kódu na tabuli selhalo",
+    "codeEmpty": "Editor kódu je prázdný",
     "socketError": "Chyba soketu: {{message}}",
     "connectionFailed": "Nepodařilo se připojit k serveru po {{attempts}} pokusech. Zkontrolujte připojení k internetu.",
     "workspaceNotFound": "Pracovní prostor nenalezen"

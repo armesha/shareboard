@@ -12,10 +12,11 @@ import type { editor } from 'monaco-editor';
 
 interface CodeEditorProps {
   onAddToWhiteboard?: () => void;
+  onEmptyWarning?: () => void;
   canAddToWhiteboard?: boolean;
 }
 
-export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = false }: CodeEditorProps) {
+export default function CodeEditor({ onAddToWhiteboard, onEmptyWarning, canAddToWhiteboard = false }: CodeEditorProps) {
   const { t } = useTranslation(['editor', 'common']);
   const {
     content,
@@ -32,19 +33,19 @@ export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = fal
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
-  const initializedRef = useRef(false);
 
   useEffect(() => {
     const readOnly = !canWrite();
     setIsReadOnly(readOnly);
   }, [canWrite]);
 
-  useEffect(() => {
-    if (!initializedRef.current && !content && language) {
-      setContent(CODE_EXAMPLES[language as keyof typeof CODE_EXAMPLES] || '');
-      initializedRef.current = true;
+  const handleAddToWhiteboard = () => {
+    if (!content.trim()) {
+      onEmptyWarning?.();
+      return;
     }
-  }, [content, language, setContent]);
+    onAddToWhiteboard?.();
+  };
 
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
@@ -140,9 +141,9 @@ export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = fal
             >
               {t('code.insertExample')}
             </button>
-            {canAddToWhiteboard && content.trim() && (
+            {canAddToWhiteboard && (
               <button
-                onClick={onAddToWhiteboard}
+                onClick={handleAddToWhiteboard}
                 className="px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm flex items-center shadow transition-all duration-200 font-medium hover:scale-105"
                 title={t('code.addToWhiteboardTitle')}
               >

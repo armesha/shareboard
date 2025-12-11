@@ -20,6 +20,7 @@
     "permissionDenied": "Permission denied",
     "diagramAddFailed": "Failed to add diagram",
     "codeAddFailed": "Failed to add code to whiteboard",
+    "codeEmpty": "Code editor is empty",
     "socketError": "Socket error: {{message}}",
     "connectionFailed": "Failed to connect to server after {{attempts}} attempts. Please check your internet connection or try again later.",
     "workspaceNotFound": "Workspace not found"
