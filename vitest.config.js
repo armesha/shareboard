@@ -10,9 +10,9 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: [
-        'server/services/**/*.js',
-        'client/src/utils/**/*.js',
-        'client/src/hooks/**/*.js'
+        'server/services/**/*.ts',
+        'client/src/utils/**/*.ts',
+        'client/src/hooks/**/*.ts'
       ],
       exclude: [
         'node_modules',
