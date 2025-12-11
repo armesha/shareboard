@@ -32,6 +32,7 @@ export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = fal
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     const readOnly = !canWrite();
@@ -39,8 +40,9 @@ export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = fal
   }, [canWrite]);
 
   useEffect(() => {
-    if (!content && language) {
+    if (!initializedRef.current && !content && language) {
       setContent(CODE_EXAMPLES[language as keyof typeof CODE_EXAMPLES] || '');
+      initializedRef.current = true;
     }
   }, [content, language, setContent]);
 
