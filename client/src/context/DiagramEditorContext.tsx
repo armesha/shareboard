@@ -77,21 +77,18 @@ export function DiagramEditorProvider({ children }: DiagramEditorProviderProps) 
     }
   }, [yText, doc, synced]);
 
-  // Apply minimal diff to yText instead of delete-all + insert-all
   const setContent = useCallback((value: string): void => {
     if (!yText || isReadOnly) return;
 
     const currentValue = yText.toString();
     if (currentValue === value) return;
 
-    // Find common prefix length
     let prefixLen = 0;
     const minLen = Math.min(currentValue.length, value.length);
     while (prefixLen < minLen && currentValue[prefixLen] === value[prefixLen]) {
       prefixLen++;
     }
 
-    // Find common suffix length (but don't overlap with prefix)
     let suffixLen = 0;
     while (
       suffixLen < minLen - prefixLen &&
@@ -100,12 +97,10 @@ export function DiagramEditorProvider({ children }: DiagramEditorProviderProps) 
       suffixLen++;
     }
 
-    // Calculate what to delete and insert
     const deleteStart = prefixLen;
     const deleteCount = currentValue.length - prefixLen - suffixLen;
     const insertText = value.slice(prefixLen, value.length - suffixLen || undefined);
 
-    // Apply changes in a single transaction
     if (deleteCount > 0 || insertText) {
       yText.doc?.transact(() => {
         if (deleteCount > 0) {

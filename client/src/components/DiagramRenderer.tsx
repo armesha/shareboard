@@ -101,7 +101,6 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
       return { message: parseLine, line: errorLineNum };
     }
 
-    // For other errors, truncate if too long
     const shortMessage = cleaned.length > 100 ? cleaned.slice(0, 100) + '...' : cleaned;
     return { message: shortMessage, line: errorLineNum };
   }, [t]);
@@ -128,9 +127,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
         '<svg id="diagram" class="mermaid-diagram" data-exportable="true" data-name="diagram" '
       );
 
-      // Sanitize SVG content to prevent XSS attacks
       const sanitizedSvg = DOMPurify.sanitize(svgWithAttrs, {
-        // Allow foreignObject + HTML tags so Mermaid labels survive while keeping SVG sanitized
         USE_PROFILES: { svg: true, svgFilters: true, html: true },
         ADD_TAGS: ['foreignObject'],
         ADD_ATTR: ['class', 'style', 'xmlns']

@@ -34,7 +34,6 @@ export function withWorkspaceAuth<T extends HandlerData>(
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    // Convert CurrentUser to User for permission check
     const user: User = {
       userId: currentUser.userId || currentUser.id,
       accessToken: currentUser.accessToken,
