@@ -14,6 +14,8 @@
   "errors": {
     "diagramRenderFailed": "Vykreslení diagramu selhalo",
     "diagramTypeNotRecognized": "Typ diagramu nebyl rozpoznán",
+    "diagramParseError": "Chyba syntaxe na řádku {{line}}",
+    "diagramSyntaxError": "Chyba syntaxe v diagramu",
     "connectionError": "Došlo k chybě připojení",
     "permissionDenied": "Přístup odepřen",
     "diagramAddFailed": "Přidání diagramu selhalo",

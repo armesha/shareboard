@@ -90,19 +90,15 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
       return { message: t('messages:errors.diagramTypeNotRecognized'), line: 1 };
     }
 
-    const lines = cleaned.split('\n').map(line => line.trimEnd());
-    const parseIdx = lines.findIndex(line => line.toLowerCase().includes('parse error'));
-
-    if (parseIdx !== -1) {
-      let parseLine = lines[parseIdx] ?? '';
-      if (/Expecting\s+/i.test(parseLine)) {
-        parseLine = parseLine.split(/Expecting\s+/i)[0]?.trim() ?? parseLine;
-      }
-      return { message: parseLine, line: errorLineNum };
+    if (/parse error/i.test(cleaned) && errorLineNum) {
+      return { message: t('messages:errors.diagramParseError', { line: errorLineNum }), line: errorLineNum };
     }
 
-    const shortMessage = cleaned.length > 100 ? cleaned.slice(0, 100) + '...' : cleaned;
-    return { message: shortMessage, line: errorLineNum };
+    if (/syntax error/i.test(cleaned)) {
+      return { message: t('messages:errors.diagramSyntaxError'), line: errorLineNum };
+    }
+
+    return { message: t('messages:errors.diagramRenderFailed'), line: errorLineNum };
   }, [t]);
 
   const renderDiagram = useCallback(async (diagramContent: string) => {

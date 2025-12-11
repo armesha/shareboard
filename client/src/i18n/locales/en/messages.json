@@ -14,6 +14,8 @@
   "errors": {
     "diagramRenderFailed": "Failed to render diagram",
     "diagramTypeNotRecognized": "Diagram type not recognized",
+    "diagramParseError": "Syntax error on line {{line}}",
+    "diagramSyntaxError": "Syntax error in diagram",
     "connectionError": "Connection error occurred",
     "permissionDenied": "Permission denied",
     "diagramAddFailed": "Failed to add diagram",
