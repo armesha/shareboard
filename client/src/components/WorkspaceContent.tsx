@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef, type RefObject, type MouseEvent as ReactMouseEvent } from 'react';
 import { useCursorSync } from '../hooks';
 import { useDiagramToCanvas } from '../hooks/useDiagramToCanvas';
+import { useCodeToCanvas } from '../hooks/useCodeToCanvas';
 import { useTranslation } from 'react-i18next';
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
+import { useCodeEditor } from '../context/CodeEditorContext';
 import { Header, Toolbar } from './layout';
 import { Notification, ConnectionStatus, LanguageSwitcher, ZoomControls, RemoteCursors } from './ui';
 import Whiteboard from './Whiteboard';
@@ -59,6 +61,7 @@ export default function WorkspaceContent({
 
   const { canWrite, isOwner, sharingInfoReceived } = useSharing();
   const { content: diagramContent } = useDiagramEditor();
+  const { content: codeContent } = useCodeEditor();
   const { remoteCursors, emitCursorPosition } = useCursorSync();
 
   const [notification, setNotification] = useState<NotificationState>({ visible: false, message: '', type: 'info' });
@@ -75,6 +78,17 @@ export default function WorkspaceContent({
     workspaceId,
     onSuccess: () => setNotification({ visible: true, message: t('messages:notifications.diagramAdded'), type: 'success' }),
     onError: () => setNotification({ visible: true, message: t('messages:errors.diagramAddFailed'), type: 'error' })
+  });
+
+  const handleAddCode = useCodeToCanvas({
+    codeContent,
+    canvasRef: canvasRef as { current: Canvas | null },
+    addElement,
+    setTool,
+    socket,
+    workspaceId,
+    onSuccess: () => setNotification({ visible: true, message: t('messages:notifications.codeAdded'), type: 'success' }),
+    onError: () => setNotification({ visible: true, message: t('messages:errors.codeAddFailed'), type: 'error' })
   });
 
   useEffect(() => {
@@ -171,7 +185,8 @@ export default function WorkspaceContent({
             <div className="flex-1 h-full overflow-hidden">
               <CodeEditorPanel
                 canWrite={canWrite}
-                onAddToWhiteboard={handleAddDiagram}
+                onAddDiagramToWhiteboard={handleAddDiagram}
+                onAddCodeToWhiteboard={handleAddCode}
                 onClose={cycleViewMode}
               />
             </div>

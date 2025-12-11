@@ -7,11 +7,12 @@ type ActiveTab = 'code' | 'diagram';
 
 interface CodeEditorPanelProps {
   canWrite: () => boolean;
-  onAddToWhiteboard: () => void;
+  onAddDiagramToWhiteboard: () => void;
+  onAddCodeToWhiteboard: () => void;
   onClose: () => void;
 }
 
-export default function CodeEditorPanel({ canWrite, onAddToWhiteboard, onClose }: CodeEditorPanelProps) {
+export default function CodeEditorPanel({ canWrite, onAddDiagramToWhiteboard, onAddCodeToWhiteboard, onClose }: CodeEditorPanelProps) {
   const { t } = useTranslation(['workspace', 'editor', 'common']);
   const [activeTab, setActiveTab] = useState<ActiveTab>('code');
 
@@ -64,10 +65,13 @@ export default function CodeEditorPanel({ canWrite, onAddToWhiteboard, onClose }
         {tabButtons}
       </div>
       {activeTab === 'code' ? (
-        <CodeEditor />
+        <CodeEditor
+          onAddToWhiteboard={onAddCodeToWhiteboard}
+          canAddToWhiteboard={canWrite()}
+        />
       ) : (
         <DiagramRenderer
-          onAddToWhiteboard={onAddToWhiteboard}
+          onAddToWhiteboard={onAddDiagramToWhiteboard}
           canAddToWhiteboard={canWrite()}
         />
       )}

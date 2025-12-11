@@ -2,7 +2,9 @@
   "code": {
     "title": "Code Editor",
     "insertExample": "Insert Example",
-    "insertExampleTitle": "Insert example code for selected language"
+    "insertExampleTitle": "Insert example code for selected language",
+    "addToWhiteboard": "To Whiteboard",
+    "addToWhiteboardTitle": "Add code to whiteboard"
   },
   "diagram": {
     "title": "Diagram Editor",

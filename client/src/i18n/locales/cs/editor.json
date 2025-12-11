@@ -2,7 +2,9 @@
   "code": {
     "title": "Editor kódu",
     "insertExample": "Vložit příklad",
-    "insertExampleTitle": "Vložit ukázkový kód pro vybraný jazyk"
+    "insertExampleTitle": "Vložit ukázkový kód pro vybraný jazyk",
+    "addToWhiteboard": "Na tabuli",
+    "addToWhiteboardTitle": "Přidat kód na tabuli"
   },
   "diagram": {
     "title": "Editor diagramů",

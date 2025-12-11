@@ -19,6 +19,7 @@
     "connectionError": "Došlo k chybě připojení",
     "permissionDenied": "Přístup odepřen",
     "diagramAddFailed": "Přidání diagramu selhalo",
+    "codeAddFailed": "Přidání kódu na tabuli selhalo",
     "socketError": "Chyba soketu: {{message}}",
     "connectionFailed": "Nepodařilo se připojit k serveru po {{attempts}} pokusech. Zkontrolujte připojení k internetu.",
     "workspaceNotFound": "Pracovní prostor nenalezen"
@@ -29,6 +30,7 @@
     "exportSuccess": "Export úspěšný",
     "copySuccess": "Zkopírováno do schránky",
     "diagramAdded": "Diagram přidán na tabuli",
+    "codeAdded": "Kód přidán na tabuli",
     "editAccessGranted": "Bylo vám uděleno právo úprav",
     "editAccessRevoked": "Právo úprav bylo odebráno",
     "connected": "Připojeno k serveru!",

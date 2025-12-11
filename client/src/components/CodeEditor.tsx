@@ -10,7 +10,12 @@ import { CODE_EDITOR_LANGUAGES, CODE_EXAMPLES, type CodeEditorLanguage } from '.
 import { useClickOutside } from '../hooks';
 import type { editor } from 'monaco-editor';
 
-export default function CodeEditor() {
+interface CodeEditorProps {
+  onAddToWhiteboard?: () => void;
+  canAddToWhiteboard?: boolean;
+}
+
+export default function CodeEditor({ onAddToWhiteboard, canAddToWhiteboard = false }: CodeEditorProps) {
   const { t } = useTranslation(['editor', 'common']);
   const {
     content,
@@ -125,13 +130,27 @@ export default function CodeEditor() {
           )}
         </div>
         {!isReadOnly && (
-          <button
-            onClick={handleInsertExample}
-            className="btn-secondary text-sm"
-            title={t('code.insertExampleTitle')}
-          >
-            {t('code.insertExample')}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleInsertExample}
+              className="btn-secondary text-sm"
+              title={t('code.insertExampleTitle')}
+            >
+              {t('code.insertExample')}
+            </button>
+            {canAddToWhiteboard && content.trim() && (
+              <button
+                onClick={onAddToWhiteboard}
+                className="px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm flex items-center shadow transition-all duration-200 font-medium hover:scale-105"
+                title={t('code.addToWhiteboardTitle')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t('code.addToWhiteboard')}
+              </button>
+            )}
+          </div>
         )}
         {isReadOnly && (
           <div className="badge-readonly">

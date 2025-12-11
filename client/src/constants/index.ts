@@ -281,6 +281,7 @@ export const CANVAS = {
   MIN_FONT_SIZE: 8,
   MAX_FONT_SIZE: 100,
   DEFAULT_FONT_FAMILY: 'Inter',
+  CODE_FONT_FAMILY: 'Consolas, Monaco, monospace',
   DEFAULT_BRUSH_WIDTH: 2,
   MAX_BRUSH_WIDTH: 100,
   MIN_BRUSH_WIDTH: 1,
