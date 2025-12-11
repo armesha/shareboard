@@ -82,10 +82,12 @@ export function CodeEditorProvider({ children }: CodeEditorProviderProps) {
 
   const setContent = useCallback((value: string): void => {
     if (!yText) return;
-    yText.delete(0, yText.length);
-    if (value) {
-      yText.insert(0, value);
-    }
+    yText.doc?.transact(() => {
+      yText.delete(0, yText.length);
+      if (value) {
+        yText.insert(0, value);
+      }
+    });
   }, [yText]);
 
   useEffect(() => {
