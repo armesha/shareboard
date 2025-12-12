@@ -11,9 +11,6 @@ import * as decoding from 'lib0/decoding';
 import type { IncomingMessage } from 'http';
 import type WebSocket from 'ws';
 import * as workspaceService from './services/workspaceService';
-import * as permissionService from './services/permissionService';
-import { SHARING_MODES } from './config';
-import type { User } from './types';
 
 const messageSync = 0;
 const messageAwareness = 1;
@@ -21,7 +18,6 @@ const messageSyncStep2 = 1;
 const messageSyncUpdate = 2;
 
 const docs = new Map<string, WSSharedDoc>();
-const connPermissions = new WeakMap<WebSocket, boolean>();
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const PERSIST_DEBOUNCE_MS = 250;
 
@@ -118,11 +114,8 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
     switch (messageType) {
       case messageSync: {
         const syncMessageType = decoding.readVarUint(decoder);
-        const hasWriteAccess = connPermissions.get(conn) ?? false;
-
-        // Allow full sync handshake for read-only users.
-        // Only block client-originated updates.
-        if (syncMessageType === messageSyncUpdate && !hasWriteAccess) return;
+        // No auth/permissions in diploma mode: allow full handshake and updates.
+        // Keep type switch for compatibility.
 
         const syncDecoder = decoding.createDecoder(message);
         decoding.readVarUint(syncDecoder);
@@ -156,9 +149,6 @@ function closeConn(doc: WSSharedDoc, conn: WebSocket): void {
       Array.from(controlledIds),
       null
     );
-    if (doc.conns.size === 0) {
-      docs.delete(doc.name);
-    }
   }
   try {
     conn.close();
@@ -241,30 +231,6 @@ export function setupWSConnection(
     conn.close(4404, 'Workspace not found');
     return;
   }
-
-  const user: User = {
-    userId,
-    accessToken: accessToken || null,
-    hasEditAccess: false,
-    isOwner: userId === workspace.owner
-  };
-
-  const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
-  let hasWriteAccess = false;
-
-  if (mode === SHARING_MODES.READ_WRITE_ALL) {
-    hasWriteAccess = true;
-  } else if (mode === SHARING_MODES.READ_ONLY) {
-    hasWriteAccess = false;
-  } else {
-    hasWriteAccess = permissionService.checkWritePermission(workspace, user);
-  }
-
-  if (hasWriteAccess) {
-    user.hasEditAccess = true;
-  }
-
-  connPermissions.set(conn, hasWriteAccess);
 
   const doc = getYDoc(workspaceId);
 

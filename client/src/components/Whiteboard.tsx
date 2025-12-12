@@ -310,6 +310,40 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       const target = e.target as unknown as { id?: string; type?: string };
       const id = target?.id || localEditingIdRef.current;
       if (!id) return;
+
+      // Commit final text once on exit (no streaming updates).
+      const obj = canvas.getObjects().find((o) => (o as unknown as { id?: string }).id === id) as unknown as {
+        id?: string;
+        type?: string;
+        text?: string;
+        fontSize?: number;
+        fill?: string;
+        fontFamily?: string;
+        left?: number;
+        top?: number;
+        scaleX?: number;
+        scaleY?: number;
+        angle?: number;
+      } | undefined;
+
+      if (obj && (obj.type === 'text' || obj.type === 'i-text') && obj.id) {
+        updateElement(obj.id, {
+          id: obj.id,
+          type: 'text',
+          data: {
+            text: obj.text || '',
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            fontFamily: obj.fontFamily,
+            left: obj.left,
+            top: obj.top,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY,
+            angle: obj.angle
+          }
+        });
+      }
+
       localEditingIdRef.current = null;
       const workspaceId = getWorkspaceId();
       if (workspaceId) {
@@ -324,7 +358,7 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
       canvas.off('text:editing:entered', handleEditingEntered as unknown as (e: unknown) => void);
       canvas.off('text:editing:exited', handleEditingExited as unknown as (e: unknown) => void);
     };
-  }, [socket, canvas, currentUserId, batchedRenderRef]);
+  }, [socket, canvas, currentUserId, batchedRenderRef, updateElement]);
 
   return (
     <>

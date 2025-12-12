@@ -112,14 +112,12 @@ export function useObjectModification({
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectModification as (e: unknown) => void);
     canvas.on(FABRIC_EVENTS.OBJECT_SCALING, handleObjectModification as (e: unknown) => void);
     canvas.on(FABRIC_EVENTS.OBJECT_ROTATING, handleObjectModification as (e: unknown) => void);
-    canvas.on(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModification as (e: unknown) => void);
 
     return () => {
       canvas.off(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModification as (e: unknown) => void);
       canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectModification as (e: unknown) => void);
       canvas.off(FABRIC_EVENTS.OBJECT_SCALING, handleObjectModification as (e: unknown) => void);
       canvas.off(FABRIC_EVENTS.OBJECT_ROTATING, handleObjectModification as (e: unknown) => void);
-      canvas.off(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModification as (e: unknown) => void);
       timeoutsSet.forEach(clearTimeout);
       timeoutsSet.clear();
     };

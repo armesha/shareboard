@@ -1,10 +1,14 @@
-import { useEffect, useState, useRef, useCallback, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useState, useRef, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import DOMPurify from 'dompurify';
 import { useDiagramEditor } from '../context/DiagramEditorContext';
 import { ZOOM } from '../constants';
 import debounce from 'lodash/debounce';
 import { loadMermaid } from '../utils/mermaid';
+import { Editor, type OnMount } from '@monaco-editor/react';
+import { MonacoBinding } from 'y-monaco';
+import { useYjs } from '../context/YjsContext';
+import type { editor } from 'monaco-editor';
 
 interface DiagramRendererProps {
   onAddToWhiteboard: () => void;
@@ -39,7 +43,8 @@ interface ParsedError {
 
 export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard }: DiagramRendererProps) {
   const { t } = useTranslation(['editor', 'common', 'workspace', 'messages']);
-  const { content, setContent, isReadOnly } = useDiagramEditor();
+  const { content, isReadOnly } = useDiagramEditor();
+  const { doc, provider } = useYjs();
   const [error, setError] = useState<string | null>(null);
   const [errorLine, setErrorLine] = useState<number | null>(null);
   const [editorHeight, setEditorHeight] = useState(50);
@@ -57,6 +62,9 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
   const panOffsetRef = useRef<PanPosition>({ x: 0, y: 0 });
   const mermaidRef = useRef<MermaidInstance | null>(null);
   const initialRenderDoneRef = useRef(false);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const bindingRef = useRef<MonacoBinding | null>(null);
+  const [editorReady, setEditorReady] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -173,10 +181,24 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
     return () => debouncedRender.cancel();
   }, [content, renderDiagram, mermaidReady]);
 
-  const handleContentChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    if (isReadOnly) return;
-    setContent(e.target.value);
+  const handleEditorDidMount: OnMount = (editorInstance) => {
+    editorRef.current = editorInstance;
+    setEditorReady(true);
+    editorInstance.focus();
   };
+
+  useEffect(() => {
+    if (!doc || !provider || !editorReady || !editorRef.current) return;
+    const model = editorRef.current.getModel();
+    if (!model) return;
+    const yText = doc.getText('diagram');
+    const binding = new MonacoBinding(yText, model, new Set([editorRef.current]), provider.awareness);
+    bindingRef.current = binding;
+    return () => {
+      binding.destroy();
+      bindingRef.current = null;
+    };
+  }, [doc, provider, editorReady]);
 
   const resizeMoveHandlerRef = useRef<((e: globalThis.MouseEvent) => void) | null>(null);
   const resizeEndHandlerRef = useRef<(() => void) | null>(null);
@@ -322,21 +344,18 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
           style={{ height: `${editorHeight}%` }}
         >
           <div className="relative flex-1 overflow-hidden">
-            {errorLine && (
-              <div
-                className="absolute left-0 right-0 bg-red-200/50 pointer-events-none"
-                style={{
-                  top: `calc(8px + ${(errorLine - 1) * 20}px)`,
-                  height: '20px'
-                }}
-              />
-            )}
-            <textarea
+            <Editor
+              height="100%"
+              defaultLanguage="markdown"
               value={content}
-              onChange={handleContentChange}
-              className="absolute inset-0 p-2 font-mono text-sm focus:outline-none resize-none bg-transparent leading-5"
-              disabled={isReadOnly}
-              placeholder={isReadOnly ? t('editor:diagram.readOnlyPlaceholder') : t('editor:diagram.placeholder')}
+              onMount={handleEditorDidMount}
+              options={{
+                readOnly: isReadOnly,
+                minimap: { enabled: false },
+                fontSize: 13,
+                wordWrap: 'on',
+                scrollBeyondLastLine: false
+              }}
             />
           </div>
           {error && (

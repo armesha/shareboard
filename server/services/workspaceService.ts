@@ -39,7 +39,7 @@ export function createWorkspace(workspaceId: string, ownerId: string): Workspace
     codeSnippets: { language: 'javascript', content: '' },
     textEditLocks: new Map(),
     owner: ownerId,
-    sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
+    sharingMode: SHARING_MODES.READ_WRITE_ALL,
     allowedUsers: [],
     editToken: generateEditToken()
   };

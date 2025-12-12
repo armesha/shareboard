@@ -169,7 +169,6 @@ export function useWhiteboardCanvas(): UseWhiteboardCanvasReturn {
     canvas.on(FABRIC_EVENTS.PATH_CREATED, handlePathCreated as unknown as (e: unknown) => void);
     canvas.on(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified as unknown as (e: unknown) => void);
     canvas.on(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving as unknown as (e: unknown) => void);
-    canvas.on(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified as unknown as (e: unknown) => void);
 
     const handleResize = () => {
       canvas.setDimensions({
@@ -189,7 +188,6 @@ export function useWhiteboardCanvas(): UseWhiteboardCanvasReturn {
       canvas.off(FABRIC_EVENTS.PATH_CREATED, handlePathCreated as unknown as (e: unknown) => void);
       canvas.off(FABRIC_EVENTS.OBJECT_MODIFIED, handleObjectModified as unknown as (e: unknown) => void);
       canvas.off(FABRIC_EVENTS.OBJECT_MOVING, handleObjectMoving as unknown as (e: unknown) => void);
-      canvas.off(FABRIC_EVENTS.TEXT_CHANGED, handleObjectModified as unknown as (e: unknown) => void);
       cancelBatchedRender(canvas);
       canvas.dispose();
     };

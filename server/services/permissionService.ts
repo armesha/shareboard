@@ -6,7 +6,7 @@ export function checkWritePermission(workspace: Workspace | null | undefined, us
   if (!workspace || !user) return false;
   if (workspace.owner === user.userId) return true;
 
-  const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
+  const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_ALL;
   const token = user.accessToken;
 
   if (mode === SHARING_MODES.READ_ONLY) {
@@ -46,7 +46,7 @@ export function calculateEditAccess(
   if (isOwner) {
     hasEditAccess = true;
   } else {
-    const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_SELECTED;
+    const mode = workspace.sharingMode || SHARING_MODES.READ_WRITE_ALL;
 
     if (mode === SHARING_MODES.READ_ONLY) {
       hasEditAccess = false;
