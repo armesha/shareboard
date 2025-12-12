@@ -170,6 +170,14 @@ function emitJoinEvents(
 
   socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, toUser(currentUser)));
 
+  if (workspace.textEditLocks && workspace.textEditLocks.size > 0) {
+    const locksObj: Record<string, string> = {};
+    for (const [id, lock] of workspace.textEditLocks.entries()) {
+      locksObj[id] = lock.userId;
+    }
+    socket.emit(SOCKET_EVENTS.TEXT_EDIT_LOCKS, { workspaceId, locks: locksObj });
+  }
+
   if (io) {
     io.to(workspaceId).emit(SOCKET_EVENTS.USER_JOINED, { userId: socket.id, activeUsers });
   }
@@ -238,6 +246,15 @@ export function handleDisconnect({ socket, io, currentWorkspaceRef }: HandlerCon
     if (currentWorkspaceRef?.current) {
       const workspaceId = workspaceService.findWorkspaceIdByRef(currentWorkspaceRef.current);
       if (workspaceId) {
+        workspaceService.releaseTextLocksForSocket(workspaceId, socket.id);
+        const workspace = workspaceService.getWorkspace(workspaceId);
+        if (workspace && io) {
+          const locksObj: Record<string, string> = {};
+          for (const [id, lock] of workspace.textEditLocks.entries()) {
+            locksObj[id] = lock.userId;
+          }
+          io.to(workspaceId).emit(SOCKET_EVENTS.TEXT_EDIT_LOCKS, { workspaceId, locks: locksObj });
+        }
         workspaceService.removeConnection(workspaceId, socket.id);
         const activeUsers = workspaceService.getActiveUserCount(workspaceId);
         if (io) {

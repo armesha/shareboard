@@ -45,7 +45,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const initializeSocket = useCallback(() => {
-    const serverUrl = import.meta.env.DEV ? 'http://localhost:3000' : undefined;
+    const apiBaseUrl = import.meta.env.VITE_API_URL as string | undefined;
+    const serverUrl = apiBaseUrl || (import.meta.env.DEV ? 'http://localhost:3000' : undefined);
     const socketInstance = io(serverUrl, {
       autoConnect: true,
       reconnection: true,

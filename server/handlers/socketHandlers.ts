@@ -6,7 +6,9 @@ export type {
   ChangeSharingModeData,
   EndSessionData,
   GetEditTokenData,
-  SetEditTokenData
+  SetEditTokenData,
+  TextEditStartData,
+  TextEditEndData
 } from '../types';
 
 export {
@@ -23,6 +25,11 @@ export {
   MAX_ELEMENTS_PER_UPDATE,
   MAX_DRAWINGS
 } from './whiteboardHandlers';
+
+export {
+  handleTextEditStart,
+  handleTextEditEnd
+} from './textEditHandlers';
 
 export {
   handleCodeUpdate,

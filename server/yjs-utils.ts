@@ -21,6 +21,8 @@ const messageSyncStep2 = 1;
 
 const docs = new Map<string, WSSharedDoc>();
 const connPermissions = new WeakMap<WebSocket, boolean>();
+const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const PERSIST_DEBOUNCE_MS = 250;
 
 const PING_TIMEOUT = 30000;
 
@@ -64,8 +66,37 @@ export class WSSharedDoc extends Y.Doc {
       syncProtocol.writeUpdate(encoder, update);
       const message = encoding.toUint8Array(encoder);
       this.conns.forEach((_, conn) => send(this, conn, message));
+
+      schedulePersist(this.name, this);
     });
   }
+}
+
+function schedulePersist(workspaceId: string, doc: WSSharedDoc): void {
+  const existing = persistTimers.get(workspaceId);
+  if (existing) {
+    clearTimeout(existing);
+  }
+  const timeoutId = setTimeout(() => {
+    persistTimers.delete(workspaceId);
+    const workspace = workspaceService.getWorkspace(workspaceId);
+    if (!workspace) {
+      return;
+    }
+    try {
+      const codeText = doc.getText('code').toString();
+      const diagramText = doc.getText('diagram').toString();
+      if (!workspace.codeSnippets) {
+        workspace.codeSnippets = { language: 'javascript', content: '' };
+      }
+      workspace.codeSnippets.content = codeText;
+      workspace.diagramContent = diagramText;
+      workspaceService.updateLastActivity(workspaceId);
+    } catch (err) {
+      console.error('Failed to persist Yjs content:', err);
+    }
+  }, PERSIST_DEBOUNCE_MS);
+  persistTimers.set(workspaceId, timeoutId);
 }
 
 function getYDoc(docname: string): WSSharedDoc {

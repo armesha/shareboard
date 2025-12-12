@@ -25,6 +25,7 @@ export interface Workspace {
   drawingOrder: string[];
   diagramContent: string;
   codeSnippets: CodeSnippets;
+  textEditLocks: Map<string, { userId: string; socketId: string; timestamp: number }>;
   owner: string;
   sharingMode: SharingMode;
   allowedUsers: string[];
@@ -148,6 +149,14 @@ export interface CodeUpdateData extends HandlerData {
 
 export interface ChangeSharingModeData extends HandlerData {
   sharingMode: SharingMode;
+}
+
+export interface TextEditStartData extends HandlerData {
+  elementId: string;
+}
+
+export interface TextEditEndData extends HandlerData {
+  elementId: string;
 }
 
 export interface GetEditTokenData extends HandlerData {}

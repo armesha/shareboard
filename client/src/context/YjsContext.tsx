@@ -49,8 +49,9 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
     const animalIndex = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % CURSOR_ANIMALS.length;
     const animalKey = CURSOR_ANIMALS[animalIndex];
     const animalName = t(`animals.${animalKey}`);
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const port = window.location.port ? `:${window.location.port}` : '';
+    const apiBaseUrl = import.meta.env.VITE_API_URL as string | undefined;
+    const wsProtocol = (apiBaseUrl ? new URL(apiBaseUrl).protocol : window.location.protocol) === 'https:' ? 'wss' : 'ws';
+    const wsHost = apiBaseUrl ? new URL(apiBaseUrl).host : window.location.host;
     const params = new URLSearchParams();
 
     if (currentUser) {
@@ -61,7 +62,7 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
     }
 
     const query = params.toString();
-    const baseUrl = `${protocol}://${window.location.hostname}${port}/yjs`;
+    const baseUrl = `${wsProtocol}://${wsHost}/yjs`;
     const url = query ? `${baseUrl}?${query}` : baseUrl;
 
     const wsProvider = new WebsocketProvider(

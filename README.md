@@ -14,6 +14,10 @@ npm run dev:all
 - Backend: port 3000
 - prod: https://shareboard.live/
 
+#### Konfigurace backend URL (frontend)
+Pokud frontend běží na jiném originu než backend, nastav `client/.env.local` nebo `client/.env.production`:
+`VITE_API_URL=http://localhost:3000` (lokálně) nebo URL tvého backendu (produkce).
+
 ### Docker (alternativní)
 ```bash
 # Development s hot reload

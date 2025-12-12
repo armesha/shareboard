@@ -3,8 +3,8 @@ import type { Canvas, FabricObject, TPointerEvent, TPointerEventInfo } from 'fab
 import { useWhiteboard } from '../context/WhiteboardContext';
 import { useSocket } from '../context/SocketContext';
 import { useSharing } from '../context/SharingContext';
-import { TOOLS, FABRIC_EVENTS, CANVAS } from '../constants';
-import { constrainObjectToBounds } from '../utils';
+import { TOOLS, FABRIC_EVENTS, CANVAS, SOCKET_EVENTS } from '../constants';
+import { constrainObjectToBounds, getWorkspaceId } from '../utils';
 import { useShapeDrawing } from '../hooks/useShapeDrawing';
 import { useLineDrawing } from '../hooks/useLineDrawing';
 import { useTextEditing } from '../hooks/useTextEditing';
@@ -27,6 +27,9 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
   const { socket } = useSocket();
   const sharingContext = useSharing();
   const canWrite = sharingContext?.canWrite ?? (() => false);
+  const currentUserId = sharingContext?.currentUser ?? null;
+  const textLocksRef = useRef<Record<string, string>>({});
+  const localEditingIdRef = useRef<string | null>(null);
   const {
     tool,
     color,
@@ -242,6 +245,86 @@ const Whiteboard = React.memo(function Whiteboard({ disabled = false, onCursorMo
     canvas.defaultCursor = cursorValue;
     canvas.hoverCursor = cursorValue;
   }, [canvas, tool]);
+
+  // Sync text edit locks from server and disable editing for locked objects
+  useEffect(() => {
+    if (!socket || !canvas) return;
+
+    const handleLocks = ({ workspaceId, locks }: { workspaceId: string; locks: Record<string, string> }) => {
+      const currentWorkspaceId = getWorkspaceId();
+      if (workspaceId !== currentWorkspaceId) return;
+
+      textLocksRef.current = locks || {};
+
+      canvas.getObjects().forEach((obj) => {
+        const anyObj = obj as unknown as { id?: string; type?: string; editable?: boolean; isEditing?: boolean; exitEditing?: () => void };
+        if (anyObj.type !== 'text' && anyObj.type !== 'i-text') return;
+        const id = anyObj.id;
+        if (!id) return;
+        const lockedBy = textLocksRef.current[id];
+        const lockedByOther = !!lockedBy && lockedBy !== currentUserId;
+        anyObj.editable = canWrite() && !lockedByOther;
+
+        if (lockedByOther && localEditingIdRef.current === id && anyObj.isEditing) {
+          anyObj.exitEditing?.();
+          canvas.discardActiveObject();
+        }
+      });
+
+      if (batchedRenderRef.current) {
+        batchedRenderRef.current();
+      }
+    };
+
+    socket.on(SOCKET_EVENTS.TEXT_EDIT_LOCKS, handleLocks);
+    return () => {
+      socket.off(SOCKET_EVENTS.TEXT_EDIT_LOCKS, handleLocks);
+    };
+  }, [socket, canvas, canWrite, batchedRenderRef, currentUserId]);
+
+  // Emit lock/unlock when entering/exiting text editing
+  useEffect(() => {
+    if (!socket || !canvas) return;
+
+    const handleEditingEntered = (e: { target?: FabricObject | null }) => {
+      const target = e.target as unknown as { id?: string; type?: string; exitEditing?: () => void };
+      if (!target?.id || (target.type !== 'text' && target.type !== 'i-text')) return;
+      const id = target.id;
+      const lockedBy = textLocksRef.current[id];
+
+      if (lockedBy && lockedBy !== currentUserId) {
+        target.exitEditing?.();
+        canvas.discardActiveObject();
+        if (batchedRenderRef.current) batchedRenderRef.current();
+        return;
+      }
+
+      localEditingIdRef.current = id;
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.TEXT_EDIT_START, { workspaceId, elementId: id });
+      }
+    };
+
+    const handleEditingExited = (e: { target?: FabricObject | null }) => {
+      const target = e.target as unknown as { id?: string; type?: string };
+      const id = target?.id || localEditingIdRef.current;
+      if (!id) return;
+      localEditingIdRef.current = null;
+      const workspaceId = getWorkspaceId();
+      if (workspaceId) {
+        socket.emit(SOCKET_EVENTS.TEXT_EDIT_END, { workspaceId, elementId: id });
+      }
+    };
+
+    canvas.on('text:editing:entered', handleEditingEntered as unknown as (e: unknown) => void);
+    canvas.on('text:editing:exited', handleEditingExited as unknown as (e: unknown) => void);
+
+    return () => {
+      canvas.off('text:editing:entered', handleEditingEntered as unknown as (e: unknown) => void);
+      canvas.off('text:editing:exited', handleEditingExited as unknown as (e: unknown) => void);
+    };
+  }, [socket, canvas, currentUserId, batchedRenderRef]);
 
   return (
     <>

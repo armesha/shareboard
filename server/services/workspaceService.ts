@@ -37,6 +37,7 @@ export function createWorkspace(workspaceId: string, ownerId: string): Workspace
     drawingOrder: [],
     diagramContent: '',
     codeSnippets: { language: 'javascript', content: '' },
+    textEditLocks: new Map(),
     owner: ownerId,
     sharingMode: SHARING_MODES.READ_WRITE_SELECTED,
     allowedUsers: [],
@@ -115,6 +116,18 @@ export function getUserSession(socketId: string): UserSession | undefined {
 
 export function removeUserSession(socketId: string): void {
   userSessions.delete(socketId);
+}
+
+export function releaseTextLocksForSocket(workspaceId: string, socketId: string): void {
+  const workspace = workspaces.get(workspaceId);
+  if (!workspace) return;
+  const locks = workspace.textEditLocks;
+  if (!locks || locks.size === 0) return;
+  for (const [elementId, lock] of locks.entries()) {
+    if (lock.socketId === socketId) {
+      locks.delete(elementId);
+    }
+  }
 }
 
 export function getWorkspaceUsers(workspaceId: string): WorkspaceUser[] {

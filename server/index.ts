@@ -219,6 +219,16 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
     handlers.handleDeleteElement(data, { socket, currentUser });
   });
 
+  socket.on(SOCKET_EVENTS.TEXT_EDIT_START, (data: handlers.TextEditStartData) => {
+    if (!checkRateLimit(SOCKET_EVENTS.TEXT_EDIT_START)) return;
+    handlers.handleTextEditStart(data, { socket, currentUser });
+  });
+
+  socket.on(SOCKET_EVENTS.TEXT_EDIT_END, (data: handlers.TextEditEndData) => {
+    if (!checkRateLimit(SOCKET_EVENTS.TEXT_EDIT_END)) return;
+    handlers.handleTextEditEnd(data, { socket, currentUser });
+  });
+
   socket.on(SOCKET_EVENTS.CODE_UPDATE, (data: handlers.CodeUpdateData) => {
     if (!checkRateLimit(SOCKET_EVENTS.CODE_UPDATE)) return;
     handlers.handleCodeUpdate(data, { socket, currentUser });
