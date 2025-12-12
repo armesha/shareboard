@@ -104,16 +104,26 @@ export function useWhiteboardSync(
 
         const existingObject = objectMapRef.current.get(element.id);
 
-        if (existingObject) {
+        // Fallback: local objects added outside sync hook (e.g. by current user)
+        // won't be in objectMapRef yet. Find by id to avoid duplicates.
+        const resolvedExisting =
+          existingObject ??
+          canvas.getObjects().find((o: FabricObjectWithId) => o.id === element.id);
+
+        if (resolvedExisting && !existingObject) {
+          objectMapRef.current.set(element.id, resolvedExisting);
+        }
+
+        if (resolvedExisting) {
           const data = element.data || {};
           const readOnlyProps = new Set(['type', 'id']);
           Object.keys(data).forEach(key => {
             if (readOnlyProps.has(key)) return;
-            if ((existingObject as unknown as Record<string, unknown>)[key] !== data[key]) {
-              existingObject.set(key, data[key]);
+            if ((resolvedExisting as unknown as Record<string, unknown>)[key] !== data[key]) {
+              resolvedExisting.set(key, data[key]);
             }
           });
-          existingObject.setCoords();
+          resolvedExisting.setCoords();
         } else {
           const tempObject = canvas.getObjects().find((obj) => {
             const tempObj = obj as unknown as { _shapeId?: string; _drawingId?: string };

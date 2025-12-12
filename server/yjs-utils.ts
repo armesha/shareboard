@@ -18,6 +18,7 @@ import type { User } from './types';
 const messageSync = 0;
 const messageAwareness = 1;
 const messageSyncStep2 = 1;
+const messageSyncUpdate = 2;
 
 const docs = new Map<string, WSSharedDoc>();
 const connPermissions = new WeakMap<WebSocket, boolean>();
@@ -119,9 +120,9 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
         const syncMessageType = decoding.readVarUint(decoder);
         const hasWriteAccess = connPermissions.get(conn) ?? false;
 
-        if (syncMessageType === messageSyncStep2 && !hasWriteAccess) {
-          return;
-        }
+        // Allow full sync handshake for read-only users.
+        // Only block client-originated updates.
+        if (syncMessageType === messageSyncUpdate && !hasWriteAccess) return;
 
         const syncDecoder = decoding.createDecoder(message);
         decoding.readVarUint(syncDecoder);
