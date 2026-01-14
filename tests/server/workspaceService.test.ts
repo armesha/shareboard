@@ -70,7 +70,7 @@ describe('workspaceService', () => {
       expect(workspace.created).toBe(now);
       expect(workspace.diagrams).toBeInstanceOf(Map);
       expect(workspace.drawingsMap.size).toBe(0);
-      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
       expect(workspace.editToken).toMatch(/^edit_[a-f0-9]{64}$/);
 
       const workspace2 = createWorkspace('ws-2', 'owner-2');
@@ -399,7 +399,7 @@ describe('workspaceService', () => {
 
       createWorkspace('test-mode', 'owner-1');
       const workspace = getWorkspace('test-mode');
-      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_SELECTED);
+      expect(workspace?.sharingMode).toBe(SHARING_MODES.READ_WRITE_ALL);
 
       const newTime = 2000000;
       vi.setSystemTime(newTime);

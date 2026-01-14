@@ -43,6 +43,7 @@ export function SharingProvider({ children, workspaceId }: SharingProviderProps)
     if (urlAccessToken) {
       setSessionToken(STORAGE_KEYS.accessToken(workspaceId), urlAccessToken);
       setAccessToken(urlAccessToken);
+      window.history.replaceState(null, '', window.location.pathname);
     } else {
       setAccessToken(getAccessTokenFromStorage(workspaceId));
     }

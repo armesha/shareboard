@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useTranslation } from 'react-i18next';
-import { CURSOR_ANIMALS, CURSOR_COLORS } from '../constants';
+import { CURSOR_ANIMALS, CURSOR_COLORS, TOAST } from '../constants';
 import { useSharing } from './SharingContext';
+import { toast } from '../utils/toast';
 
 type YjsStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -40,6 +41,7 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [status, setStatus] = useState<YjsStatus>('disconnected');
   const [synced, setSynced] = useState(false);
+  const wasConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!workspaceId || !sharingInfoReceived) return;
@@ -78,7 +80,18 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
       animal: animalKey
     });
 
-    const handleStatus = ({ status: nextStatus }: StatusEvent): void => setStatus(nextStatus);
+    const handleStatus = ({ status: nextStatus }: StatusEvent): void => {
+      if (nextStatus === 'disconnected' && wasConnectedRef.current) {
+        toast.warning(t('messages:errors.yjsDisconnected', 'Code editor disconnected. Reconnecting...'), {
+          position: TOAST.POSITION,
+          autoClose: 3000
+        });
+      }
+      if (nextStatus === 'connected') {
+        wasConnectedRef.current = true;
+      }
+      setStatus(nextStatus);
+    };
     const handleSync = (isSynced: boolean): void => setSynced(isSynced);
 
     wsProvider.on('status', handleStatus);

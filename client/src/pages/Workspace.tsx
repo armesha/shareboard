@@ -5,7 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
 import { CodeEditorProvider } from '../context/CodeEditorContext';
 import { DiagramEditorProvider } from '../context/DiagramEditorContext';
-import { YjsProvider } from '../context/YjsContext';
+import { YjsProvider, useYjs } from '../context/YjsContext';
 import { SharingProvider, useSharing } from '../context/SharingContext';
 import WorkspaceContent from '../components/WorkspaceContent';
 import SharingSettings from '../components/SharingSettings';
@@ -30,6 +30,8 @@ function WorkspaceLayout() {
   const socketConnectionStatus = socketContext?.connectionStatus ?? CONNECTION_STATUS.CONNECTING;
   const whiteboardContext = useWhiteboard();
   const { isLoading, connectionStatus: whiteboardConnectionStatus } = whiteboardContext ?? {};
+  const yjsContext = useYjs();
+  const yjsStatus = yjsContext?.status ?? 'disconnected';
   const sharingContext = useSharing();
   const isOwner = sharingContext?.isOwner ?? false;
   const navigate = useNavigate();
@@ -51,11 +53,11 @@ function WorkspaceLayout() {
     setPersistentUserId(userId);
   }, []);
 
-  const connectionStatus = whiteboardConnectionStatus === CONNECTION_STATUS.CONNECTED && socketConnectionStatus === CONNECTION_STATUS.CONNECTED
+  const connectionStatus = whiteboardConnectionStatus === CONNECTION_STATUS.CONNECTED && socketConnectionStatus === CONNECTION_STATUS.CONNECTED && yjsStatus === 'connected'
     ? CONNECTION_STATUS.CONNECTED
     : socketConnectionStatus === CONNECTION_STATUS.ERROR || whiteboardConnectionStatus === CONNECTION_STATUS.ERROR
       ? CONNECTION_STATUS.ERROR
-      : socketConnectionStatus === CONNECTION_STATUS.DISCONNECTED || whiteboardConnectionStatus === CONNECTION_STATUS.DISCONNECTED
+      : socketConnectionStatus === CONNECTION_STATUS.DISCONNECTED || whiteboardConnectionStatus === CONNECTION_STATUS.DISCONNECTED || yjsStatus === 'disconnected'
         ? CONNECTION_STATUS.DISCONNECTED
         : CONNECTION_STATUS.CONNECTING;
 
