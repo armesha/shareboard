@@ -10,7 +10,6 @@
     "build": "vite build",
     "server": "tsx server/index.ts",
     "start": "tsx server/index.ts",
-    "heroku-postbuild": "npm run build",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "test:docker": "wsl docker compose exec frontend npm test",

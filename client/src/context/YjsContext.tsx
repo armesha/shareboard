@@ -54,23 +54,18 @@ export function YjsProvider({ workspaceId, children }: YjsProviderProps) {
     const apiBaseUrl = import.meta.env.VITE_API_URL as string | undefined;
     const wsProtocol = (apiBaseUrl ? new URL(apiBaseUrl).protocol : window.location.protocol) === 'https:' ? 'wss' : 'ws';
     const wsHost = apiBaseUrl ? new URL(apiBaseUrl).host : window.location.host;
-    const params = new URLSearchParams();
-
-    if (currentUser) {
-      params.set('userId', currentUser);
-    }
-    if (accessToken) {
-      params.set('accessToken', accessToken);
-    }
-
-    const query = params.toString();
     const baseUrl = `${wsProtocol}://${wsHost}/yjs`;
-    const url = query ? `${baseUrl}?${query}` : baseUrl;
 
     const wsProvider = new WebsocketProvider(
-      url,
+      baseUrl,
       workspaceId,
-      doc
+      doc,
+      {
+        params: {
+          ...(currentUser ? { userId: currentUser } : {}),
+          ...(accessToken ? { accessToken } : {}),
+        },
+      }
     );
 
     wsProvider.awareness.setLocalStateField('user', {
@@ -134,3 +129,4 @@ export function useYjs(): YjsContextValue {
   }
   return context;
 }
+

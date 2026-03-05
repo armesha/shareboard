@@ -1,7 +1,7 @@
-# ShareBoard - Complete Technical Documentation
+# ShareBoard - Technical Documentation
 
 **Version:** 1.0.0
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-03-04
 **Tech Stack:** React 19 + Vite 7 + TailwindCSS 4 + TypeScript (Frontend), Node.js + Express 5 + Socket.IO + Yjs (Backend)
 
 ---
@@ -11,15 +11,18 @@
 1. [Project Overview](#1-project-overview)
 2. [Architecture](#2-architecture)
 3. [Frontend Core](#3-frontend-core)
-4. [Frontend Components](#4-frontend-components)
-5. [Frontend State Management](#5-frontend-state-management)
-6. [Frontend Utilities](#6-frontend-utilities)
-7. [Backend Server](#7-backend-server)
-8. [Shared Code](#8-shared-code)
-9. [Testing](#9-testing)
-10. [Configuration](#10-configuration)
-11. [DevOps](#11-devops)
-12. [Internationalization](#12-internationalization)
+4. [Frontend Pages](#4-frontend-pages)
+5. [Frontend Components](#5-frontend-components)
+6. [Frontend State Management](#6-frontend-state-management)
+7. [Frontend Hooks](#7-frontend-hooks)
+8. [Frontend Utilities](#8-frontend-utilities)
+9. [Frontend Factories](#9-frontend-factories)
+10. [Frontend Types, Constants, i18n](#10-frontend-types-constants-i18n)
+11. [Backend Server](#11-backend-server)
+12. [Shared Code](#12-shared-code)
+13. [Testing](#13-testing)
+14. [Configuration](#14-configuration)
+15. [Project Setup](#15-project-setup)
 
 ---
 
@@ -27,18 +30,18 @@
 
 ## 1.1 What is ShareBoard?
 
-ShareBoard is a real-time collaborative whiteboard and code editor application. It allows multiple users to simultaneously:
+ShareBoard is a real-time collaborative whiteboard and code editor. Multiple users can work in the same workspace at the same time:
 
-- **Draw** on an interactive canvas (shapes, lines, text, freehand drawing)
-- **Edit code** with syntax highlighting and language support
-- **Create diagrams** using Mermaid syntax with live preview
-- **Collaborate** in real-time with cursor synchronization
+- **Draw** on a canvas (shapes, lines, text, freehand)
+- **Edit code** with syntax highlighting
+- **Create diagrams** with Mermaid syntax and live preview
+- **See each other's cursors** in real time
 
 ## 1.2 Key Features
 
 | Feature | Description |
 |---------|-------------|
-| Interactive Canvas | Fabric.js-powered whiteboard with shapes, lines, arrows, text, and freehand drawing |
+| Interactive Canvas | Fabric.js whiteboard with shapes, lines, arrows, text, freehand drawing |
 | Code Editor | Monaco Editor with multi-language syntax highlighting |
 | Diagram Support | Mermaid diagram rendering with live preview |
 | Real-time Sync | Socket.IO for whiteboard, Yjs CRDT for code/diagrams |
@@ -49,24 +52,24 @@ ShareBoard is a real-time collaborative whiteboard and code editor application. 
 ## 1.3 Technology Stack
 
 ### Frontend
-- **React 19** with concurrent rendering
-- **Vite 7** for build tooling
-- **TailwindCSS 4** for styling
-- **TypeScript** with strict mode
-- **Fabric.js 6.9** for canvas manipulation
-- **Monaco Editor** for code editing
-- **Yjs + y-monaco** for collaborative text editing
-- **Socket.IO Client** for real-time communication
-- **Mermaid** for diagram rendering
-- **i18next** for internationalization
+- React 19 with concurrent rendering
+- Vite 7 for build tooling
+- TailwindCSS 4 for styling
+- TypeScript with strict mode
+- Fabric.js 6.9 for canvas manipulation
+- Monaco Editor for code editing
+- Yjs + y-monaco for collaborative text editing
+- Socket.IO Client for real-time communication
+- Mermaid for diagram rendering
+- i18next for internationalization
 
 ### Backend
-- **Node.js 20+** runtime
-- **Express 5** web framework
-- **Socket.IO** WebSocket server
-- **y-websocket** Yjs server
-- **Helmet** security headers
-- **Zod** runtime validation
+- Node.js 20+ runtime
+- Express 5 web framework
+- Socket.IO WebSocket server
+- y-websocket Yjs server
+- Helmet security headers
+- Zod runtime validation
 
 ## 1.4 File Statistics
 
@@ -147,6 +150,7 @@ Broadcast to Clients -> Yjs Apply Update -> Monaco Update
 ```tsx
 <SocketProvider>                    // WebSocket connection (App.tsx)
   <RouterProvider>                  // React Router
+    {/* Below here is inside the Workspace page component */}
     <SharingProvider>               // Permissions & sharing mode (Workspace.tsx)
       <YjsProvider>                 // Yjs document & sync
         <WhiteboardProvider>        // Canvas state & tools
@@ -166,481 +170,177 @@ Broadcast to Clients -> Yjs Apply Update -> Monaco Update
 
 | Layer | Implementation |
 |-------|----------------|
-| **HTTP** | Helmet headers (CSP, Referrer-Policy: strict-origin), CORS, rate limiting |
-| **Socket.IO** | Per-socket rate limiting, room auth, write permissions on all drawing events |
-| **Yjs** | Per-IP rate limiting, workspace validation |
-| **Tokens** | Timing-safe comparison, `edit_` prefix validation, URL cleared after reading |
+| HTTP | Helmet headers (CSP, Referrer-Policy: strict-origin), CORS, rate limiting |
+| Socket.IO | Per-socket rate limiting, room auth, write permissions on all drawing events |
+| Yjs | Per-IP rate limiting, workspace validation |
+| Tokens | Timing-safe comparison, `edit_` prefix validation, URL cleared after reading |
 
 ---
 
 # 3. Frontend Core
 
-## 3.1 Entry Point: main.tsx
+## 3.1 Entry Point (main.tsx, index.html)
 
-**File:** `client/src/main.tsx`
+`client/index.html` is a minimal HTML shell. It loads three Google Fonts (Inter, JetBrains Mono, Outfit) via `<link>` tags, defines a `<div id="root">` mount target, and includes the Vite module entry `<script type="module" src="/src/main.tsx">`.
 
-### Imports
+`client/src/main.tsx` boots the React app. It imports the i18n configuration (`./i18n`), the root `App` component, and the global stylesheet `./index.css`. It grabs the `#root` DOM element, throws if missing, and calls `ReactDOM.createRoot(rootElement).render(<App />)`. There is no `<StrictMode>` wrapper.
 
-```typescript
-import ReactDOM from 'react-dom/client';
-import './i18n';
-import App from './App';
-import './index.css';
-```
-
-### Functionality
-
-- Imports i18n configuration for internationalization (side-effect)
-- Imports the root `App` component
-- Imports global styles from `index.css`
-- Gets the root DOM element by ID `'root'`
-- Throws an error if root element is not found
-- Creates React root and renders `<App />` component
-
-### Code
-
-```typescript
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Root element not found');
-}
-
-ReactDOM.createRoot(rootElement).render(<App />);
-```
-
-## 3.2 App Component: App.tsx
-
-**File:** `client/src/App.tsx`
-
-### Imports
-
-```typescript
-import {
-  Navigate,
-  createBrowserRouter,
-  RouterProvider
-} from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import Workspace from './pages/Workspace';
-import { SocketProvider } from './context/SocketContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { TOAST } from './constants';
-```
-
-### Router Configuration
-
-```typescript
-const router = createBrowserRouter(
-  [
-    {
-      path: "/",
-      element: <LandingPage />
-    },
-    {
-      path: "/w/:workspaceId",
-      element: <Workspace />
-    },
-    {
-      path: "*",
-      element: <Navigate to="/" replace />
-    }
-  ],
-  {
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true,
-      v7_normalizeFormMethod: true,
-      v7_partialHydration: true,
-      v7_skipActionErrorRevalidation: true,
-      v7_fetcherPersist: true
-    }
-  }
-);
-```
-
-### Routes
-
-| Path | Element | Description |
-|------|---------|-------------|
-| `/` | `<LandingPage />` | Home/landing page |
-| `/w/:workspaceId` | `<Workspace />` | Workspace with dynamic ID |
-| `*` | `<Navigate to="/" replace />` | Catch-all redirect to home |
-
-### Provider Hierarchy (App Level)
+The provider hierarchy at the top level:
 
 ```
 SocketProvider
-  +-- div.min-h-screen.bg-gray-100
-      +-- RouterProvider
-      +-- ToastContainer
+  -> RouterProvider (react-router-dom)
+      -> ToastContainer (react-toastify)
 ```
 
-### JSX Structure
+`SocketProvider` wraps the entire tree, so the Socket.IO connection is available on every route, including the landing page (used there for workspace existence checks).
 
-```tsx
-function App() {
-  return (
-    <SocketProvider>
-      <div className="min-h-screen bg-gray-100">
-        <RouterProvider router={router} />
-        <ToastContainer
-          position={TOAST.POSITION}
-          newestOnTop={false}
-        />
-      </div>
-    </SocketProvider>
-  );
-}
-```
+The `ToastContainer` (react-toastify) is configured with `TOAST.POSITION` (bottom-right) and `newestOnTop={false}`.
 
-### CSS Classes Used
+## 3.2 Routing (App.tsx)
 
-- `min-h-screen` - Minimum height of viewport
-- `bg-gray-100` - Light gray background
+`client/src/App.tsx` uses `createBrowserRouter` from react-router-dom v7 with explicit v7 future flags (`v7_startTransition`, `v7_relativeSplatPath`, `v7_normalizeFormMethod`, `v7_partialHydration`, `v7_skipActionErrorRevalidation`, `v7_fetcherPersist`).
 
-## 3.3 Workspace Page: Workspace.tsx
+Routes:
 
-**File:** `client/src/pages/Workspace.tsx`
+| Path | Component | Purpose |
+|---|---|---|
+| `/` | `<LandingPage />` | Home page: create or join workspace |
+| `/w/:workspaceId` | `<Workspace />` | Main collaborative workspace |
+| `*` | `<Navigate to="/" replace />` | Catch-all redirect to home |
 
-### Imports
+## 3.3 Styling (index.css)
 
-```typescript
-import { useState, useEffect, useRef, type MouseEvent, type RefObject } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { useSocket } from '../context/SocketContext';
-import { WhiteboardProvider, useWhiteboard } from '../context/WhiteboardContext';
-import { CodeEditorProvider } from '../context/CodeEditorContext';
-import { DiagramEditorProvider } from '../context/DiagramEditorContext';
-import { YjsProvider } from '../context/YjsContext';
-import { SharingProvider, useSharing } from '../context/SharingContext';
-import WorkspaceContent from '../components/WorkspaceContent';
-import SharingSettings from '../components/SharingSettings';
-import { SOCKET_EVENTS, STORAGE_KEYS, LAYOUT, CONNECTION_STATUS } from '../constants';
-import { toast } from '../utils/toast';
-import { getPersistentUserId } from '../utils';
-```
+`client/src/index.css` uses the Tailwind CSS v4 `@import "tailwindcss"` directive.
 
-### Type Definitions
+**Theme tokens** defined in `@theme`:
+- Custom animations: `fadeIn`, `slideUp`, `pulse-slow`
+- Custom colors via OKLCH: `--color-primary`, `--color-primary-dark`, `--color-success`, `--color-warning`, `--color-danger`
 
-```typescript
-type ViewMode = 'whiteboard' | 'split';
+**Custom cursors**: The `:root` block defines two CSS custom properties (`--custom-cursor` and `--custom-cursor-pointer`) that embed inline SVG cursors (a blue arrow pointer). These are applied globally via `body, body *` and interactive element selectors.
 
-interface WorkspaceStateData {
-  isNewWorkspace?: boolean;
-}
+**Utility classes** (using `@apply`):
+- Buttons: `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-success`, `.btn-danger`, `.btn-icon`, `.btn-icon-active`
+- Dropdowns: `.dropdown-base`, `.dropdown-top`, `.dropdown-side`, `.dropdown-menu`, `.dropdown-item`
+- Color swatches: `.color-swatch`, `.color-swatch-selected`, `.color-swatch-hover`
+- Forms: `.input`, `.card`, `.modal-overlay`, `.modal-content`
+- Toolbar: `.toolbar`, `.toolbar-panel`, `.toolbar-section`, `.toolbar-divider`, `.toolbar-divider-v`, `.toolbar-action-btn`, `.toolbar-readonly-indicator`
+- Badges: `.badge`, `.badge-warning`, `.badge-success`, `.badge-info`, `.badge-readonly`
+- Notifications: `.notification`, `.notification-success`, `.notification-warning`, `.notification-error`, `.notification-info`
+- Header: `.header-panel`, `.header-home-btn`, `.header-divider`, `.header-title`, `.header-workspace-id` (non-button variant), `.header-workspace-id-btn`, `.header-readonly-badge`
+- Landing page: `.landing-card`, `.landing-title`, `.landing-subtitle`, `.landing-btn-primary`, `.landing-btn-secondary`, `.landing-input`, `.landing-divider`, `.landing-error`, `.landing-features` (defined but unused by component), `.landing-lang-switcher`, `.demo-background`, `.demo-svg`, `.demo-blur-overlay`, `.landing-content`, `.floating-cursor`
+- Canvas: `.canvas-grid`, `.resize-handle`
+- Remote cursors: `.remote-cursor`, `.remote-cursor-label`
+- Users panel: `.users-panel`, `.users-panel-header`, `.users-panel-list`
+- Options menu: `.options-menu-item`
+- Forms: `.form-radio-item`
+- Scrollbar: `.scrollbar-thin`
 
-interface SessionEndedData {
-  message: string;
-}
+**Diagram rendering**: `.diagram-container svg` styles force transparent fill on nodes, dark stroke colors (`#333`), and remove default Mermaid backgrounds. A `diagramFadeIn` animation is applied to new SVGs.
 
-interface WorkspaceGateProps {
-  workspaceId: string;
-}
-```
+**Yjs remote selections**: `.yRemoteSelection` and `.yRemoteSelectionHead` style collaborative cursor indicators in Monaco editors with purple highlighting and name labels.
 
-### Component Structure
+**Responsive**: At `max-width: 640px`, toolbar padding and button sizes shrink. A `prefers-reduced-motion` media query disables all animations.
 
-The file contains three components:
-
-1. **`Workspace`** (default export) - Top-level wrapper with SharingProvider
-2. **`WorkspaceGate`** - Gate component that checks workspace validity
-3. **`WorkspaceLayout`** - Main workspace UI and logic
-
-### Component: Workspace (Default Export)
-
-```tsx
-export default function Workspace() {
-  const { workspaceId } = useParams<{ workspaceId: string }>();
-
-  return (
-    <SharingProvider workspaceId={workspaceId ?? ''}>
-      <WorkspaceGate workspaceId={workspaceId ?? ''} />
-    </SharingProvider>
-  );
-}
-```
-
-### Component: WorkspaceGate
-
-#### Props
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `workspaceId` | `string` | The workspace ID from URL params |
-
-#### Hooks Used
-
-- `useTranslation('messages')` - Returns `t` function
-- `useNavigate()` - Returns `navigate` function
-- `useSharing()` - Returns sharing context
-
-#### Refs
-
-| Ref | Type | Initial Value | Purpose |
-|-----|------|---------------|---------|
-| `hasNavigatedRef` | `RefObject<boolean>` | `false` | Prevents duplicate navigation on workspace not found |
-
-#### useEffect: Handle workspace not found
-
-```typescript
-useEffect(() => {
-  if (workspaceNotFound && !hasNavigatedRef.current) {
-    hasNavigatedRef.current = true;
-    toast.error(t('errors.workspaceNotFound'), {
-      position: 'bottom-left',
-      autoClose: 3000
-    });
-    navigate('/', { replace: true });
-  }
-}, [workspaceNotFound, navigate, t]);
-```
-
-#### Provider Hierarchy (WorkspaceGate)
-
-```
-YjsProvider (workspaceId)
-  +-- WhiteboardProvider
-      +-- CodeEditorProvider
-          +-- DiagramEditorProvider
-              +-- WorkspaceLayout
-```
-
-### Component: WorkspaceLayout
-
-#### State Variables
-
-| State Variable | Type | Initial Value | Description |
-|----------------|------|---------------|-------------|
-| `viewMode` | `ViewMode` | `'whiteboard'` | Current view mode |
-| `splitPosition` | `number` | localStorage or `40` | Split panel position percentage |
-| `isDragging` | `boolean` | `false` | Whether user is dragging the split handle |
-| `initialMouseX` | `number \| null` | `null` | Initial mouse X position when dragging started |
-| `initialWidth` | `number \| null` | `null` | Initial width when dragging started |
-| `showSharingSettings` | `boolean` | `false` | Whether sharing settings modal is open |
-| `persistentUserId` | `string \| null` | `null` | Persistent user ID from utility function |
-| `isNewWorkspace` | `boolean` | `false` | Whether this is a newly created workspace |
-
-#### Refs
-
-| Ref | Type | Purpose |
-|-----|------|---------|
-| `containerRef` | `RefObject<HTMLDivElement>` | Reference to the main container for calculating split positions |
-
-#### useEffect Hooks
-
-| Effect | Dependencies | Purpose |
-|--------|--------------|---------|
-| Initialize persistent user ID | `[]` | Gets and sets the persistent user ID |
-| Handle mouse drag | `[isDragging, initialMouseX, initialWidth]` | Handles drag-to-resize functionality |
-| Persist split position | `[isDragging, splitPosition]` | Saves split position to localStorage |
-| Socket events | `[socket, workspaceId, persistentUserId, navigate]` | Listens for workspace state and session ended |
-| Auto-open sharing | `[isOwner, isNewWorkspace, showSharingSettings]` | Opens sharing modal for new workspace owners |
-
-#### Event Handlers
-
-| Handler | Purpose |
-|---------|---------|
-| `handleMouseDown` | Initiates split panel drag operation |
-| `cycleViewMode` | Toggles between whiteboard and split view modes |
-| `toggleSharingSettings` | Toggles sharing settings modal visibility |
-
-#### CSS Classes Used
-
-| Element | Classes |
-|---------|---------|
-| Root container | `fixed inset-0 flex flex-col bg-gray-100` |
-| Loading overlay | `absolute inset-0 z-50 flex items-center justify-center bg-white bg-opacity-80` |
-| Spinner (connecting) | `inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent mb-4` |
-| Spinner (loading) | `inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-500 border-t-transparent mb-4` |
-| Modal overlay | `fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm` |
-
-## 3.4 Landing Page: LandingPage.tsx
-
-**File:** `client/src/pages/LandingPage.tsx`
-
-### Imports
-
-```typescript
-import { useState, Suspense, lazy, useMemo, useCallback, useRef, useEffect, type CSSProperties, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { LanguageSwitcher } from '../components/ui';
-import { useSocket } from '../context/SocketContext';
-import { getPersistentUserId } from '../utils';
-import { CURSOR_ANIMALS, CURSOR_COLORS, SOCKET_EVENTS } from '../constants';
-import { toast } from '../utils/toast';
-```
-
-### Lazy Loaded Components
-
-```typescript
-const DemoWhiteboard = lazy(() => import('../components/demo/DemoWhiteboard'));
-```
-
-### State Variables
-
-| State Variable | Type | Initial Value | Description |
-|----------------|------|---------------|-------------|
-| `workspaceKey` | `string` | `''` | Input value for joining workspace |
-| `isLoading` | `boolean` | `false` | Whether workspace is being created |
-| `isJoining` | `boolean` | `false` | Whether user is joining a workspace |
-| `error` | `string \| null` | `null` | Error message to display |
-
-### Refs
-
-| Ref | Type | Purpose |
-|-----|------|---------|
-| `joinTimeoutRef` | `RefObject<ReturnType<typeof setTimeout> \| null>` | Stores timeout for join operation cleanup |
-
-### Key Functions
-
-#### createWorkspace
-```typescript
-const createWorkspace = async (): Promise<void> => {
-  // POST to /api/workspaces with userId
-  // Navigate to /w/{workspaceId} on success
-};
-```
-
-#### joinWorkspace
-```typescript
-const joinWorkspace = useCallback((e: FormEvent<HTMLFormElement>): void => {
-  // Check workspace exists via socket
-  // Navigate on success, show error on failure
-}, [socket, workspaceKey, navigate, tMessages]);
-```
-
-### Features
-
-- Animated demo whiteboard background
-- Floating demo cursors with animal names
-- Language switcher
-- Create workspace button
-- Join workspace form
-
-## 3.5 Global Styles: index.css
-
-**File:** `client/src/index.css`
-
-### Tailwind Import
-
-```css
-@import "tailwindcss";
-```
-
-### Theme Configuration
-
-```css
-@theme {
-  --animate-fadeIn: fadeIn 0.2s ease-out;
-  --animate-slideUp: slideUp 0.3s ease-out;
-  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-
-  --color-primary: oklch(0.623 0.214 259.815);
-  --color-primary-dark: oklch(0.546 0.245 262.881);
-  --color-success: oklch(0.723 0.191 142.542);
-  --color-warning: oklch(0.795 0.184 86.047);
-  --color-danger: oklch(0.637 0.237 25.331);
-}
-```
-
-### Keyframe Animations
-
-| Animation | Description |
-|-----------|-------------|
-| `fadeIn` | Opacity 0 to 1 |
-| `slideUp` | Opacity 0 to 1, translateY 10px to 0 |
-| `toolbarSlideIn` | Opacity 0 to 1, translateX -10px to 0 |
-| `dropdownFadeIn` | Opacity 0 to 1, translateY -4px to 0 |
-| `cardEntrance` | Opacity 0 to 1, translateY 30px to 0, scale 0.95 to 1 |
-| `floatCursor` | Floating cursor animation with rotation |
-| `pulseRing` | Scale 1 to 1.5, opacity 1 to 0 |
-| `diagramFadeIn` | Opacity 0.5 to 1 |
-
-### CSS Component Classes
-
-#### Buttons
-| Class | Description |
-|-------|-------------|
-| `.btn` | Base button styles |
-| `.btn-primary` | Blue primary button |
-| `.btn-secondary` | Gray secondary button |
-| `.btn-icon` | Icon-only button |
-| `.btn-icon-active` | Active state icon button |
-
-#### Layout
-| Class | Description |
-|-------|-------------|
-| `.card` | Card container |
-| `.modal-overlay` | Modal backdrop |
-| `.toolbar` | Horizontal toolbar container |
-| `.toolbar-panel` | Vertical toolbar panel |
-
-#### Landing Page
-| Class | Description |
-|-------|-------------|
-| `.landing-content` | Landing page content wrapper |
-| `.landing-card` | Main landing card |
-| `.landing-btn-primary` | Primary CTA button |
-| `.landing-input` | Styled input field |
-
-#### Remote Cursors
-| Class | Description |
-|-------|-------------|
-| `.remote-cursors-container` | Remote cursors wrapper |
-| `.remote-cursor` | Individual remote cursor |
-| `.remote-cursor-label` | Cursor username label |
-
-### Responsive & Accessibility
-
-```css
-@media (max-width: 640px) {
-  .toolbar { @apply py-1.5 px-1.5 gap-0.5; }
-  .btn-icon { @apply p-1.5; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-fadeIn, .animate-slideUp, .modal-overlay, ... {
-    animation: none;
-  }
-}
-```
+**Keyframe animations**: `fadeIn`, `slideUp`, `toolbarSlideIn`, `dropdownFadeIn`, `cardEntrance`, `titleReveal`, `subtitleReveal`, `btnReveal`, `btnSecReveal`, `dividerReveal`, `inputReveal`, `featuresReveal`, `langReveal`, `shake`, `floatCursor`, `pulseRing`, `headerSlideIn`, `slideInRight`, `cursorLabelFadeIn`, `diagramFadeIn`.
 
 ---
 
-# 4. Frontend Components
+# 4. Frontend Pages
 
-## 4.1 Main Feature Components
+## 4.1 LandingPage
 
-### Whiteboard.tsx
-**Path:** `client/src/components/Whiteboard.tsx`
+**File**: `client/src/pages/LandingPage.tsx`
 
-Core Fabric.js canvas component with drawing tools and real-time sync.
+Renders the entry screen with two actions: create a new workspace, or join an existing one by key.
 
-**Hooks Used:**
-- `useShapeDrawing` - Shape creation
-- `useLineDrawing` - Line/arrow drawing
-- `useTextEditing` - Text element creation
-- `useObjectModification` - Transform handling
-- `useCanvasPanning` - Pan/zoom controls
-- `useKeyboardDelete` - Delete key handling
+**Background**: Lazy-loads `<DemoWhiteboard />` inside `<Suspense>`, which renders animated shapes behind the UI. A `<LanguageSwitcher />` sits in the bottom-left corner. Three decorative `<FloatingCursor>` components float around the page using CSS animations.
 
-**Key Event Handlers:**
-| Handler | Purpose |
-|---------|---------|
-| `handleMouseDown` | Start shape/line/text based on tool |
-| `handleMouseMove` | Update shape/line, emit cursor position |
-| `handleMouseUp` | Finish drawing |
+**Create workspace**: The `createWorkspace` async function sends a `POST /api/workspaces` request with a `userId` from `getPersistentUserId()`. On success, it navigates to `/w/${data.workspaceId}`. On failure, it sets an error string displayed in `.landing-error`.
 
-### CodeEditor.tsx
-**Path:** `client/src/components/CodeEditor.tsx`
+**Join workspace**: The `joinWorkspace` callback (triggered on form submit) emits `SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS` with the entered key and listens for `SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT`. If `exists` is true, it navigates to `/w/${key}`. If false, it shows a toast error. A 5-second timeout guards against no response. The socket connection comes from `useSocket()`.
 
-Monaco-based code editor with Yjs collaborative editing.
+**State**: `workspaceKey` (input value), `isLoading` (create in progress), `isJoining` (join in progress), `error` (create failure message). A `joinTimeoutRef` prevents stale callbacks.
 
-**Props:**
-```typescript
+**Translations**: Uses `react-i18next` with namespaces `landing`, `common`, and `messages`.
+
+## 4.2 Workspace
+
+**File**: `client/src/pages/Workspace.tsx`
+
+This is the main collaborative page. It consists of three nested components that build up the provider tree:
+
+**`Workspace`** (exported default): Extracts `workspaceId` from URL params. Wraps everything in `<SharingProvider workspaceId={...}>`, then renders `<WorkspaceGate>`.
+
+**`WorkspaceGate`**: Checks `isCheckingWorkspace` and `workspaceNotFound` from `useSharing()`. While checking, shows a loading spinner. If not found, shows a toast error and navigates to `/`. Once verified, renders the provider tree:
+
+```
+YjsProvider
+  -> WhiteboardProvider
+      -> CodeEditorProvider
+          -> DiagramEditorProvider
+              -> WorkspaceLayout
+```
+
+**`WorkspaceLayout`**: The main layout component. It holds state for:
+- `viewMode`: `'whiteboard'` or `'split'`
+- `splitPosition`: percentage width of the code panel (persisted to localStorage via `STORAGE_KEYS.SPLIT_POSITION`)
+- `isDragging`: panel resize in progress
+- `showSharingSettings`: modal visibility
+- `isNewWorkspace`: flag from server to auto-open sharing settings for the owner
+- `initialMouseX`: starting X position for resize drag
+- `initialWidth`: starting panel width for resize drag
+- `persistentUserId`: from `getPersistentUserId()`, used for session identity
+
+It computes an aggregate `connectionStatus` from the socket, whiteboard, and Yjs connection states. It listens for `SOCKET_EVENTS.WORKSPACE_STATE` (to detect new workspaces) and `SOCKET_EVENTS.SESSION_ENDED` (to show a toast and redirect home after 2 seconds).
+
+The split panel resize is handled via `handleMouseDown(e, direction)`, `mousemove`, and `mouseup` global listeners. Note: `WorkspaceLayout` defines `handleMouseDown` with 1 argument (mouse event), while `WorkspaceContent` types it with 2 arguments `(e: ReactMouseEvent<HTMLDivElement>, direction: 'left' | 'right')`. The split position is clamped between `LAYOUT.MIN_WIDTH_PERCENT` and `LAYOUT.MAX_WIDTH_PERCENT`.
+
+A full-screen overlay shows connection status (connecting spinner, loading history, disconnected warning, error message) when not fully connected.
+
+---
+
+# 5. Frontend Components
+
+## 5.1 Main Components
+
+### Whiteboard
+
+**File**: `client/src/components/Whiteboard.tsx`
+
+```tsx
+interface WhiteboardProps {
+  disabled?: boolean;
+  onCursorMove?: (x: number, y: number) => void;
+}
+```
+
+Renders a `<canvas>` element wrapped in a `div.canvas-grid`. The Fabric.js canvas is initialized via `useWhiteboard().initCanvas(canvasRef.current)` inside a `useEffect`.
+
+Delegates drawing logic to custom hooks:
+- `useShapeDrawing`: rectangle, circle, ellipse, triangle, etc. via mouse drag
+- `useLineDrawing`: line and arrow drawing
+- `useTextEditing`: click-to-add-text
+- `useObjectModification`: object move/resize sync
+- `useCanvasPanning`: middle-mouse/space+drag panning and wheel zoom
+- `useKeyboardDelete`: Delete/Backspace key on selected objects
+
+Mouse event routing in `handleMouseDown`:
+- `TOOLS.TEXT` + no target: calls `addText(pointer)`
+- `TOOLS.SHAPES` + no target: calls `startShape(pointer)`
+- `TOOLS.LINE` / `TOOLS.ARROW` + no target: calls `startLine(pointer)`
+
+The component also listens for `FABRIC_EVENTS.OBJECT_MODIFIED` to track `originalState` of objects before modification, enabling undo-aware sync. `ctrlKey` and `shiftKey` modifiers from mouse events are forwarded to shape drawing hooks for constrained drawing (e.g., Ctrl for square/equilateral, Shift for line snapping).
+
+Text edit locking: Listens for `SOCKET_EVENTS.TEXT_EDIT_LOCKS` to track which text objects are being edited by other users. When entering text editing, emits `SOCKET_EVENTS.TEXT_EDIT_START`. On exiting, commits the final text via `updateElement` and emits `SOCKET_EVENTS.TEXT_EDIT_END`. Objects locked by other users have `editable` set to false.
+
+Wrapped in `React.memo`.
+
+### CodeEditor
+
+**File**: `client/src/components/CodeEditor.tsx`
+
+```tsx
 interface CodeEditorProps {
   onAddToWhiteboard?: () => void;
   onEmptyWarning?: () => void;
@@ -648,98 +348,267 @@ interface CodeEditorProps {
 }
 ```
 
-**Features:**
-- Language selector dropdown
-- Insert example code button
-- Add to whiteboard button
-- Read-only mode support
-- Yjs MonacoBinding for collaboration
+Renders a Monaco editor (`@monaco-editor/react`) with a toolbar above it. The toolbar contains a language selector dropdown (from `CODE_EDITOR_LANGUAGES`), an "Insert Example" button, and an "Add to Whiteboard" button (visible only when `canAddToWhiteboard` is true).
 
-### DiagramRenderer.tsx
-**Path:** `client/src/components/DiagramRenderer.tsx`
+Yjs integration: On editor mount, creates a `MonacoBinding` linking the Yjs `doc.getText('code')` shared text to the Monaco model. This allows real-time collaborative editing through `y-monaco`. The binding is destroyed on unmount.
 
-Mermaid diagram editor with live preview and pan/zoom.
+Read-only mode is determined by `useSharing().canWrite()`.
 
-**State:**
-| State | Type | Purpose |
-|-------|------|---------|
-| `error` | `string \| null` | Render error |
-| `errorLine` | `number \| null` | Error line number |
-| `editorHeight` | `number` | Editor panel height % |
-| `zoom` | `number` | Preview zoom level |
-| `pan` | `{x, y}` | Preview pan offset |
+The language selector dropdown uses `useClickOutside` for click-outside dismissal. The "Insert Example" button inserts content from the `CODE_EXAMPLES` constant (one example per language).
 
-### SharingSettings.tsx
-**Path:** `client/src/components/SharingSettings.tsx`
+Language changes are handled via `useCodeEditor().setLanguage()`, which also emits a socket event to sync language across clients.
 
-Modal for workspace sharing configuration.
+### CodeEditorPanel
 
-**For Owners:**
-- Radio buttons for sharing modes
-- View link (blue box with copy)
-- Edit link (green box with copy)
+**File**: `client/src/components/CodeEditorPanel.tsx`
 
-**Sharing Modes:**
-| Mode | Description |
-|------|-------------|
-| `READ_ONLY` | Only owner can edit |
-| `READ_WRITE_ALL` | Anyone can edit |
-| `READ_WRITE_SELECTED` | Token required for edit |
+```tsx
+interface CodeEditorPanelProps {
+  canWrite: () => boolean;
+  onAddDiagramToWhiteboard: () => void;
+  onAddCodeToWhiteboard: () => void;
+  onCodeEmptyWarning: () => void;
+  onClose: () => void;
+}
+```
 
-## 4.2 Layout Components
+A tabbed container with two tabs: "Code" and "Diagram", plus a close button. The `activeTab` state (`'code'` | `'diagram'`) determines which child component is rendered: `<CodeEditor>` or `<DiagramRenderer>`. Shows a read-only badge when `canWrite()` returns false.
 
-### Header.tsx
-**Path:** `client/src/components/layout/Header.tsx`
+### DiagramRenderer
 
-Workspace header with ID display and navigation.
+**File**: `client/src/components/DiagramRenderer.tsx`
 
-**Features:**
-- Home button with icon
-- Workspace ID with click-to-copy
-- Read-only badge (conditional)
+```tsx
+interface DiagramRendererProps {
+  onAddToWhiteboard: () => void;
+  canAddToWhiteboard: boolean;
+}
+```
 
-### Toolbar.tsx
-**Path:** `client/src/components/layout/Toolbar.tsx`
+A split-pane component with a Monaco editor (top) for Mermaid diagram syntax and a live SVG preview (bottom). The split is resizable via mouse drag on a divider bar. `editorHeight` state controls the split ratio (initial value `50`, clamped between 20% and 80%).
 
-Vertical toolbar with drawing tools and options.
+Mermaid is loaded asynchronously via `loadMermaid()` with the following `MERMAID_CONFIG`: `startOnLoad: false`, `theme: 'neutral'`, `logLevel: 'error'`, `securityLevel: 'strict'`, and a `flowchart` sub-config (`curve: 'linear'`, `useMaxWidth: false`, `padding: 15`). Diagram content comes from `useDiagramEditor().content`. Rendering is debounced at 400ms (first render is immediate). Errors are parsed into user-friendly messages with line numbers when available.
 
-**Sections:**
-1. Select tool (always visible)
-2. Drawing tools (write access): Pen, Shapes, Text
-3. Read-only indicator (no write access)
-4. Actions: Share, Options menu
+The preview area supports pan (click+drag) and zoom (mouse wheel). A "Reset" button appears when zoom or pan differs from defaults. Zoom is clamped between `ZOOM.MIN` and `ZOOM.MAX`.
 
-## 4.3 UI Components
+Yjs integration: Creates a `MonacoBinding` on `doc.getText('diagram')` for collaborative diagram editing.
 
-| Component | Purpose |
-|-----------|---------|
-| `ColorPicker` | Color selection with palette and custom input |
-| `ConfirmDialog` | Modal confirmation with variants |
-| `ConnectionStatus` | Connection indicator with participant count |
-| `ExportPreviewModal` | Canvas export with area selection |
-| `LanguageSwitcher` | EN/CZ toggle button |
-| `RemoteCursors` | Renders other users' cursor positions |
-| `ShapesMenu` | Shape selection dropdown |
-| `ZoomControls` | Zoom percentage and +/- buttons |
+SVG output is sanitized via DOMPurify before being injected into the DOM.
+
+### SharingSettings
+
+**File**: `client/src/components/SharingSettings.tsx`
+
+```tsx
+interface SharingSettingsProps {
+  workspaceId: string;
+  onClose: () => void;
+}
+```
+
+A modal dialog for managing workspace sharing permissions. Shows different UI for owners vs non-owners.
+
+**Owner view**: Three radio buttons for sharing modes (`READ_ONLY`, `READ_WRITE_ALL`, `READ_WRITE_SELECTED`). Calls `changeMode()` from `useSharing()` on selection. Below, shows two link sections: a "view link" (the workspace URL) and an "edit link" (workspace URL with `?access=` token). The edit token is fetched via `SOCKET_EVENTS.GET_EDIT_TOKEN`. Both have copy-to-clipboard buttons.
+
+On mount, the component emits `SOCKET_EVENTS.GET_SHARING_INFO` and `SOCKET_EVENTS.GET_ACTIVE_USERS` to refresh sharing state and active user list.
+
+**Non-owner view**: Shows the current sharing mode label and description as read-only information, with a message that only the owner can change settings.
+
+### WorkspaceContent
+
+**File**: `client/src/components/WorkspaceContent.tsx`
+
+```tsx
+interface WorkspaceContentProps {
+  workspaceId: string;
+  viewMode: ViewMode;
+  splitPosition: number;
+  isDragging: boolean;
+  handleMouseDown: (e: ReactMouseEvent<HTMLDivElement>, direction: 'left' | 'right') => void;
+  containerRef: RefObject<HTMLDivElement | null>;
+  cycleViewMode: () => void;
+  onShareClick: () => void;
+}
+```
+
+The primary workspace layout component. Renders:
+- `<Header>` (top-left, absolute positioned)
+- `<Toolbar>` (left side, vertically centered)
+- `<Whiteboard>` (full area, with `<RemoteCursors>` and `<ZoomControls>` overlaid)
+- `<CodeEditorPanel>` (right side, visible only in `split` view mode)
+- `<Notification>` (centered bottom)
+- `<ConnectionStatus>` and `<LanguageSwitcher>` (bottom-left)
+
+In split mode, the code panel occupies `splitPosition`% of the width from the right side. Two resize handles (left and right edges) allow dragging.
+
+The component maintains `viewportTransform` state, used for computing cursor positions relative to the canvas coordinate system.
+
+Hooks `useDiagramToCanvas` and `useCodeToCanvas` convert diagram SVG / code text into Fabric.js objects on the whiteboard. `useCursorSync` handles remote cursor position broadcast and collection.
+
+Monitors `canWrite()` changes and shows notifications when edit access is granted or revoked.
+
+## 5.2 Layout Components
+
+### Header
+
+**File**: `client/src/components/layout/Header.tsx`
+
+```tsx
+interface HeaderProps {
+  workspaceId: string;
+  canWrite: () => boolean;
+}
+```
+
+Renders a floating panel (`.header-panel`) in the top-left corner containing:
+- A home button that navigates to `/`
+- A vertical divider
+- The workspace ID displayed in monospace font, clickable to copy to clipboard. Uses `toast.success` / `toast.error` for clipboard feedback.
+- A read-only badge (lock icon + text) when `canWrite()` returns false
+
+Wrapped in `React.memo`.
+
+### Toolbar
+
+**File**: `client/src/components/layout/Toolbar.tsx`
+
+Renders a vertical toolbar panel (`.toolbar-panel`) with sections:
+
+1. **Select tool** (`ToolButton` with `MouseIcon`), always visible
+2. **Drawing tools** (only when `canWrite()` is true):
+   - `PenButton`: pen with color/width settings dropdown
+   - `ShapesMenu`: shapes, lines, arrows dropdown
+   - `TextButton`: text tool with font size dropdown
+3. **Read-only indicator**: a lock icon shown when `canWrite()` is false
+4. **Actions section**:
+   - Share button (blue icon for owners)
+   - `OptionsMenu`: export, clear, end session
+
+Wrapped in `React.memo`.
+
+**Barrel export**: `client/src/components/layout/index.ts` re-exports `Header` and `Toolbar`.
+
+## 5.3 UI Components
+
+### ColorPicker
+
+Shows a row (or column when `vertical`) of basic color swatches (`BASIC_COLORS` from constants). A "more colors" button opens a dropdown with `BRUSH_COLORS` in a 4-column grid plus a native `<input type="color">` picker. Tracks recently used custom colors in localStorage under `RECENT_COLORS_KEY`, up to `MAX_RECENT_COLORS`. Uses `useDropdownBehavior` hook for click-outside dismissal.
+
+### ConfirmDialog
+
+A modal confirmation dialog rendered via `createPortal` to `document.body`. Supports three variants (`danger`, `warning`, `primary`) with different icon and button colors. Closes on Escape key or backdrop click. Auto-focuses the confirm button on open. Prevents body scroll while open.
+
+### ConnectionStatus
+
+Renders a colored dot and text label reflecting the connection state: connected (green), connecting (yellow), disconnected (yellow), error (red). When connected, shows participant count in parentheses. Has `role="status"` and `aria-live="polite"` for accessibility.
+
+### ExportPreviewModal
+
+A portal-rendered modal for exporting the whiteboard as PNG. Shows a preview image with three export modes:
+1. Full canvas (no selection)
+2. "Select All" (crops to `objectsBounds`)
+3. Custom rectangle selection drawn by click+drag on the preview
+
+The `handleDownload` function creates an offscreen `<canvas>`, draws the cropped region, and calls `onDownload` with the data URL.
+
+### LanguageSwitcher
+
+A button toggling between English (`en`) and Czech (`cs`). Calls `i18n.changeLanguage()` and persists the choice to localStorage under `STORAGE_KEYS.LANGUAGE`. Displays "EN" or "CZ".
+
+### Notification
+
+A fixed-position toast at the bottom center of the screen. Auto-hides after `duration` ms (default from `TIMING.NOTIFICATION_DURATION`). Uses opacity + translateY transitions for enter/exit animation. Each type has a distinct background color and SVG icon.
+
+### NumberInput
+
+A numeric `<input type="number">` with min/max clamping on both change and blur events. If the user types a value above max, it clamps to max immediately. On blur, values below min are clamped up.
+
+### OptionsMenu
+
+A hover-expandable menu in the toolbar. The trigger is an `ExpandMoreIcon` button. On hover, reveals action buttons:
+- **Export**: Opens `<ExportPreviewModal>`, gets the full canvas image via `getFullCanvasImage()`, triggers a PNG download via a temporary `<a>` element
+- **Clear whiteboard**: Opens a `<ConfirmDialog>` (danger variant). On confirm, emits `SOCKET_EVENTS.WHITEBOARD_CLEAR` and calls `onClearCanvas()`. Hidden in read-only mode.
+- **End session**: Owner-only. Opens a `<ConfirmDialog>`. On confirm, emits `SOCKET_EVENTS.END_SESSION`.
+
+Uses a 200ms delay (`HOVER_CLOSE_DELAY`) before closing on mouse leave.
+
+### PenButton
+
+A toolbar button with a `CreateIcon`. When active, clicking opens a dropdown with:
+- A brush width slider (range input + `NumberInput`) clamped between `CANVAS.MIN_BRUSH_WIDTH` and `CANVAS.MAX_BRUSH_WIDTH`
+- A 6-column color grid from `BRUSH_COLORS`
+- A native `<input type="color">` for custom colors
+
+A small colored dot in the bottom-right corner of the button shows the current color. Returns `null` when `disabled`.
+
+### RemoteCursors
+
+Renders other users' cursor positions on the whiteboard. Each `RemoteCursor` is positioned using CSS `transform: translate3d(...)` computed from the canvas viewport transform matrix. This accounts for pan and zoom so cursors appear at the correct canvas coordinates. A colored SVG arrow icon and a name label are displayed. Transition is 50ms linear, matching the cursor sync throttle interval.
+
+Returns `null` when there are no remote cursors.
+
+### ShapesMenu
+
+A toolbar button with a `GroupedShapesIcon` that opens a 4-column dropdown grid of 12 items: rectangle, circle, ellipse, triangle, pentagon, hexagon, octagon, diamond, star, cross, line, and arrow. Receives a `vertical` prop for vertical layout. Selecting a shape sets both `tool` and `selectedShape`. For line/arrow, `selectedShape` is set to null and `tool` is set to `TOOLS.LINE` or `TOOLS.ARROW`.
+
+### TextButton
+
+A toolbar button with `TextFieldsIcon`. Shows the current font size as a small badge on the button. When active, clicking opens a dropdown with:
+- A 3-column grid of preset sizes from `FONT_SIZES`
+- A custom size `NumberInput` clamped between `CANVAS.MIN_FONT_SIZE` and `CANVAS.MAX_FONT_SIZE`
+
+### ToolButton
+
+A generic toolbar button that renders any MUI `SvgIconComponent`. Applies `.btn-icon-active` when active. Has `aria-pressed` for accessibility. Disabled state adds opacity and prevents click.
+
+### WidthSlider
+
+A range input for brush width. Supports horizontal and vertical (using `writing-mode: vertical-lr`) orientations. Clamped between `CANVAS.MIN_BRUSH_WIDTH` and `CANVAS.MAX_BRUSH_WIDTH`. Returns `null` when `disabled`.
+
+### ZoomControls
+
+Fixed-position controls at the bottom-right. Shows:
+- Current zoom percentage
+- Minus button (decrements by `ZOOM.BUTTON_INCREMENT`, min `ZOOM.MIN`)
+- Plus button (increments by `ZOOM.BUTTON_INCREMENT`, max `ZOOM.MAX`)
+- A help button that shows keyboard shortcuts on hover (from `CONTROL_TIPS` constant)
+
+**Barrel export**: `client/src/components/ui/index.ts` re-exports all 15 UI components.
+
+## 5.4 Demo Components
+
+### DemoWhiteboard
+
+**File**: `client/src/components/demo/DemoWhiteboard.tsx`
+
+An animated background for the landing page. Renders SVG shapes (rectangles, circles, ellipses, triangles, pentagons, hexagons, octagons, diamonds, stars, crosses) that spawn, fade in, and fade out over time.
+
+Configuration constants:
+- `SHAPE_LIFETIME`: 12000ms
+- `FADE_DURATION`: 1000ms
+- `SPAWN_INTERVAL`: 120ms
+- `INITIAL_SHAPES`: 25
+- `MAX_SHAPES`: 100
+- Grid: 6 columns, 5 rows
+
+Shapes are distributed across a grid to avoid clustering. Each shape has a random type, position within its grid cell, size (45-115px), and color from the `COLORS` palette. A cleanup interval removes expired shapes every 100ms.
+
+Wrapped in `React.memo`. The window resize handler updates the coordinate system.
 
 ---
 
-# 5. Frontend State Management
+# 6. Frontend State Management
 
-## 5.1 SocketContext
+## 6.1 SocketContext
 
-**File:** `client/src/context/SocketContext.tsx`
+**File**: `client/src/context/SocketContext.tsx`
 
-Manages the WebSocket connection to the server using Socket.IO.
+**State held**:
 
-### TypeScript Interface
-
-```typescript
-type ConnectionStatusType = 'connecting' | 'connected' | 'disconnected' | 'error';
-
+```tsx
 interface SocketContextValue {
   socket: Socket | null;
-  connectionStatus: ConnectionStatusType;
+  connectionStatus: ConnectionStatusType;  // 'connected' | 'connecting' | 'disconnected' | 'error'
   connectionError: string | null;
   connectionAttempts: number;
   maxReconnectAttempts: number;
@@ -747,67 +616,582 @@ interface SocketContextValue {
 }
 ```
 
-### State Variables
+Creates a single `socket.io-client` instance via `io()`. The server URL comes from the `VITE_API_URL` env variable, falling back to `http://localhost:3000` in dev mode. Socket options include auto-connect, reconnection with configurable attempts (`SOCKET.MAX_RECONNECT_ATTEMPTS`), delays from `TIMING` constants, and dual transport (websocket + polling).
 
-| Variable | Type | Initial Value | Description |
-|----------|------|---------------|-------------|
-| `socket` | `Socket \| null` | `null` | Socket.IO client instance |
-| `connectionAttempts` | `number` | `0` | Counter for reconnection attempts |
-| `connectionError` | `string \| null` | `null` | Error message from connection failures |
-| `connectionStatus` | `ConnectionStatusType` | `'connecting'` | Current connection state |
-| `userId` | `string \| null` | `null` | Persistent user identifier from storage |
+Socket event handlers:
+- `connect`: resets attempts and error, sets status to `CONNECTED`, shows success toast
+- `connect_error`: sets status to `ERROR`, increments attempts, shows warning toast. At max attempts, disconnects and shows error toast.
+- `disconnect`: sets status to `DISCONNECTED`, nullifies socket, shows info toast
+- `error`: stores error message, shows error toast
 
-### Refs
+The `userId` is a persistent identifier retrieved from `getPersistentUserId()` (stored in localStorage).
 
-| Ref | Type | Description |
-|-----|------|-------------|
-| `socketInstanceRef` | `MutableRefObject<Socket \| null>` | Stores socket instance for cleanup |
+**Provider pattern**: `<SocketProvider>` wraps the entire app in `App.tsx`. Hook: `useSocket()`.
 
-### Socket Configuration
+## 6.2 SharingContext
 
-```typescript
-const socketInstance = io(serverUrl, {
-  autoConnect: true,
-  reconnection: true,
-  reconnectionAttempts: maxReconnectAttempts,
-  reconnectionDelay: TIMING.RECONNECT_DELAY,
-  reconnectionDelayMax: TIMING.RECONNECT_MAX_DELAY,
-  timeout: TIMING.SOCKET_TIMEOUT,
-  transports: ['websocket', 'polling']
-});
-```
+**File**: `client/src/context/SharingContext.tsx`
 
-### Socket Event Handlers
+**State held**:
 
-| Event | Description |
-|-------|-------------|
-| `connect` | Resets attempts, clears errors, sets status to 'connected' |
-| `connect_error` | Sets status to 'error', stores error message, increments attempts |
-| `disconnect` | Sets status to 'disconnected', clears socket |
-| `error` | Stores error message, shows error toast |
-
-### Custom Hook
-
-```typescript
-export function useSocket(): SocketContextValue {
-  const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider');
-  }
-  return context;
+```tsx
+interface SharingContextValue {
+  sharingMode: SharingModeType;
+  allowedUsers: string[];
+  isOwner: boolean;
+  currentUser: string | null;
+  hasEditAccess: boolean;
+  canWrite: () => boolean;
+  changeMode: (mode: SharingModeType) => void;
+  workspaceOwner: string | null;
+  sharingInfoReceived: boolean;
+  workspaceNotFound: boolean;
+  isCheckingWorkspace: boolean;
+  accessToken: string | null;
 }
 ```
 
-## 5.2 SharingContext
+On mount, checks for an `access` query parameter in the URL. If found, stores it as a session token and removes it from the URL via `history.replaceState`. On socket connect, emits `CHECK_WORKSPACE_EXISTS`. On result, either proceeds to join or sets `workspaceNotFound`. Joining emits both `GET_SHARING_INFO` and `JOIN_WORKSPACE` with the userId and accessToken.
 
-**File:** `client/src/context/SharingContext.tsx`
+`canWrite()` logic:
+- Owner: always true
+- `READ_ONLY` mode: always false
+- `READ_WRITE_ALL` mode: always true
+- `READ_WRITE_SELECTED` mode: true only if `hasEditAccess` is true (granted via edit token)
 
-Manages workspace sharing permissions, access control, and user roles.
+`changeMode()`: Owner-only. Emits `SOCKET_EVENTS.CHANGE_SHARING_MODE`.
 
-### TypeScript Interface
+**Provider pattern**: `<SharingProvider workspaceId={...}>` wraps `WorkspaceGate`. Hook: `useSharing()`.
 
-```typescript
-type SharingModeType = 'read-only' | 'read-write-all' | 'read-write-selected';
+## 6.3 YjsContext
+
+**File**: `client/src/context/YjsContext.tsx`
+
+**State held**:
+
+```tsx
+interface YjsContextValue {
+  doc: Y.Doc;
+  provider: WebsocketProvider | null;
+  status: 'disconnected' | 'connecting' | 'connected';
+  synced: boolean;
+}
+```
+
+Creates a `Y.Doc` instance and a `WebsocketProvider` from `y-websocket`. The WebSocket URL is constructed as `ws[s]://<host>/yjs?userId=...&accessToken=...`. The provider connects to the room identified by `workspaceId`.
+
+Awareness state is set with user info (id, name from translated animal names, color picked deterministically from seed, animal key). This awareness data powers collaborative cursor display in Monaco editors.
+
+Status and sync state are tracked via `provider.on('status', ...)` and `provider.on('sync', ...)`. A warning toast is shown if the connection drops after previously being connected.
+
+The provider is only created after `sharingInfoReceived` is true, so authentication data is available before connecting.
+
+**Provider pattern**: `<YjsProvider workspaceId={...}>` wraps the whiteboard/editor providers. Hook: `useYjs()`.
+
+## 6.4 WhiteboardContext
+
+**File**: `client/src/context/WhiteboardContext.tsx`
+
+This is the largest context. It composes several hooks:
+
+- **`useWhiteboardCanvas`**: Manages the Fabric.js `Canvas` instance, refs (`canvasRef`, `isUpdatingRef`, `elementsMapRef`, `batchedRenderRef`), canvas initialization/disposal, full canvas image export, drawing mode settings, and throttled socket emission.
+- **`useWhiteboardElements`**: Manages the `elements` array, `createFabricObject` factory, and CRUD operations (`addElement`, `updateElement`, `deleteElement`, `clearElements`).
+- **`useWhiteboardSync`**: Handles socket-based element synchronization. Listens for `CONNECT`, `DISCONNECT`, `WORKSPACE_STATE` (initial load), `WHITEBOARD_UPDATE`, `WHITEBOARD_CLEAR`, `DELETE_ELEMENT`, `USER_JOINED`, `USER_LEFT`. Tracks `isConnected`, `isLoading`, `connectionStatus`, `activeUsers`.
+- **`useWhiteboardTools`**: Manages tool, shape, color, width, fontSize state. Configures Fabric.js drawing mode (freeDrawingBrush) when pen tool is active.
+- **`useRemoteDrawing`**: Handles real-time brush stroke rendering from other users while they are still drawing.
+
+`setZoom`: Clamps to `[ZOOM.MIN, ZOOM.MAX]`, calls `canvas.zoomToPoint()` at the canvas center, and triggers a batched render.
+
+`addElement`: Adds an element to the local elements map and canvas, then emits to the socket for remote sync.
+
+`updateElement`: Updates an existing element locally and emits the change via throttled socket emission.
+
+`clearCanvas`: Removes all elements from the canvas and map, emits clear event.
+
+**Provider pattern**: `<WhiteboardProvider>` wraps the workspace content. Hook: `useWhiteboard()`.
+
+## 6.5 CodeEditorContext
+
+**File**: `client/src/context/CodeEditorContext.tsx`
+
+**State held**:
+
+```tsx
+interface CodeEditorContextValue {
+  content: string;
+  language: string;
+  setContent: (value: string) => void;
+  setLanguage: (language: string) => void;
+}
+```
+
+Content is synced via Yjs using `doc.getText('code')`. An observer on the Y.Text instance updates local `content` state whenever the shared text changes. When no content exists and the doc is synced, initializes with `CODE_EXAMPLES[language]` (guarded by a `codeInitialized` meta flag to prevent duplication).
+
+`setContent` replaces the entire Y.Text content within a transaction (delete all, then insert).
+
+Language is synced via Socket.IO: `setLanguage` calls `socket.emit(SOCKET_EVENTS.CODE_UPDATE, { workspaceId, language })`. Incoming `CODE_UPDATE` events update the local language state. The `WORKSPACE_STATE` event provides initial language and content.
+
+**Provider pattern**: `<CodeEditorProvider>` wraps inside `WhiteboardProvider`. Hook: `useCodeEditor()`.
+
+## 6.6 DiagramEditorContext
+
+**File**: `client/src/context/DiagramEditorContext.tsx`
+
+**State held**:
+
+```tsx
+interface DiagramEditorContextValue {
+  content: string;
+  setContent: (value: string) => void;
+  isReadOnly: boolean;
+}
+```
+
+Content is synced via Yjs using `doc.getText('diagram')`. An observer syncs Y.Text changes to local state. When the document is synced and the diagram text is empty, initializes with `SAMPLE_DIAGRAM` (guarded by a `diagramInitialized` meta flag).
+
+`setContent` performs a diff-based update: it computes the common prefix and suffix, then applies only the minimal delete+insert operations to the Y.Text. This avoids unnecessary Yjs operations for small edits. If `isReadOnly` is true, `setContent` is a no-op.
+
+**Provider pattern**: `<DiagramEditorProvider>` wraps inside `CodeEditorProvider`. Hook: `useDiagramEditor()`.
+
+---
+
+# 7. Frontend Hooks
+
+## 7.1 Canvas / Whiteboard Hooks
+
+### useWhiteboardCanvas
+
+**File:** `client/src/hooks/useWhiteboardCanvas.ts`
+
+Initializes and manages the Fabric.js canvas instance: free drawing brushes, path creation events, object modification events, window resize handling, and drawing stream integration.
+
+**Returns:** `UseWhiteboardCanvasReturn`
+
+```ts
+interface UseWhiteboardCanvasReturn {
+  canvasRef: MutableRefObject<Canvas | null>;
+  isUpdatingRef: MutableRefObject<boolean>;
+  elementsMapRef: MutableRefObject<Map<string, Element>>;
+  batchedRenderRef: MutableRefObject<(() => void) | null>;
+  initCanvas: (canvasElement: HTMLCanvasElement, callbacks: InitCanvasCallbacks) => () => void;
+  disposeCanvas: () => void;
+  getFullCanvasImage: () => CanvasImageData | null;
+  setCanvasDrawingMode: (isDrawing: boolean, color: string, width: number) => void;
+  setRefs: (socket: Socket | null, canWrite: (() => boolean) | null, userId: string | null) => void;
+  emitThrottled: (workspaceId: string, elements: Element[]) => boolean;
+}
+```
+
+Key side effects:
+- Creates a `Canvas` with `renderOnAddRemove: false`, `skipOffscreen: true`, `preserveObjectStacking: true`, fire right/middle click, and context menu suppression.
+- Sets up a `PencilBrush` with round caps and joins.
+- Attaches `path:created`, `object:modified`, and `object:moving` Fabric event listeners.
+- Calls `setupDrawingStreamHandlers` from `useDrawingStream` for real-time path streaming.
+- Listens for `window.resize` and resizes the canvas.
+- On `path:created`, assigns a UUID to the path, stores the element, and emits `WHITEBOARD_UPDATE`.
+
+Uses `isUpdatingRef` as a guard to prevent re-emitting changes received from the server. `emitThrottled` enforces a minimum interval of `TIMING.MOVEMENT_TIMEOUT` (50ms) between socket emissions.
+
+### useWhiteboardSync
+
+**File:** `client/src/hooks/useWhiteboardSync.ts`
+
+Synchronizes canvas state with the server over Socket.IO. Receives full workspace state on connection, applies incremental updates, handles element deletion, and tracks active user count.
+
+**Returns:**
+
+```ts
+interface UseWhiteboardSyncReturn {
+  isConnected: boolean;
+  isLoading: boolean;
+  connectionStatus: ConnectionStatus;
+  activeUsers: number;
+}
+```
+
+Listens for socket events: `connect`, `disconnect`, `WORKSPACE_STATE`, `WHITEBOARD_UPDATE`, `WHITEBOARD_CLEAR`, `DELETE_ELEMENT`, `USER_JOINED`, `USER_LEFT`.
+
+On `WORKSPACE_STATE`: clears the canvas, then recreates all regular elements and loads diagrams. Sets object selectability based on write permission.
+
+On `WHITEBOARD_UPDATE`: applies incremental updates. For existing objects, patches changed properties. For new objects, creates them via `createFabricObject`. Removes any temporary remote drawing objects (matched by `_shapeId` or `_drawingId`) before adding the final version.
+
+On `DELETE_ELEMENT`: removes the object from canvas, the internal object map, and the elements map.
+
+Maintains an internal `objectMapRef` (Map of element ID to Fabric object) for fast lookups during sync.
+
+### useWhiteboardElements
+
+**File:** `client/src/hooks/useWhiteboardElements.ts`
+
+Manages the element state array and provides CRUD operations for whiteboard elements.
+
+**Returns:**
+
+```ts
+interface UseWhiteboardElementsReturn {
+  elements: Element[];
+  setElements: Dispatch<SetStateAction<Element[]>>;
+  createFabricObject: (element: Element) => FabricObject | null;
+  addElement: (...) => void;
+  updateElement: (...) => void;
+  deleteElement: (...) => void;
+  clearElements: (...) => void;
+}
+```
+
+`createFabricObject` handles types: `path`, `text`, `rect`, `circle`, `ellipse`, `triangle`, `star`, `diamond`, `pentagon`, `hexagon`, `octagon`, `cross`, `polygon`, `line`, `arrow`, and `diagram`. Diagram type returns `null` synchronously because diagrams are loaded asynchronously via `loadDiagramToCanvas`.
+
+### useWhiteboardTools
+
+**File:** `client/src/hooks/useWhiteboardTools.ts`
+
+Manages the active tool, selected shape, drawing color, brush width, and font size. Synchronizes these values with the Fabric canvas state (drawing mode, object selectability, cursor behavior).
+
+An effect runs whenever `tool`, `isLoading`, `isConnected`, or `canWrite` changes. It toggles `canvas.isDrawingMode` when tool is `PEN`. It iterates all canvas objects to set `selectable`, `hasControls`, `hasBorders`, `evented`, and lock properties based on whether the user can draw and whether the tool supports selection.
+
+If the user loses write permission while a drawing tool is selected, the hook resets to `TOOLS.SELECT`.
+
+### useCanvasPanning
+
+**File:** `client/src/hooks/useCanvasPanning.ts`
+
+Handles canvas panning (via Space + drag, middle mouse button, or right mouse button) and zoom (mouse wheel).
+
+**Returns:** `{ isPanningRef, isSpacePressedRef }`
+
+Key behavior:
+- Space key held: cursor becomes `grab`, enables panning.
+- On mouse down with Space/middle/right button: starts panning, sets cursor to `grabbing`.
+- On mouse move during panning: applies delta to `viewportTransform[4]` (x) and `viewportTransform[5]` (y).
+- On mouse wheel: zoom with `ZOOM.WHEEL_OUT_MULTIPLIER` (0.95) or `ZOOM.WHEEL_IN_MULTIPLIER` (1.05), clamped between `ZOOM.MIN` (0.1) and `ZOOM.MAX` (3). Zooms to the cursor point.
+- Suppresses context menu on the canvas.
+
+## 7.2 Drawing Hooks
+
+### useDrawingStream
+
+**File:** `client/src/hooks/useDrawingStream.ts`
+
+Streams freehand drawing points to the server in real time during pen tool usage. Sends only new (unsent) points from the PencilBrush's internal `_points` array.
+
+**Returns:** `{ setupDrawingStreamHandlers: (canvas: Canvas) => () => void }`
+
+On mouse down (left button only, drawing mode active, write permission granted): generates a new `drawingId` (UUID), emits `DRAWING_START`. On mouse move: emits `DRAWING_STREAM` throttled by `TIMING.DRAWING_STREAM_THROTTLE` (50ms). On mouse up: flushes remaining points, emits `DRAWING_END`.
+
+### useShapeDrawing
+
+**File:** `client/src/hooks/useShapeDrawing.ts`
+
+Handles interactive drawing of geometric shapes (rectangle, circle, ellipse, triangle, star, diamond, pentagon, hexagon, octagon, cross) on the canvas with real-time remote broadcasting.
+
+**Returns:**
+
+```ts
+interface UseShapeDrawingReturn {
+  isDrawing: MutableRefObject<boolean>;
+  startShape: (pointer: Point) => void;
+  updateShape: (pointer: Point, isCtrlPressed?: boolean) => void;
+  finishShape: () => void;
+  cancelShape: () => void;
+}
+```
+
+`startShape`: creates a shape via `createShape` from `shapeFactory`, emits `SHAPE_DRAWING_START`. `updateShape`: calls `calculateShapeUpdate` from `shapeGeometry`, emits `SHAPE_DRAWING_UPDATE` (throttled). `finishShape`: makes the shape selectable, serializes it, calls `addElement`, emits `SHAPE_DRAWING_END`.
+
+### useLineDrawing
+
+**File:** `client/src/hooks/useLineDrawing.ts`
+
+Handles line and arrow drawing. Supports shift-key snapping to horizontal, vertical, or 45-degree angles.
+
+Creates either a `Line` or an `Arrow` object depending on the active tool. For arrows, sets `headLength` to `max(width * ARROW.HEAD_LENGTH_MULTIPLIER, ARROW.MIN_HEAD_LENGTH)`.
+
+Shift-key snapping: if `absX > absY * 2`, snaps horizontal; if `absY > absX * 2`, snaps vertical; otherwise snaps to 45 degrees.
+
+### useTextEditing
+
+**File:** `client/src/hooks/useTextEditing.ts`
+
+Creates editable text objects on the canvas at a given position and immediately enters editing mode.
+
+**Returns:** `{ addText: (position: Position) => void }`
+
+Creates an `IText` with empty content, scaled font size (`fontSize / currentZoom`), the specified color, and `CANVAS.DEFAULT_FONT_FAMILY` ("Inter"). Calls `enterEditing()` and focuses the hidden textarea for immediate typing.
+
+## 7.3 Remote Sync Hooks
+
+### useRemoteDrawing
+
+**File:** `client/src/hooks/useRemoteDrawing.ts`
+
+Orchestrates remote drawing by composing `useRemotePathDrawing` and `useRemoteShapeDrawing`. Listens for six socket events: `DRAWING_START`, `DRAWING_STREAM`, `DRAWING_END`, `SHAPE_DRAWING_START`, `SHAPE_DRAWING_UPDATE`, `SHAPE_DRAWING_END`.
+
+Maintains a shared `activeDrawingsRef` (Map of drawing/shape ID to `DrawingData`) and `cleanupTimeoutsRef`.
+
+### useRemotePathDrawing
+
+**File:** `client/src/hooks/useRemotePathDrawing.ts`
+
+Renders freehand paths drawn by remote users in real time. Converts streamed point arrays to SVG path strings and updates a Fabric `Path` object on the canvas.
+
+`handleDrawingStream`: accumulates points, converts them to an SVG path string using `pointsToSvgPath` (quadratic bezier curves through midpoints). Creates a non-selectable `Path` with `_isRemoteDrawing = true`.
+
+`handleDrawingEnd`: sets a hardcoded 100ms timeout (not using the `TIMING.REMOTE_DRAWING_CLEANUP_DELAY` constant) to remove the temporary path. The delay prevents flickering when the server's final committed version arrives shortly after.
+
+### useRemoteShapeDrawing
+
+**File:** `client/src/hooks/useRemoteShapeDrawing.ts`
+
+Renders geometric shapes drawn by remote users in real time.
+
+`handleShapeDrawingStart`: creates the appropriate Fabric object based on `shapeType`. All remote shapes are non-selectable, non-evented, with `_isRemoteShape = true`.
+
+`handleShapeDrawingEnd`: sets a timeout of `TIMING.REMOTE_DRAWING_CLEANUP_DELAY` (100ms) to remove the temporary shape.
+
+### useCursorSync
+
+**File:** `client/src/hooks/useCursorSync.ts`
+
+Tracks and broadcasts cursor positions for multi-user collaboration. Assigns each user a random color and animal name for identification.
+
+**Returns:**
+
+```ts
+interface UseCursorSyncReturn {
+  remoteCursors: RemoteCursors;
+  emitCursorPosition: (x: number, y: number) => void;
+  userInfo: UserInfo | null;
+}
+```
+
+On socket init: assigns a random color from `CURSOR_COLORS` and a random animal from `CURSOR_ANIMALS`. Listens for `CURSOR_UPDATE` events: updates `remoteCursors` state. Sets a timeout of `TIMING.CURSOR_TIMEOUT` (5000ms) to remove stale cursors. `emitCursorPosition` is throttled to `TIMING.CURSOR_THROTTLE` (50ms).
+
+## 7.4 Integration Hooks
+
+### useCodeToCanvas
+
+**File:** `client/src/hooks/useCodeToCanvas.ts`
+
+Returns a callback that places code content as an `IText` object on the canvas, centered in the current viewport. Font size is `14 / currentZoom`. Uses `CANVAS.CODE_FONT_FAMILY` ("Consolas, Monaco, monospace").
+
+### useDiagramToCanvas
+
+**File:** `client/src/hooks/useDiagramToCanvas.ts`
+
+Returns an async callback that renders Mermaid diagram markup to SVG, converts it to a PNG, and places it on the canvas as an image element.
+
+Steps:
+1. Lazy-loads Mermaid via `loadMermaid` with `securityLevel: 'loose'`.
+2. Processes SVG through `processSvgForTransparency`.
+3. Renders to `Image`, draws onto a temporary `<canvas>` at 2x scale.
+4. Converts to PNG data URL and creates a `DiagramElementData`.
+
+### useSharingSocketHandlers
+
+**File:** `client/src/hooks/useSharingSocketHandlers.ts`
+
+Handles socket events related to sharing permissions: `SHARING_INFO`, `EDIT_TOKEN_UPDATED`, and `SHARING_MODE_CHANGED`.
+
+On `SHARING_INFO`: sets sharing mode, allowed users, edit access, owner, and current user. Marks `sharingInfoReceived = true`. On `SHARING_MODE_CHANGED`: updates the mode. On `EDIT_TOKEN_UPDATED`: stores the new edit token.
+
+## 7.5 Utility Hooks
+
+### useClickOutside
+
+**File:** `client/src/hooks/useClickOutside.ts`
+
+Calls a callback when a `mousedown` event occurs outside the referenced element. Can be activated or deactivated via the `isActive` parameter.
+
+Also exports:
+
+- **`useEscapeKey`**: calls a callback when the Escape key is pressed.
+- **`useDropdownBehavior`**: combines `useClickOutside` and `useEscapeKey` to close a dropdown.
+
+### useKeyboardDelete
+
+**File:** `client/src/hooks/useKeyboardDelete.ts`
+
+Deletes selected canvas objects when the Delete key is pressed while the select tool is active. For each active object with an `id`: clears any pending modification timeout, removes the object from canvas, and emits `DELETE_ELEMENT`.
+
+### useObjectModification
+
+**File:** `client/src/hooks/useObjectModification.ts`
+
+Tracks object modification events (move, scale, rotate) on the canvas and persists changes by calling `updateElement` after a debounce timeout.
+
+Listens for `object:modified`, `object:moving`, `object:scaling`, `object:rotating`. Debounces the update via `TIMING.MOVEMENT_TIMEOUT` (50ms). The `updateElementByType` helper builds the correct element data structure based on object type.
+
+## 7.6 Remote Drawing Types
+
+**File:** `client/src/hooks/remoteDrawingTypes.ts`
+
+```ts
+interface DrawingData {
+  fabricPath: (Path & { _isRemoteDrawing?: boolean; _drawingId?: string }) | null;
+  fabricShape?: (FabricObject & { _isRemoteShape?: boolean; _shapeId?: string }) | null;
+  points: Point[];
+  color: string;
+  brushWidth: number;
+  userId?: string;
+  shapeType?: string;
+  interpolator?: PerfectCursor;
+}
+```
+
+---
+
+# 8. Frontend Utilities
+
+## 8.1 batchedRender.ts
+
+Coalesces multiple `requestRenderAll` calls on a Fabric canvas into a single call per animation frame.
+
+```ts
+function createBatchedRender(canvas: FabricCanvas | null): () => void
+function cancelBatchedRender(canvas: FabricCanvas): void
+```
+
+Uses a `WeakMap<FabricCanvas, RenderQueue>` to store per-canvas render queue state.
+
+## 8.2 canvasExport.ts
+
+Exports the visible canvas area as a PNG data URL.
+
+```ts
+function getFullCanvasImage(canvas: Canvas | null): CanvasImageData | null
+```
+
+Computes the visible viewport area from the canvas transform matrix. Calls `canvas.toDataURL` with `CANVAS.EXPORT_MULTIPLIER` (2x) for retina output. Calculates `objectsBounds` by scanning all objects' corner coordinates, adding `CANVAS.EXPORT_PADDING` (50px).
+
+## 8.3 fabricArrow.ts
+
+Defines a custom Fabric.js `Arrow` class that extends `Line` with arrowhead rendering.
+
+```ts
+class Arrow extends Line {
+  headLength: number;   // default ARROW.HEAD_LENGTH (15)
+  headAngle: number;    // default ARROW.HEAD_ANGLE (PI/6)
+}
+```
+
+`_render` draws the line segment, then two arrowhead lines from the endpoint at `+/-headAngle` from the line angle. Registered in the Fabric class registry under both `'Arrow'` and `'arrow'`.
+
+## 8.4 fabricHelpers.ts
+
+```ts
+function getAbsolutePosition(item: FabricObject, group: Group): { left: number; top: number }
+```
+
+Computes the absolute canvas position of an object inside a group by applying the group's transform matrix via `util.transformPoint`.
+
+## 8.5 index.ts (utils barrel)
+
+| Function | Description |
+|---|---|
+| `getWorkspaceId(): string \| null` | Extracts workspace ID from URL path (`/.../{id}`) |
+| `generateUserId(): string` | Creates `user-{timestamp}-{random6chars}` |
+| `getPersistentUserId(): string` | Gets or creates a user ID from localStorage |
+| `getAccessToken(workspaceId): string \| null` | Reads access token from localStorage |
+| `setAccessToken(workspaceId, token): void` | Stores access token |
+| `removeAccessToken(workspaceId): void` | Removes access token |
+| `constrainObjectToBounds(obj, canvas, buffer?): boolean` | Clamps a Fabric object's position within the visible viewport |
+
+## 8.6 mermaid.ts
+
+```ts
+const loadMermaid: (config?: MermaidConfig) => Promise<MermaidModule['default']>
+```
+
+Lazy-loads the Mermaid library via dynamic `import('mermaid')`. Caches the import promise so the library is loaded only once.
+
+## 8.7 sessionToken.ts
+
+Stores tokens in `sessionStorage` with an expiration timestamp. `TOKEN_TTL_MS` is 4 hours.
+
+```ts
+function setSessionToken(key: string, value: string | undefined): void
+function getSessionToken(key: string): string | null
+```
+
+Returns `null` and removes the entry if expired or malformed.
+
+## 8.8 shapeGeometry.ts
+
+Calculates shape dimensions and point arrays during interactive drawing.
+
+```ts
+function calculateShapeUpdate(shapeType: string, params: ShapeUpdateParams): ShapeUpdateResult | null
+```
+
+Uses a lookup table (`shapeCalculators`) indexed by shape type. Each calculator returns either `props` (for rect, circle, ellipse) or `points` (for triangle, star, diamond, pentagon, hexagon, octagon, cross).
+
+Shape-specific behavior:
+- **rectangle**: Ctrl held forces a square. Handles negative drag direction.
+- **circle**: radius = `sqrt(dx^2 + dy^2) / 2`. Centered on start point.
+- **ellipse**: `rx = |dx| / 2`, `ry = |dy| / 2`.
+- **triangle**: supports upside-down drawing. Ctrl forces equal width and height (isosceles).
+- **star**: 10 points, alternating outer and inner radius (`outer * 0.4`).
+- **diamond**: 4 points arranged as a rotated square.
+- **pentagon/hexagon/octagon**: uses `createRegularPolygon(sides, center, radius)`.
+- **cross**: 12-point polygon forming a plus shape. Arm width = `size / 3`.
+
+## 8.9 toast.ts
+
+Wraps `react-toastify` with a maximum toast limit.
+
+Tracks active toasts in a `Set<Id>`. Before showing a new toast, dismisses the oldest if the count would exceed `TOAST.MAX_TOASTS` (3). If a custom `toastId` is provided and already active, returns it without creating a duplicate.
+
+---
+
+# 9. Frontend Factories
+
+## 9.1 shapeFactory.ts
+
+**File:** `client/src/factories/shapeFactory.ts`
+
+Creates Fabric.js shape objects for both initial drawing (empty shapes) and reconstruction from data.
+
+```ts
+function createShape(shapeType: string, props: ShapeProps): FabricObject | null
+```
+
+Creates a new, empty shape for interactive drawing. Shape type lookup:
+- `rectangle` -> `new Rect({ width: 0, height: 0, ... })`
+- `circle` -> `new Circle({ radius: 0, ... })`
+- `ellipse` -> `new Ellipse({ rx: 0, ry: 0, ... })`
+- `triangle`, `star`, `diamond`, `pentagon`, `hexagon`, `octagon`, `cross` -> `new Polygon(initialPoints, ...)`
+
+```ts
+function createShapeFromData(type: string, data: ShapeProps): FabricObject | null
+```
+
+Recreates a shape from serialized data (e.g., received from the server).
+
+```ts
+function isPolygonShape(shapeType: string): boolean
+const POLYGON_SHAPES: string[]  // triangle, star, diamond, pentagon, hexagon, octagon, cross
+```
+
+## 9.2 diagramFactory.ts
+
+**File:** `client/src/factories/diagramFactory.ts`
+
+```ts
+async function loadDiagramToCanvas(canvas: Canvas, element: DiagramElement, isSelectable?: boolean): Promise<void>
+```
+
+Checks if the element already exists on the canvas by ID (prevents duplicates). Loads the image via `FabricImage.fromURL` with `crossOrigin: 'anonymous'`. Sets position, scale, angle, selectability, and styling.
+
+---
+
+# 10. Frontend Types, Constants, i18n
+
+## 10.1 Type Definitions (sharing.ts)
+
+**File:** `client/src/types/sharing.ts`
+
+```ts
+type SharingModeType = typeof SHARING_MODES[keyof typeof SHARING_MODES];
 
 interface SharingContextValue {
   sharingMode: SharingModeType;
@@ -825,479 +1209,225 @@ interface SharingContextValue {
 }
 ```
 
-### State Variables
+Socket event payload types: `SharingInfoData`, `SharingModeChangedData`, `EditTokenUpdateData`, `WorkspaceExistsData`.
 
-| Variable | Type | Initial Value | Description |
-|----------|------|---------------|-------------|
-| `sharingMode` | `SharingModeType` | `'read-write-selected'` | Current sharing mode |
-| `allowedUsers` | `string[]` | `[]` | Users with edit permission |
-| `isOwner` | `boolean` | `false` | Current user is workspace owner |
-| `currentUser` | `string \| null` | `null` | Current user ID |
-| `persistentUserId` | `string \| null` | `null` | Persistent user ID from storage |
-| `hasEditAccess` | `boolean` | `false` | User has edit access |
-| `workspaceOwner` | `string \| null` | `null` | Workspace owner ID |
-| `sharingInfoReceived` | `boolean` | `false` | Server sent sharing info |
-| `workspaceNotFound` | `boolean` | `false` | Workspace doesn't exist |
-| `isCheckingWorkspace` | `boolean` | `true` | Checking workspace existence |
-| `accessToken` | `string \| null` | `null` | Access token for workspace |
+## 10.2 Constants
 
-### Refs
+**File:** `client/src/constants/index.ts`
 
-| Ref | Type | Description |
-|-----|------|-------------|
-| `pendingJoinRef` | `MutableRefObject<boolean>` | Prevents duplicate join requests |
+Imports `SOCKET_EVENTS` and `SHARING_MODES` from `shared/constants.js`.
 
-### Key Functions
+### Tool and Shape Types
 
-```typescript
-const canWrite = useCallback((): boolean => {
-  if (isOwner) return true;
-  if (sharingMode === SHARING_MODES.READ_ONLY) return false;
-  if (sharingMode === SHARING_MODES.READ_WRITE_ALL) return true;
-  return hasEditAccess;
-}, [isOwner, sharingMode, hasEditAccess]);
-
-const changeMode = useCallback((newMode: SharingModeType): void => {
-  if (!socket || !workspaceId || !isOwner) return;
-  socket.emit(SOCKET_EVENTS.CHANGE_SHARING_MODE, { workspaceId, sharingMode: newMode });
-}, [socket, workspaceId, isOwner]);
-```
-
-### Socket Event Handlers
-
-| Event | Description |
-|-------|-------------|
-| `SHARING_INFO` | Updates sharing mode, allowed users, edit access, owner info |
-| `EDIT_TOKEN_UPDATED` | Stores new edit token in session storage |
-| `SHARING_MODE_CHANGED` | Updates mode, allowed users, edit access |
-
-## 5.3 YjsContext
-
-**File:** `client/src/context/YjsContext.tsx`
-
-Manages Yjs document synchronization for real-time collaborative editing.
-
-### TypeScript Interface
-
-```typescript
-type YjsStatus = 'disconnected' | 'connecting' | 'connected';
-
-interface YjsContextValue {
-  doc: Y.Doc;
-  provider: WebsocketProvider | null;
-  status: YjsStatus;
-  synced: boolean;
-}
-```
-
-### State Variables
-
-| Variable | Type | Initial Value | Description |
-|----------|------|---------------|-------------|
-| `doc` | `Y.Doc` | `new Y.Doc()` | Yjs document |
-| `provider` | `WebsocketProvider \| null` | `null` | WebSocket provider |
-| `status` | `YjsStatus` | `'disconnected'` | Connection status |
-| `synced` | `boolean` | `false` | Document sync status |
-
-### Connection Status Handling
-
-- Status is included in the overall workspace connection status calculation
-- Toast notification is shown when Yjs disconnects (after initial connection)
-- Reconnection is handled automatically by y-websocket
-
-### Awareness User Info
-
-```typescript
-wsProvider.awareness.setLocalStateField('user', {
-  id: currentUser || workspaceId,
-  name: animalName,      // Translated animal name
-  color,                 // Deterministic color
-  animal: animalKey
-});
-```
-
-## 5.4 CodeEditorContext
-
-**File:** `client/src/context/CodeEditorContext.tsx`
-
-Manages code editor content and language selection with Yjs-based synchronization.
-
-### TypeScript Interface
-
-```typescript
-interface CodeEditorContextValue {
-  content: string;
-  language: string;
-  setContent: (value: string) => void;
-  setLanguage: (language: string) => void;
-}
-```
-
-### State Variables
-
-| Variable | Type | Initial Value | Description |
-|----------|------|---------------|-------------|
-| `language` | `string` | `'javascript'` | Selected programming language |
-| `content` | `string` | `''` | Current code content |
-
-### Yjs Integration
-
-- Uses `doc.getText('code')` for shared text
-- Observes changes and updates local state
-- Initializes with language-specific examples
-
-### Socket Event Handlers
-
-| Event | Description |
-|-------|-------------|
-| `CODE_UPDATE` | Updates language when another user changes it |
-| `WORKSPACE_STATE` | Sets initial language and content from server state |
-
-## 5.5 DiagramEditorContext
-
-**File:** `client/src/context/DiagramEditorContext.tsx`
-
-Manages Mermaid diagram content with Yjs-based synchronization and optimized diff updates.
-
-### TypeScript Interface
-
-```typescript
-interface DiagramEditorContextValue {
-  content: string;
-  setContent: (value: string) => void;
-  isReadOnly: boolean;
-}
-```
-
-### State Variables
-
-| Variable | Type | Initial Value | Description |
-|----------|------|---------------|-------------|
-| `content` | `string` | `SAMPLE_DIAGRAM` | Current diagram source |
-| `isReadOnly` | `boolean` | `false` | Read-only mode based on permissions |
-
-### Socket Event Handlers
-
-| Event | Description |
-|-------|-------------|
-| `WORKSPACE_STATE` | Sets initial diagram content from server if Yjs document is empty |
-
-### Optimized setContent
-
-```typescript
-const setContent = useCallback((value: string): void => {
-  if (!yText || isReadOnly) return;
-
-  // Calculate common prefix
-  let prefixLen = 0;
-  // Calculate common suffix
-  let suffixLen = 0;
-
-  // Only modify changed portion
-  yText.doc?.transact(() => {
-    if (deleteCount > 0) yText.delete(deleteStart, deleteCount);
-    if (insertText) yText.insert(deleteStart, insertText);
-  });
-}, [yText, isReadOnly]);
-```
-
-## 5.6 WhiteboardContext
-
-**File:** `client/src/context/WhiteboardContext.tsx`
-
-Central whiteboard state orchestrating multiple specialized hooks.
-
-### TypeScript Interface
-
-```typescript
-interface WhiteboardContextValue {
-  tool: Tool;
-  color: string;
-  width: number;
-  fontSize: number;
-  zoom: number;
-  WHITEBOARD_BG_COLOR: string;
-  selectedShape: Shape | null;
-  activeUsers: number;
-  elements: Element[];
-  canvasRef: MutableRefObject<Canvas | null>;
-  batchedRenderRef: MutableRefObject<(() => void) | null>;
-  isUpdatingRef: MutableRefObject<boolean>;
-  isConnected: boolean;
-  isLoading: boolean;
-  connectionStatus: string;
-  initCanvas: (canvasElement: HTMLCanvasElement) => () => void;
-  clearCanvas: () => void;
-  addElement: (element: Element) => void;
-  updateElement: (id: string, element: Element, isMoving?: boolean) => void;
-  setTool: Dispatch<SetStateAction<Tool>>;
-  setSelectedShape: (shape: Shape | null) => void;
-  setColor: (color: string) => void;
-  setWidth: (width: number) => void;
-  setFontSize: (fontSize: number) => void;
-  setZoom: (zoom: number) => void;
-  setZoomState: Dispatch<SetStateAction<number>>;
-  getFullCanvasImage: () => CanvasImageData | null;
-}
-```
-
-### Composed Hooks
-
-| Hook | Purpose |
-|------|---------|
-| `useWhiteboardCanvas` | Canvas initialization and refs |
-| `useWhiteboardElements` | Element state and CRUD |
-| `useWhiteboardSync` | Connection and sync state |
-| `useWhiteboardTools` | Tool selection and settings |
-| `useRemoteDrawing` | Remote drawing visualization |
-
-### Socket Event Handlers (via Composed Hooks)
-
-These events are handled in the composed hooks (`useWhiteboardSync`, `useRemoteDrawing`), not directly in WhiteboardContext:
-
-| Event | Hook | Description |
-|-------|------|-------------|
-| `CONNECT` | `useWhiteboardSync` | Sets connected status |
-| `DISCONNECT` | `useWhiteboardSync` | Sets disconnected status |
-| `WORKSPACE_STATE` | `useWhiteboardSync` | Loads initial whiteboard state |
-| `WHITEBOARD_UPDATE` | `useWhiteboardSync` | Applies element updates |
-| `WHITEBOARD_CLEAR` | `useWhiteboardSync` | Clears all elements |
-| `DELETE_ELEMENT` | `useWhiteboardSync` | Removes specific element |
-| `USER_JOINED` / `USER_LEFT` | `useWhiteboardSync` | Updates active user count |
-| `DRAWING_START/STREAM/END` | `useRemoteDrawing` | Remote path drawing |
-| `SHAPE_DRAWING_START/UPDATE/END` | `useRemoteDrawing` | Remote shape drawing |
-
-## 5.7 Custom Hooks Overview
-
-### Canvas & Drawing Hooks
-
-| Hook | Purpose |
-|------|---------|
-| `useCanvasPanning` | Space-bar and right-click panning, mouse wheel zoom |
-| `useCodeToCanvas` | Add code content as text element |
-| `useDiagramToCanvas` | Render diagram as PNG and add to canvas |
-| `useDrawingStream` | Stream freehand drawing points to server |
-| `useLineDrawing` | Line/arrow drawing with Shift-key snapping |
-| `useObjectModification` | Handle object transforms with debouncing |
-| `useShapeDrawing` | Shape drawing with Ctrl-key constraints |
-| `useTextEditing` | Create editable text elements |
-
-### Real-time Sync Hooks
-
-| Hook | Purpose |
-|------|---------|
-| `useCursorSync` | Cursor position synchronization |
-| `useRemoteDrawing` | Orchestrates remote drawing visualization |
-| `useRemotePathDrawing` | Visualize remote freehand paths |
-| `useRemoteShapeDrawing` | Visualize remote shape drawing |
-| `useSharingSocketHandlers` | Handle sharing-related socket events |
-
-### Utility Hooks
-
-| Hook | Purpose |
-|------|---------|
-| `useClickOutside` | Detect clicks outside element |
-| `useEscapeKey` | Detect Escape key press |
-| `useDropdownBehavior` | Combines click-outside and escape-key |
-| `useKeyboardDelete` | Handle Delete key for object removal |
-
----
-
-# 6. Frontend Utilities
-
-## 6.1 Core Utilities (client/src/utils/)
-
-### index.ts
-
-```typescript
-getWorkspaceId()          // Extract workspace ID from URL
-generateUserId()          // Generate unique user ID
-getPersistentUserId()     // Get/create persistent user ID
-getAccessToken()          // Get access token from storage
-setAccessToken()          // Store access token
-removeAccessToken()       // Remove access token
-constrainObjectToBounds() // Keep objects within canvas viewport
-```
-
-### batchedRender.ts
-
-Optimizes canvas rendering by batching multiple requests.
-
-```typescript
-const batchedRender = createBatchedRender(canvas);
-// Multiple calls result in single render
-objects.forEach(obj => {
-  obj.set('fill', 'red');
-  batchedRender(); // Batched
-});
-```
-
-### sessionToken.ts
-
-Session token storage with expiration.
-
-```typescript
-setSessionToken(key, value);  // Stores with TTL (4 hours)
-getSessionToken(key);         // Returns null if expired
-```
-
-### shapeGeometry.ts
-
-Geometric calculations for shape drawing.
-
-```typescript
-calculateShapeUpdate(shapeType, params) // Returns { props?, points? }
-```
-
-Supported shapes: rectangle, circle, ellipse, triangle, star, diamond, pentagon, hexagon, octagon, cross
-
-### fabricArrow.ts
-
-Custom Fabric.js `Arrow` class extending `Line`.
-
-**Properties:**
-- `headLength` - Arrowhead length (default: 15)
-- `headAngle` - Arrowhead angle (default: pi/6)
-
-## 6.2 Constants (client/src/constants/index.ts)
-
-### Tools
-```typescript
-const TOOLS = {
-  SELECT: 'select',
-  PEN: 'pen',
-  TEXT: 'text',
-  SHAPES: 'shapes',
-  LINE: 'line',
-  ARROW: 'arrow',
-};
-```
-
-### Shapes
-```typescript
-const SHAPES = {
-  RECTANGLE: 'rectangle',
-  CIRCLE: 'circle',
-  ELLIPSE: 'ellipse',
-  TRIANGLE: 'triangle',
-  PENTAGON: 'pentagon',
-  HEXAGON: 'hexagon',
-  OCTAGON: 'octagon',
-  DIAMOND: 'diamond',
-  STAR: 'star',
-  CROSS: 'cross',
-};
-```
+| Constant | Values |
+|---|---|
+| `TOOLS` | `select`, `pen`, `text`, `shapes`, `line`, `arrow` |
+| `SHAPES` | `rectangle`, `circle`, `ellipse`, `triangle`, `pentagon`, `hexagon`, `octagon`, `diamond`, `star`, `cross` |
 
 ### Zoom
-```typescript
-const ZOOM = {
-  WHEEL_OUT_MULTIPLIER: 0.95,
-  WHEEL_IN_MULTIPLIER: 1.05,
-  BUTTON_INCREMENT: 0.1,
-  MIN: 0.1,
-  MAX: 3,
-};
-```
+
+| Key | Value |
+|---|---|
+| `ZOOM.WHEEL_OUT_MULTIPLIER` | 0.95 |
+| `ZOOM.WHEEL_IN_MULTIPLIER` | 1.05 |
+| `ZOOM.MIN` | 0.1 |
+| `ZOOM.MAX` | 3 |
+| `ZOOM.BUTTON_INCREMENT` | 0.1 |
 
 ### Timing
-```typescript
-const TIMING = {
-  DEBOUNCE_DELAY: 250,
-  NOTIFICATION_DURATION: 3000,
-  MOVEMENT_TIMEOUT: 50,
-  RECONNECT_DELAY: 2000,
-  CURSOR_THROTTLE: 50,
-  CURSOR_TIMEOUT: 5000,
-  TOKEN_TTL_MS: 4 * 60 * 60 * 1000, // 4 hours
-};
-```
+
+| Key | Value | Purpose |
+|---|---|---|
+| `DEBOUNCE_DELAY` | 250ms | General debounce |
+| `MOVEMENT_TIMEOUT` | 50ms | Object modification debounce |
+| `CURSOR_THROTTLE` | 50ms | Cursor position emit throttle |
+| `CURSOR_TIMEOUT` | 5000ms | Remote cursor removal timeout |
+| `DRAWING_STREAM_THROTTLE` | 50ms | Drawing point stream throttle |
+| `TOKEN_TTL_MS` | 14400000 (4h) | Session token TTL |
+| `REMOTE_DRAWING_CLEANUP_DELAY` | 100ms | Delay before removing temp remote drawing |
+| `SOCKET_TIMEOUT` | 20000ms | Socket connection timeout |
+| `RECONNECT_DELAY` | 2000ms | Base reconnect delay |
+| `RECONNECT_MAX_DELAY` | 10000ms | Max reconnect delay |
+
+### Canvas Settings
+
+| Key | Value |
+|---|---|
+| `CANVAS.DEFAULT_FONT_SIZE` | 20 |
+| `CANVAS.DEFAULT_FONT_FAMILY` | `'Inter'` |
+| `CANVAS.CODE_FONT_FAMILY` | `'Consolas, Monaco, monospace'` |
+| `CANVAS.DEFAULT_BRUSH_WIDTH` | 2 |
+| `CANVAS.EXPORT_MULTIPLIER` | 2 |
+| `CANVAS.EXPORT_PADDING` | 50 |
+| `CANVAS.EDGE_BUFFER` | 40 |
+
+### Colors
+
+- `BRUSH_COLORS`: 24 preset brush colors.
+- `CURSOR_COLORS`: 10 color objects for remote cursor display.
+- `CURSOR_ANIMALS`: 20 animal name keys used as anonymous user identifiers.
+- `MERMAID_THEME`: Mermaid diagram theme variables.
+
+### Storage Keys
+
+| Key | Storage |
+|---|---|
+| `USER_ID` | `'shareboardUserId'` in localStorage |
+| `LANGUAGE` | `'shareboardLanguage'` in localStorage |
+| `SPLIT_POSITION` | `'shareboardSplitPosition'` in localStorage |
+
+### Other
+
+- `GRID`: size 20, color `rgba(200, 200, 200, 0.3)`.
+- `FONT_SIZES`: `[12, 16, 20, 24, 32, 40, 48, 64, 80]`.
+- `LAYOUT`: min/max width percentages (30/70).
+- `TOAST`: max 3 simultaneous toasts, positioned bottom-right.
+- `SOCKET`: max 5 reconnect attempts.
+- `CODE_EDITOR_LANGUAGES`: 10 supported languages with example code snippets.
+
+### Additional Constants
+
+| Constant Group | Description |
+|---|---|
+| `FABRIC_TYPES` | 19 Fabric.js type identifiers (LINE, ARROW, RECT, CIRCLE, ELLIPSE, TRIANGLE, TEXT, I_TEXT, PATH, POLYGON, IMAGE, DIAGRAM, GROUP, STAR, DIAMOND, PENTAGON, HEXAGON, OCTAGON, CROSS) |
+| `FABRIC_EVENTS` | 15 Fabric.js canvas event names (path:created, object:modified, object:moving, object:moved, object:scaling, object:rotating, text:changed, mouse:down, mouse:move, mouse:up, mouse:wheel, mouse:dblclick, selection:created, selection:updated, selection:cleared) |
+| `ARROW` | Arrow rendering constants: `HEAD_LENGTH` (15), `HEAD_ANGLE` (PI/6), `MIN_HEAD_LENGTH`, `HEAD_LENGTH_MULTIPLIER` |
+| `SHAPE_GEOMETRY` | Shape calculation helpers: `STAR`, `PENTAGON`, `HEXAGON`, `OCTAGON`, `CROSS`, `LINE_SNAP` sub-objects |
+| `CODE_EXAMPLES` | One code example per language (10 languages: javascript, typescript, python, java, cpp, go, sql, html, css, json) |
+| `SAMPLE_DIAGRAM` | Default Mermaid diagram template (`graph TD` with Start/End nodes) |
+| `POLYGON_SHAPE_TYPES` | 7 polygon-based shape types |
+| `INTERACTIVE_TYPES` | 18 selectable/interactive Fabric object types |
+| `DEFAULT_COLORS` | 4 default color values (BLACK, SELECTION, SELECTION_BORDER, TRANSPARENT) |
+| `COLORS` | 11 named color values (including `BG_WHITEBOARD`) |
+| `COLOR_PICKER` | 3 color picker configuration values |
+| `KEYBOARD` | 2 keyboard-related constants |
+| `CONTROL_TIPS` | 5 keyboard shortcut tip strings |
+| `DIAGRAM_POSITION` | 6 diagram placement properties |
+| `EXPORT` | Export-related constants |
+| `CONNECTION_STATUS` | 4 connection status values |
+| `FABRIC_OBJECT_PROPS` | 24 default Fabric object properties |
+| `MERMAID_THEME` | 17 Mermaid diagram theme CSS variables |
+
+## 10.3 Internationalization (i18n)
+
+**File:** `client/src/i18n/index.ts`
+
+Uses `i18next` with `react-i18next`. Initialized synchronously with bundled translation resources. Language detection priority:
+
+1. URL query parameter `?lang=`
+2. Previously saved language in localStorage
+3. Default fallback: `'cs'` (Czech)
+
+### Supported Languages
+
+- English (`en`)
+- Czech (`cs`) (default)
+
+### Translation Namespaces
+
+| Namespace | Description |
+|---|---|
+| `common` | Buttons, status messages, accessibility labels, animal names |
+| `landing` | Landing page content |
+| `workspace` | Workspace-related UI strings |
+| `sharing` | Sharing dialog and permission strings |
+| `toolbar` | Tool labels, shape names, options, control tips |
+| `editor` | Code editor UI strings |
+| `messages` | Toast messages and notifications |
+| `validation` | Form validation messages |
 
 ---
 
-# 7. Backend Server
+# 11. Backend Server
 
-## 7.1 Server Core: index.ts
+## 11.1 Entry Point (server/index.ts)
 
-**File:** `server/index.ts`
+The server starts by creating an Express application and wrapping it with Node's `http.createServer`. A Socket.IO server is attached to the HTTP server with CORS and transport settings from `config`.
 
-Main server file initializing Express, Socket.IO, and y-websocket.
+A separate `WebSocketServer` (from the `ws` library) is created with `{ noServer: true }`. It handles Yjs real-time document synchronization. The HTTP server's `upgrade` event is intercepted: if the requested pathname is `/yjs` or starts with `/yjs/`, the upgrade is forwarded to the Yjs WebSocket server. All other upgrades fall through to Socket.IO's default handling.
 
-### HTTP Endpoints
+On startup, `batchService.startBatchInterval(io)` begins a periodic flush of queued whiteboard updates. A cleanup interval runs every `config.cleanup.intervalMs` (5 minutes) to remove inactive workspaces and their batch queues.
 
-| Method | Path | Rate Limiter | Description |
-|--------|------|--------------|-------------|
-| `GET` | `/` | None | Serves index.html |
-| `POST` | `/api/workspaces` | `createWorkspaceLimiter` | Creates a new workspace |
-| `GET` | `/w/:workspaceId` | None | Serves index.html for workspace routes |
-| `GET` | `/api/workspace/:workspaceId` | `apiLimiter` | Checks if workspace exists |
+**Middleware chain (in order):**
 
-### Rate Limiters
+1. `helmet()` with a custom Content-Security-Policy. CSP allows scripts from `cdn.jsdelivr.net`, styles from Google Fonts and jsDelivr, fonts from `data:`, Google Fonts, and jsDelivr, images from `data:` and `blob:`, WebSocket connections, and blob workers. `crossOriginEmbedderPolicy` is disabled.
+2. `cors()` with origins from config.
+3. `express.json()` for body parsing.
 
-| Name | Window | Max Requests | Message |
-|------|--------|--------------|---------|
-| `createWorkspaceLimiter` | 60000ms | 10 | "Too many workspaces created, please try again later" |
-| `apiLimiter` | 60000ms | 100 | "Too many requests, please try again later" |
+**HTTP routes:**
 
-### Socket Events
+| Route | Method | Rate Limiter | Description |
+|---|---|---|---|
+| `/` | GET | none | Serves `index.html` from `dist/` (production) or `client/` (development) |
+| `/api/workspaces` | POST | `createWorkspaceLimiter` (10 req/min) | Creates a new workspace. Returns `{ workspaceId }` |
+| `/w/:workspaceId` | GET | none | Serves `index.html` (SPA routing for workspace URLs) |
+| `/api/workspace/:workspaceId` | GET | `apiLimiter` (100 req/min) | Checks if workspace exists. Returns `{ exists: true }` or 404 |
 
-| Event | Rate Limited | Handler | Description |
-|-------|--------------|---------|-------------|
-| `check-workspace-exists` | No | Inline | Returns workspace existence |
-| `join-workspace` | No | `handleJoinWorkspace` | Joins user to workspace |
-| `get-sharing-info` | No | Inline | Returns permissions |
-| `whiteboard-update` | Yes | `handleWhiteboardUpdate` | Updates elements |
-| `whiteboard-clear` | Yes | `handleWhiteboardClear` | Clears whiteboard |
-| `delete-element` | Yes | `handleDeleteElement` | Deletes element |
-| `text-edit-start` | Yes | `handleTextEditStart` | Acquires text lock |
-| `text-edit-end` | Yes | `handleTextEditEnd` | Releases text lock |
-| `code-update` | Yes | `handleCodeUpdate` | Updates code |
-| `cursor-position` | Yes | Inline | Broadcasts cursor |
-| `drawing-start` | Yes | Inline | Starts drawing stream |
-| `drawing-stream` | Yes | Inline | Streams points |
-| `drawing-end` | Yes | Inline | Ends drawing |
-| `shape-drawing-start` | Yes | Inline | Starts shape |
-| `shape-drawing-update` | Yes | Inline | Updates shape |
-| `shape-drawing-end` | Yes | Inline | Ends shape |
-| `change-sharing-mode` | No | `handleChangeSharingMode` | Changes mode |
-| `end-session` | No | `handleEndSession` | Ends session |
-| `get-active-users` | No | Inline | Returns active users list |
-| `get-edit-token` | No | `handleGetEditToken` | Returns edit token (owner only) |
-| `set-edit-token` | No | `handleSetEditToken` | Updates edit token (owner only) |
+**Static files:** In production, served from `../dist`. In development, served from `../client`.
 
-### Background Processes
+**Socket.IO connection handler:** On each new connection, a `currentWorkspaceRef` and `currentUser` are initialized. Each socket event is wired to the corresponding handler, with rate limiting applied via `checkRateLimit` for most write events.
 
-- **Batch Interval:** Every 50ms, broadcasts queued whiteboard updates
-- **Cleanup Interval:** Every 5 minutes, removes inactive workspaces
-- **Rate Limit Cleanup:** Every 30 seconds, removes stale rate limit records
+**Error handlers:** The server registers `process.on('uncaughtException')`, `process.on('unhandledRejection')`, and `io.on('error')` handlers. All three log the error to `console.error`.
 
-## 7.2 Configuration: config.ts
+**Graceful shutdown:** Handlers for `SIGTERM` and `SIGINT` clear the rate limit cleanup interval and close the HTTP server.
 
-**File:** `server/config.ts`
+### Inline Socket Events in index.ts
 
-### Key Configuration Values
+Several events are handled directly in `server/index.ts`:
 
-| Path | Value | Description |
-|------|-------|-------------|
-| `port` | `3000` | Server port |
-| `socketIO.pingInterval` | `25000` | Ping interval (25s) |
-| `socketIO.pingTimeout` | `60000` | Ping timeout (60s) |
-| `socketIO.maxHttpBufferSize` | `1e6` | Max buffer (1MB) |
-| `cleanup.intervalMs` | `300000` | Cleanup interval (5min) |
-| `cleanup.inactiveThresholdMs` | `900000` | Inactive threshold (15min) |
-| `batch.interval` | `50` | Batch interval (50ms) |
-| `validation.drawing.maxPointsLength` | `10000` | Max drawing points |
-| `validation.element.maxIdLength` | `100` | Max element ID length |
-| `validation.element.maxTextLength` | `2000` | Max text length |
-| `validation.workspace.maxElementsPerUpdate` | `100` | Max elements per update |
-| `validation.workspace.maxUsersPerWorkspace` | `100` | Max users |
-| `validation.rateLimit.maxEventsPerWindow` | `50` | Max events/second |
+- `check-workspace-exists`: Emits `workspace-exists-result` with `{ workspaceId, exists }`.
+- `get-sharing-info`: Calculates edit access, validates token, emits `sharing-info`.
+- `get-active-users`: Emits `active-users-update` with user array.
+- `cursor-position`: Validates fields, broadcasts `cursor-update` to others in the room.
+- `drawing-start`, `drawing-stream`, `drawing-end`: Validates drawing data, checks write permission, broadcasts to room.
+- `shape-drawing-start`, `shape-drawing-update`, `shape-drawing-end`: Validates shape data, checks write permission, broadcasts to room.
 
-## 7.3 Type Definitions: types.ts
+## 11.2 Configuration (server/config.ts)
 
-**File:** `server/types.ts`
+Re-exports `SOCKET_EVENTS` and `SHARING_MODES` from `shared/constants`, then defines a `config` object.
 
-### Core Types
+| Path | Default Value | Description |
+|---|---|---|
+| `port` | `process.env.PORT \|\| 3000` | Server listen port |
+| `isProduction` | `process.env.NODE_ENV === 'production'` | Production flag |
+| `cors.origin` | Production: shareboard.live domains; Dev: localhost:5173, localhost:3000 | Allowed CORS origins |
+| `socketIO.transports` | `['websocket', 'polling']` | Transport order |
+| `socketIO.pingInterval` | 25000 (25s) | Ping interval |
+| `socketIO.pingTimeout` | 60000 (60s) | Ping timeout |
+| `socketIO.maxHttpBufferSize` | 1e6 (1 MB) | Max HTTP long-polling buffer |
+| `cleanup.intervalMs` | 300000 (5 min) | Workspace cleanup frequency |
+| `cleanup.inactiveThresholdMs` | 900000 (15 min) | Inactive workspace threshold |
+| `workspace.keyLength` | 12 | Workspace ID length |
+| `workspace.userIdLength` | 10 | User ID length |
+| `batch.interval` | 50 (ms) | Whiteboard batch flush interval |
+| `validation.drawing.maxPointsLength` | 10000 | Max points in a drawing stream |
+| `validation.element.maxIdLength` | 100 | Max element ID length |
+| `validation.element.maxTextLength` | 2000 | Max text content length |
+| `validation.element.maxSrcLength` | 512000 (512 KB) | Max source string length |
+| `validation.workspace.maxElementsPerUpdate` | 100 | Max elements per update |
+| `validation.workspace.maxCodeLength` | 500000 (500 KB) | Max code content length |
+| `validation.workspace.maxDiagramLength` | 100000 (100 KB) | Max diagram content length |
+| `validation.workspace.maxDrawings` | 5000 | Max drawings per workspace |
+| `validation.workspace.maxUsersPerWorkspace` | 100 | Max concurrent users |
+| `socketIO.perMessageDeflate` | `false` | Per-message deflate compression |
+| `validation.drawing.maxIdLength` | 64 | Max drawing ID length |
+| `validation.drawing.maxShapeIdLength` | 64 | Max shape ID length |
+| `validation.drawing.maxShapeTypeLength` | 32 | Max shape type string length |
+| `validation.drawing.minBrushWidth` | 1 | Min brush width |
+| `validation.drawing.maxBrushWidth` | 100 | Max brush width |
+| `validation.drawing.maxPointsLength` | 10000 | Max points in a drawing stream |
+| `validation.cursor.minPosition` | 0 | Min cursor position value |
+| `validation.cursor.maxPosition` | 10000 | Max cursor position value |
+| `validation.cursor.maxColorLength` | 32 | Max cursor color string length |
+| `validation.cursor.maxAnimalKeyLength` | 32 | Max animal key string length |
+| `validation.lock.retryDelayMs` | 100 | Lock retry delay |
+| `validation.lock.timeoutMs` | 5000 (5s) | Lock expiration timeout |
+| `validation.rateLimit.windowMs` | 1000 (1s) | Fixed window for rate limiting |
+| `validation.rateLimit.maxEventsPerWindow` | 50 | Max events per window per socket |
+
+## 11.3 Type Definitions (server/types.ts)
+
+**Core Types:**
 
 ```typescript
 interface Workspace {
@@ -1317,6 +1447,13 @@ interface Workspace {
   editToken: string;
 }
 
+interface WhiteboardElement {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+  timestamp?: number;
+}
+
 interface UserSession {
   id: string;
   joinedAt: number;
@@ -1327,6 +1464,19 @@ interface UserSession {
   isOwner?: boolean;
 }
 
+interface WorkspaceState {
+  whiteboardElements: WhiteboardElement[];
+  diagrams: unknown[];
+  activeUsers: number;
+  allDrawings: WhiteboardElement[];
+  codeSnippets: CodeSnippets;
+  diagramContent: string;
+}
+```
+
+**Handler Types:**
+
+```typescript
 interface HandlerContext {
   socket: Socket;
   io?: Server;
@@ -1335,523 +1485,575 @@ interface HandlerContext {
   queueUpdate?: (workspaceId: string, elements: WhiteboardElement[], senderSocketId: string) => void;
   workspace?: Workspace;
 }
+
+interface HandlerResult {
+  success: boolean;
+  reason?: string;
+  error?: unknown;
+  workspace?: Workspace;
+  isNewWorkspace?: boolean;
+  editToken?: string;
+  userId?: string;
+  disconnectedClients?: string[];
+  skippedDuplicate?: boolean;
+}
 ```
 
-## 7.4 Socket Handlers
+## 11.4 Socket Handlers
 
 ### workspaceHandlers.ts
 
-**`handleJoinWorkspace`:**
-1. Validate workspace ID
-2. Ensure workspace exists (create if needed)
-3. Check user limit (max 100)
-4. Setup user session
-5. Leave previous workspace
-6. Join new workspace room
-7. Emit state events
+**Event: `join-workspace`**
 
-**`handleDisconnect`:**
-1. Release text edit locks
-2. Remove connection
-3. Emit user-left event
+Validates workspace ID. If the socket is already in the room, re-emits join events and returns early. Calls `ensureWorkspaceExists`, which uses a locking mechanism to prevent race conditions when two clients try to create the same workspace simultaneously. Checks workspace capacity (`MAX_USERS_PER_WORKSPACE = 100`). Sets up user session, joins the socket room, emits `workspace-state`, `sharing-info`, and `user-joined`. If the workspace has active text edit locks, emits `text-edit-locks` to the joining socket.
+
+**Event: `disconnect`**
+
+Releases text edit locks held by the disconnecting socket. Broadcasts updated `text-edit-locks` to the room after releasing. Removes the connection and emits `user-left`.
 
 ### whiteboardHandlers.ts
 
-**`handleWhiteboardUpdate`:**
-- Validates elements (max 100 per update)
-- Updates `drawingsMap` and `allDrawingsMap`
-- Enforces max drawings limit (5000)
-- Queues for batched broadcast
+All handlers wrapped with `withWorkspaceAuth` (room membership + write permission).
 
-**`handleWhiteboardClear`:**
-- Clears all maps
-- Broadcasts to room
+**`whiteboard-update`**: Validates elements array (max 100, each passes `isValidElement`). Stores elements in maps with timestamps. Tracks insertion order. Evicts oldest when exceeding `MAX_DRAWINGS` (5000). Queues for batched emission.
 
-**`handleDeleteElement`:**
-- Removes from maps
-- Broadcasts to room
+**`whiteboard-clear`**: Clears all maps and broadcasts.
+
+**`delete-element`**: Removes element and broadcasts.
+
+### textEditHandlers.ts
+
+**`text-edit-start`**: Cleans up expired locks (timeout: `config.validation.lock.timeoutMs`, default 5000ms). If element is already locked by another socket, denies the request. Otherwise sets a lock with `{ userId, socketId, timestamp }`. Broadcasts updated locks.
+
+**`text-edit-end`**: Removes the lock only if the requesting socket holds it. Broadcasts.
+
+### editorHandlers.ts
+
+**`code-update`**: Validates content (max 500,000 chars) and language (max 32 chars). Updates workspace, broadcasts.
 
 ### sharingHandlers.ts
 
-**`handleChangeSharingMode`:**
-- Owner-only operation
-- Validates mode value
-- Broadcasts `sharing-mode-changed`
+**`get-edit-token`**: Owner-only. Returns token via callback.
 
-**`handleEndSession`:**
-- Owner-only operation
-- Emits `session-ended`
-- Disconnects all users except the owner
+**`set-edit-token`**: Owner-only. Token must start with `edit_` and have length >= 13.
 
-## 7.5 Services
+**`change-sharing-mode`**: Owner-only. Validates mode against `SHARING_MODES`. Broadcasts `sharing-mode-changed`.
+
+**`end-session`**: Owner-only. Emits `session-ended` and disconnects all other clients.
+
+### elementValidation.ts
+
+- `WORKSPACE_ID_REGEX`: `/^[a-zA-Z0-9_-]{1,32}$/`
+- `ELEMENT_TYPES`: Set of 16 types (rect, circle, ellipse, triangle, line, arrow, path, text, diagram, polygon, star, diamond, pentagon, hexagon, octagon, cross)
+- `isValidElement(element)`: validates id, type, and data properties
+
+## 11.5 Services
 
 ### workspaceService.ts
 
-```typescript
-generateKey(length = 12)                    // Random base64 key
-generateEditToken()                         // 'edit_' + 64 hex chars
-createWorkspace(workspaceId, ownerId)       // Creates workspace
-getWorkspace(workspaceId)                   // Returns workspace
-deleteWorkspace(workspaceId)                // Deletes workspace
-cleanupInactiveWorkspaces()                 // Returns removed IDs
-getWorkspaceState(workspaceId)              // Full state for sync
-updateSharingMode(workspaceId, mode)        // Updates mode
-```
+Manages all workspace data in memory. Three top-level Maps:
+
+- `workspaces: Map<string, Workspace>`
+- `activeConnections: Map<string, Set<string>>`
+- `userSessions: Map<string, UserSession>`
+
+Key methods:
+
+| Method | Description |
+|---|---|
+| `generateKey(length?)` | URL-safe random string via `crypto.randomBytes` |
+| `generateEditToken()` | Returns `edit_` + 64 hex characters |
+| `createWorkspace(id, ownerId)` | Creates workspace with defaults, `read-write-all` mode |
+| `getWorkspace(id)` | Returns workspace or undefined |
+| `workspaceExists(id)` | Returns boolean |
+| `deleteWorkspace(id)` | Removes workspace, connections, and Yjs document |
+| `updateLastActivity(workspaceId)` | Updates the `lastActivity` timestamp |
+| `getActiveConnections(workspaceId)` | Returns the `Set<string>` of socket IDs |
+| `addConnection(workspaceId, socketId)` | Returns new connection count |
+| `removeConnection(workspaceId, socketId)` | Returns remaining count |
+| `getActiveUserCount(workspaceId)` | Deduplicates by userId |
+| `setUserSession(socketId, userInfo)` | Stores a user session |
+| `getUserSession(socketId)` | Returns session or undefined |
+| `removeUserSession(socketId)` | Deletes the session entry |
+| `getWorkspaceUsers(workspaceId)` | Returns `WorkspaceUser[]` with owner flag |
+| `releaseTextLocksForSocket(workspaceId, socketId)` | Removes locks held by socket |
+| `cleanupInactiveWorkspaces()` | Deletes workspaces with 0 connections older than 15 min |
+| `getWorkspaceState(workspaceId)` | Full state snapshot |
+| `findWorkspaceIdByRef(workspaceRef)` | Extracts workspace ID from a ref object |
+| `updateSharingMode(workspaceId, mode)` | Validates and updates mode |
 
 ### permissionService.ts
 
-```typescript
-checkWritePermission(workspace, user)            // Returns boolean
-checkOwnership(workspace, userId)                // Returns boolean
-calculateEditAccess(workspace, user, token)      // Returns { hasEditAccess, isOwner }
-getSharingInfo(workspace, user)                  // Returns SharingInfo
-validateAndSetToken(workspace, accessToken, user) // Validates token and sets hasEditAccess
-```
+Handles permission checks. No persistent state.
+
+| Method | Description |
+|---|---|
+| `checkWritePermission(workspace, user)` | Returns true if owner, or mode allows, or token matches |
+| `checkOwnership(workspace, userId)` | Returns true if user is owner |
+| `calculateEditAccess(workspace, user, token?)` | Returns `{ hasEditAccess, isOwner }` |
+| `validateAndSetToken(workspace, token, user?)` | Sets `user.hasEditAccess = true` if token matches |
+| `getSharingInfo(workspace, user?)` | Returns sharing config (editToken only for owner) |
 
 ### batchService.ts
 
-```typescript
-queueUpdate(workspaceId, elements, senderId) // Queues for batch
-startBatchInterval(io)                       // Starts 50ms interval
-cleanupWorkspaceQueues(workspaceIds)         // Cleans up queues
-```
+Batches whiteboard element updates to reduce emission frequency.
+
+Storage: `updateQueues: Map<string, UpdateQueue>` where `UpdateQueue` has an `elements` map and a `senders` set.
+
+`startBatchInterval(io)` runs every 50ms. For each workspace queue with elements, collects all queued elements, clears the queue, then emits `whiteboard-update` to each socket except senders.
 
 ### rateLimitService.ts
 
-```typescript
-checkRateLimit(socketId, eventName)          // 50 events/second
-clearSocketRateLimits(socketId)              // On disconnect
-startCleanupInterval()                       // 30 second cleanup
+Per-socket, per-event rate limiting using a fixed (tumbling) window of 1 second, allowing up to 50 events per window. The window resets entirely when the period expires (not a sliding window).
+
+`startCleanupInterval()` runs every 30 seconds, removing stale entries.
+
+## 11.6 Middleware (socketAuth.ts)
+
+Three higher-order functions that wrap handler functions:
+
+**`withWorkspaceAuth`**: Checks room membership, workspace existence, and write permission (via `permissionService.checkWritePermission`).
+
+**`withRoomAuth`**: Lighter check: only room membership and workspace existence. No write permission check. Used for `text-edit-end`.
+
+**`withOwnerAuth`**: Checks workspace existence and ownership.
+
+## 11.7 Validation
+
+### schemas.ts (Zod)
+
+- `WorkspaceIdSchema`: `z.string().regex(/^[a-zA-Z0-9_-]{1,32}$/)`
+- `WhiteboardElementSchema`: id (1-100 chars), type (15 shape types in Zod enum, note: `ellipse` is missing from the Zod schema but present in `elementValidation.ts` which has 16 types), data (strict object with optional numeric/string fields)
+- `WhiteboardUpdateSchema`: workspaceId + elements array (max 100)
+- `CursorPositionSchema`: position with x/y ranges (-10000 to 100000), optional hex color, optional animalKey
+- `DrawingStreamSchema`: drawingId (1-100 chars) + points array (max 100)
+
+### validators.ts (manual)
+
+Runtime validation functions for socket event handlers:
+
+| Function | Validates |
+|---|---|
+| `isValidCursorPosition` | Finite x/y within [0, 10000] |
+| `isValidUserColor` | String, max 32 chars |
+| `isValidDrawingId` | Non-empty string, max 64 chars |
+| `isValidShapeId` | Non-empty string, max 64 chars |
+| `isValidColor` | Hex, rgb(), rgba(), or named CSS color |
+| `isValidBrushWidth` | Number in [1, 100] |
+| `isValidPoints` | Array of numbers or {x, y} objects, max 10000 |
+| `isValidShapeData` | Object with valid numeric properties |
+| `isValidAnimalKey` | Non-empty string, max 32 chars |
+| `isValidShapeType` | Non-empty string, max 32 chars |
+
+## 11.8 Utilities
+
+### securityUtils.ts
+
+```ts
+safeCompareTokens(a: string | null | undefined, b: string | null | undefined): boolean
 ```
 
-## 7.6 Middleware: socketAuth.ts
+Timing-safe token comparison using `crypto.timingSafeEqual`. Returns false if either value is falsy or lengths differ. Prevents timing attacks when comparing edit tokens.
 
-```typescript
-withWorkspaceAuth(handler, options?)  // Room membership + write permission
-withRoomAuth(handler)                 // Room membership only
-withOwnerAuth(handler, options?)      // Ownership check
+### userUtils.ts
+
+```ts
+toUser(currentUser: CurrentUser): User
 ```
 
-## 7.7 Yjs Server: yjs-utils.ts
+Converts a `CurrentUser` (mutable per-socket object) to a `User` (permission-check interface).
 
-### WSSharedDoc Class
+## 11.9 Yjs Utilities (server/yjs-utils.ts)
 
-```typescript
-class WSSharedDoc extends Y.Doc {
-  name: string;                           // Workspace ID
-  conns: Map<WebSocket, Set<number>>;     // Connections
-  awareness: Awareness;                   // User presence
-}
-```
+Replaces the default `y-websocket/bin/utils` to avoid deprecated `level-*` dependencies. Provides a minimal Yjs WebSocket synchronization server.
 
-### Functions
+**`WSSharedDoc`** extends `Y.Doc`. Tracks connections, awareness, and handles updates.
 
-```typescript
-setupWSConnection(conn, req, options?)    // Setup WebSocket connection
-cleanupYjsDoc(workspaceId)               // Cleanup on workspace deletion
-```
+**Persistence:** `schedulePersist` debounces writes (250ms). Reads Yjs `code` and `diagram` text types and writes them to the workspace's `codeSnippets.content` and `diagramContent`.
 
-**Rate Limiting:** Max 10 connections/minute per IP
+**Rate limiting:** Max 10 connections per IP per 60-second window. Exceeding the limit closes the WebSocket with code `4429`.
+
+**`setupWSConnection(conn, req, options?)`:** Extracts workspace ID from URL path. Validates workspace exists (closes with `4404` if not). Gets or creates the `WSSharedDoc`. Sets up message, close, and pong listeners. Starts a ping interval (30 seconds). Sends `SyncStep1` to begin sync.
+
+**`cleanupYjsDoc(workspaceId)`:** Closes all connections and removes the document from memory.
 
 ---
 
-# 8. Shared Code
+# 12. Shared Code
 
-## 8.1 shared/constants.ts
+## 12.1 Constants (shared/constants.ts)
 
-### SOCKET_EVENTS (38 events)
+Imported by both server and client code.
 
-```typescript
-const SOCKET_EVENTS = {
-  // Connection
-  CONNECTION: 'connection',
-  CONNECT: 'connect',
-  DISCONNECT: 'disconnect',
-  ERROR: 'error',
+**`SOCKET_EVENTS`**: A frozen object mapping event name constants to their string values. All socket communication uses these constants instead of raw strings.
 
-  // Workspace
-  CHECK_WORKSPACE_EXISTS: 'check-workspace-exists',
-  WORKSPACE_EXISTS_RESULT: 'workspace-exists-result',
-  JOIN_WORKSPACE: 'join-workspace',
-  USER_JOINED: 'user-joined',
-  USER_LEFT: 'user-left',
-  WORKSPACE_STATE: 'workspace-state',
+| Constant | Value |
+|---|---|
+| `CONNECTION` | `'connection'` |
+| `CONNECT` | `'connect'` |
+| `DISCONNECT` | `'disconnect'` |
+| `ERROR` | `'error'` |
+| `CHECK_WORKSPACE_EXISTS` | `'check-workspace-exists'` |
+| `WORKSPACE_EXISTS_RESULT` | `'workspace-exists-result'` |
+| `JOIN_WORKSPACE` | `'join-workspace'` |
+| `USER_JOINED` | `'user-joined'` |
+| `USER_LEFT` | `'user-left'` |
+| `WORKSPACE_STATE` | `'workspace-state'` |
+| `WHITEBOARD_UPDATE` | `'whiteboard-update'` |
+| `WHITEBOARD_CLEAR` | `'whiteboard-clear'` |
+| `DELETE_ELEMENT` | `'delete-element'` |
+| `DRAWING_START` | `'drawing-start'` |
+| `DRAWING_STREAM` | `'drawing-stream'` |
+| `DRAWING_END` | `'drawing-end'` |
+| `SHAPE_DRAWING_START` | `'shape-drawing-start'` |
+| `SHAPE_DRAWING_UPDATE` | `'shape-drawing-update'` |
+| `SHAPE_DRAWING_END` | `'shape-drawing-end'` |
+| `CODE_UPDATE` | `'code-update'` |
+| `GET_SHARING_INFO` | `'get-sharing-info'` |
+| `SHARING_INFO` | `'sharing-info'` |
+| `SHARING_UPDATE` | `'sharing-update'` |
+| `GET_ACTIVE_USERS` | `'get-active-users'` |
+| `ACTIVE_USERS_UPDATE` | `'active-users-update'` |
+| `CURSOR_POSITION` | `'cursor-position'` |
+| `CURSOR_UPDATE` | `'cursor-update'` |
+| `TEXT_EDIT_START` | `'text-edit-start'` |
+| `TEXT_EDIT_END` | `'text-edit-end'` |
+| `TEXT_EDIT_LOCKS` | `'text-edit-locks'` |
+| `GET_EDIT_TOKEN` | `'get-edit-token'` |
+| `SET_EDIT_TOKEN` | `'set-edit-token'` |
+| `EDIT_TOKEN_UPDATED` | `'edit-token-updated'` |
+| `END_SESSION` | `'end-session'` |
+| `SESSION_ENDED` | `'session-ended'` |
+| `CHANGE_SHARING_MODE` | `'change-sharing-mode'` |
+| `SHARING_MODE_CHANGED` | `'sharing-mode-changed'` |
 
-  // Whiteboard
-  WHITEBOARD_UPDATE: 'whiteboard-update',
-  WHITEBOARD_CLEAR: 'whiteboard-clear',
-  DELETE_ELEMENT: 'delete-element',
+**`SHARING_MODES`**: Three modes:
 
-  // Drawing
-  DRAWING_START: 'drawing-start',
-  DRAWING_STREAM: 'drawing-stream',
-  DRAWING_END: 'drawing-end',
-  SHAPE_DRAWING_START: 'shape-drawing-start',
-  SHAPE_DRAWING_UPDATE: 'shape-drawing-update',
-  SHAPE_DRAWING_END: 'shape-drawing-end',
-
-  // Code
-  CODE_UPDATE: 'code-update',
-
-  // Sharing
-  GET_SHARING_INFO: 'get-sharing-info',
-  SHARING_INFO: 'sharing-info',
-  SHARING_UPDATE: 'sharing-update',
-  GET_ACTIVE_USERS: 'get-active-users',
-  ACTIVE_USERS_UPDATE: 'active-users-update',
-  CHANGE_SHARING_MODE: 'change-sharing-mode',
-  SHARING_MODE_CHANGED: 'sharing-mode-changed',
-
-  // Cursor
-  CURSOR_POSITION: 'cursor-position',
-  CURSOR_UPDATE: 'cursor-update',
-
-  // Text locks
-  TEXT_EDIT_START: 'text-edit-start',
-  TEXT_EDIT_END: 'text-edit-end',
-  TEXT_EDIT_LOCKS: 'text-edit-locks',
-
-  // Tokens
-  GET_EDIT_TOKEN: 'get-edit-token',
-  SET_EDIT_TOKEN: 'set-edit-token',
-  EDIT_TOKEN_UPDATED: 'edit-token-updated',
-
-  // Session
-  END_SESSION: 'end-session',
-  SESSION_ENDED: 'session-ended',
-} as const;
-
-type SocketEvent = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
-```
-
-### SHARING_MODES (3 modes)
-
-```typescript
-const SHARING_MODES = {
-  READ_WRITE_ALL: 'read-write-all',
-  READ_ONLY: 'read-only',
-  READ_WRITE_SELECTED: 'read-write-selected',
-} as const;
-
-type SharingMode = typeof SHARING_MODES[keyof typeof SHARING_MODES];
-```
+| Constant | Value | Behavior |
+|---|---|---|
+| `READ_WRITE_ALL` | `'read-write-all'` | All users can edit |
+| `READ_ONLY` | `'read-only'` | Only the owner can edit |
+| `READ_WRITE_SELECTED` | `'read-write-selected'` | Owner and users with valid edit token can edit |
 
 ---
 
-# 9. Testing
+# 13. Testing
 
-## 9.1 Client Tests
+## 13.1 Test Setup
 
-| Test File | Tests |
-|-----------|-------|
-| `fabricArrow.test.ts` | Arrow initialization, options, rendering, serialization |
-| `geometry.test.ts` | Rectangle, circle, triangle, line snapping |
-| `sessionToken.test.ts` | Storage, expiration, malformed data |
-| `utils.test.ts` | Workspace ID, user ID, boundaries, tokens |
+Tests are configured in `vitest.config.js`. The runner uses Vitest 4.x with `globals: true`, `environment: 'node'`, and a setup file at `tests/setup.js`.
 
-## 9.2 Server Tests
+Coverage uses the V8 provider and reports as text + HTML. Coverage is collected for server services, client utilities, and client hooks.
 
-| Test File | Tests |
-|-----------|-------|
-| `elementValidation.test.ts` | Workspace ID format, element validation |
-| `permissionService.test.ts` | Write permission, ownership, edit access |
-| `securityUtils.test.ts` | Timing-safe token comparison |
-| `socketHandlers.test.ts` | Join, whiteboard, code, tokens, session |
-| `workspaceService.test.ts` | CRUD, connections, sessions, cleanup |
-| `yjsUtils.test.ts` | Document creation, awareness, text ops |
+The setup file (`tests/setup.js`) does three things:
+1. Mocks `crypto.randomBytes` to return a deterministic buffer (filled with `'a'`).
+2. Mocks `localStorage` with an in-memory store object.
+3. Mocks `window.location` with a default pathname of `/w/test-workspace-id`.
 
-## 9.3 Load Tests
+## 13.2 Client Tests
 
-**Location:** `tests/load/`
+### fabricArrow.test.ts
 
-### Test Profiles
+Tests the custom Fabric.js `Arrow` class extending `Line`. The entire `fabric` module is mocked. Tests cover:
+- Initialization with defaults and custom options
+- `_render` method context calls and arrowhead geometry
+- `toObject` / `fromObject` serialization round-trip
+- Class registry registration
 
-| Profile | Users | Duration | Description |
-|---------|-------|----------|-------------|
-| 10 | 10 | 60s | Light load |
-| 30 | 30 | 120s | Normal (spec) |
-| 50 | 50 | 180s | Heavy |
-| 70 | 70 | 180s | Stress |
-| 100 | 100 | 300s | Extreme |
+### geometry.test.ts
 
-### User Behaviors
+Tests geometry calculation algorithms (re-implemented inline because they are embedded in the hook). Covers:
+- Rectangle dimensions in all drag directions, Ctrl modifier for square
+- Circle radius and position from horizontal/diagonal drags
+- Triangle points with upside-down detection, Ctrl for equilateral
+- Line snap logic: horizontal, vertical, 45-degree diagonal with Shift key
 
-| Behavior | Weight | Draw | Move | Delete |
-|----------|--------|------|------|--------|
-| LURKER | 30% | 10% | 5% | 1% |
-| NORMAL | 50% | 40% | 30% | 5% |
-| ACTIVE | 20% | 70% | 50% | 10% |
+### sessionToken.test.ts
 
-### Thresholds
+Tests `setSessionToken` and `getSessionToken`. Covers:
+- Token storage with expiration timestamp
+- Skipping undefined/empty values
+- Valid token retrieval before expiration
+- Expired token cleanup
+- Malformed JSON handling
+- Missing/null values
 
-- P95 latency: < 500ms
-- P99 latency: < 1000ms
-- Error rate: < 5%
-- Throughput: > 10 msg/s
+### utils.test.ts
 
----
+Tests the utils barrel export. Covers:
+- `getWorkspaceId`: URL path extraction
+- `generateUserId`: format and uniqueness
+- `constrainObjectToBounds`: boundary clamping with custom buffer
+- Persistent user ID and access token localStorage helpers
 
-# 10. Configuration
+## 13.3 Server Tests
 
-## 10.1 package.json Scripts
+### elementValidation.test.ts
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `vite` | Start Vite development server |
-| `build` | `vite build` | Build production frontend |
-| `server` | `tsx server/index.ts` | Start backend server |
-| `start` | `tsx server/index.ts` | Start backend server (alias) |
-| `dev:all` | `concurrently "npm run dev" "npm run server"` | Run both concurrently |
-| `test` | `node ./node_modules/vitest/vitest.mjs run` | Run tests once |
-| `test:watch` | `node ./node_modules/vitest/vitest.mjs` | Run tests in watch mode |
-| `test:coverage` | `node ./node_modules/vitest/vitest.mjs run --coverage` | Run tests with coverage |
-| `lint` | `eslint .` | Run ESLint |
-| `load-test` | `node tests/load/index.js` | Run load tests |
-| `load-test:10` | `node tests/load/index.js 10` | Load test with 10 users |
-| `load-test:30` | `node tests/load/index.js 30` | Load test with 30 users |
-| `load-test:50` | `node tests/load/index.js 50` | Load test with 50 users |
-| `load-test:70` | `node tests/load/index.js 70` | Load test with 70 users |
-| `load-test:100` | `node tests/load/index.js 100` | Load test with 100 users |
-| `load-test:ramp` | `node tests/load/index.js ramp` | Load test with ramping users |
-| `load-test:burst` | `node tests/load/index.js burst` | Load test with burst mode |
-| `test:docker` | `wsl docker compose exec frontend npm test` | Run tests in Docker (WSL) |
-| `heroku-postbuild` | `npm run build` | Heroku deployment build |
+Tests `isValidWorkspaceId` (regex matching), `isValidElementData` (numeric/text/src validation), `isValidElement` (id, type, data checks), and exported constants.
 
-## 10.2 TypeScript Configuration (tsconfig.json)
+### permissionService.test.ts
 
-| Option | Value | Description |
-|--------|-------|-------------|
-| target | ES2022 | ECMAScript target version |
-| module | ESNext | Module system |
-| moduleResolution | bundler | Module resolution strategy |
-| jsx | react-jsx | JSX compilation mode |
-| strict | true | Enable all strict options |
-| noUnusedLocals | true | Report unused locals |
-| noUnusedParameters | true | Report unused parameters |
-| noUncheckedIndexedAccess | true | Add undefined to index signatures |
-| baseUrl | . | Base directory |
-| paths.@/* | ./client/src/* | Path alias |
+Tests all permission methods: `checkWritePermission`, `checkOwnership`, `calculateEditAccess`, `getSharingInfo`, `validateAndSetToken` across all sharing modes, owner/non-owner combinations, and edge cases.
 
-## 10.3 Vite Configuration (vite.config.js)
+### securityUtils.test.ts
 
-| Section | Option | Value |
-|---------|--------|-------|
-| plugins | - | react(), tailwindcss() |
-| root | - | ./client |
-| server.port | - | 5173 |
-| server.proxy./api | target | localhost:3000 |
-| server.proxy./socket.io | ws | true |
-| server.proxy./yjs | ws | true |
-| build.outDir | - | ../dist |
-| build.rollupOptions.manualChunks | monaco | @monaco-editor/react, monaco-editor |
-| build.rollupOptions.manualChunks | fabric | fabric |
-| build.rollupOptions.manualChunks | mermaid | mermaid |
+Tests `safeCompareTokens`: matching tokens, non-matching, different lengths, null/undefined, empty strings, special characters.
 
-## 10.4 Vitest Configuration (vitest.config.js)
+### socketHandlers.test.ts
 
-| Option | Value |
-|--------|-------|
-| test.globals | true |
-| test.environment | node |
-| test.setupFiles | ./tests/setup.js |
-| test.include | tests/**/*.test.{js,ts} |
-| test.coverage.provider | v8 |
-| test.coverage.reporter | text, html |
+Both `workspaceService` and `permissionService` are fully mocked. Tests cover:
+- `handleJoinWorkspace`: workspace creation, joining, owner setup, token validation, error handling
+- `handleWhiteboardUpdate`: element storage, queue calls, input validation, permission checks
+- `handleWhiteboardClear`: drawing clear and broadcast
+- `handleDeleteElement`: element removal and broadcast
+- `handleCodeUpdate`: content validation, length limits
+- `handleGetEditToken`: owner-only access
+- `handleSetEditToken`: format validation
+- `handleChangeSharingMode`: mode validation and broadcast
+- `handleEndSession`: client disconnection
+- `handleDisconnect`: cleanup and user-left emission
 
-## 10.5 ESLint Configuration (eslint.config.js)
+### workspaceService.test.ts
 
-**Ignored:** dist, node_modules, build, coverage
+Uses `vi.useFakeTimers()` for time-dependent tests. Covers:
+- `generateKey`: length and uniqueness
+- `generateEditToken`: format and uniqueness
+- `createWorkspace`: all required fields
+- Connection management: add, remove, count, deduplication
+- User session CRUD
+- `getWorkspaceUsers`: owner flag, empty cases, sessions without connections
+- `cleanupInactiveWorkspaces`: age threshold, active connections, inactive young workspaces
+- `getWorkspaceState`: complete state, empty workspace defaults
+- `updateSharingMode`: validation and update
 
-**Rules:**
-| Rule | Setting |
-|------|---------|
-| react/jsx-uses-react | error |
-| react/jsx-uses-vars | error |
-| no-unused-vars | warn (ignores _-prefixed) |
-| no-console | off |
-| react-hooks/exhaustive-deps | warn |
+### yjsUtils.test.ts
 
----
+Tests `WSSharedDoc` creation, connections map, awareness, data operations, text type for code editing, update events, garbage collection. Tests `cleanupYjsDoc` for non-existent workspaces.
 
-# 11. DevOps
+## 13.4 Load Tests
 
-## 11.1 Dockerfile (Multi-Stage Build)
+The load testing system lives in `tests/load/` and is a custom Socket.IO-based load generator.
 
-### Stage 1: builder
+### How It Works
 
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-COPY shared ./shared
-RUN npm ci --include=optional
-COPY client ./client
-COPY vite.config.js ./
-RUN npm run build
-```
-
-### Stage 2: production
-
-```dockerfile
-FROM node:20-alpine AS production
-WORKDIR /app
-COPY package*.json ./
-COPY shared ./shared
-RUN npm ci --include=optional
-COPY server ./server
-COPY --from=builder /app/dist ./dist
-ENV NODE_ENV=production
-ENV PORT=3000
-EXPOSE 3000
-CMD ["npx", "tsx", "server/index.ts"]
-```
-
-**Important:** Both stages install ALL dependencies (not production-only) because `tsx` is required at runtime to execute TypeScript server code directly.
-
-## 11.2 docker-compose.yml
-
-### Development Services
-
-**frontend:**
-- Image: node:20-alpine
-- Port: 5173:5173
-- Command: `npm install && npm run dev`
-- Environment: VITE_API_URL=http://backend:3000
-
-**backend:**
-- Image: node:20-alpine
-- Port: 3000:3000
-- Command: `npm install && npm run server`
-
-### Production Service
-
-**production:**
-- Build: Dockerfile
-- Port: 3000:3000
-- Profile: prod
-
-### Usage
+The entry point is `tests/load/index.js`. It parses CLI arguments, selects a test profile, creates a `MetricsCollector`, runs the scenario, and prints a pass/fail report.
 
 ```bash
-# Development mode
-docker compose up
-
-# Production mode
-docker compose --profile prod up production
-```
-
-## 11.3 Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| NODE_ENV | - | Environment mode |
-| PORT | 3000 | Server port |
-| VITE_API_URL | http://localhost:3000 | Backend API URL |
-
----
-
-# 12. Internationalization
-
-## 12.1 Setup
-
-**Path:** `client/src/i18n/index.ts`
-
-- Uses i18next with react-i18next
-- Supported languages: English (`en`), Czech (`cs`)
-- Default/fallback: Czech
-- Detection: URL param, localStorage, default
-
-## 12.2 Namespaces
-
-| Namespace | Content |
-|-----------|---------|
-| `common` | Buttons, status, accessibility, animals |
-| `landing` | Landing page |
-| `workspace` | Header, connection, zoom, codeboard |
-| `sharing` | Sharing settings |
-| `toolbar` | Tools, shapes, controls |
-| `editor` | Code and diagram editors |
-| `messages` | Confirmations, errors, notifications |
-| `validation` | Form validation |
-
-## 12.3 Key Examples
-
-**Buttons:**
-```json
-{
-  "buttons.create": "Create",
-  "buttons.cancel": "Cancel",
-  "buttons.copy": "Copy",
-  "buttons.copied": "Copied!"
-}
-```
-
-**Animals (for cursor names):**
-```json
-{
-  "animals.fox": "Fox",
-  "animals.owl": "Owl",
-  "animals.wolf": "Wolf"
-}
-```
-
----
-
-# Appendix
-
-## A. Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Development (frontend + backend)
-npm run dev:all
-
-# Access at http://localhost:5173
-```
-
-## B. Docker Quick Start
-
-```bash
-# Development
-docker compose up
-
-# Production
-docker compose --profile prod up production --build
-```
-
-## C. Testing
-
-```bash
-# Run all tests
-npm test
-
-# With coverage
-npm run test:coverage
-
-# Load test (30 users)
+node tests/load/index.js 30
+# or
 npm run load-test:30
 ```
 
-## D. Production Build
+CLI options:
+- `--workspace=ID` (specific workspace)
+- `--server=URL` (override server URL, default `http://localhost:3000`)
+- `--burst-size=N` (users per burst)
+- `--burst-count=N` (number of bursts)
+
+### SimulatedUser
+
+Each instance represents one connected client with a behavior profile (weighted random: LURKER 30%, NORMAL 50%, ACTIVE 20%).
+
+Actions simulated:
+- **Draw**: random shapes with random colors/positions, emits `WHITEBOARD_UPDATE`
+- **Move element**: picks random element, sends updated position
+- **Delete element**: emits `DELETE_ELEMENT`
+- **Cursor update**: random position via `CURSOR_POSITION`
+- **Freehand drawing session**: `DRAWING_START` -> `DRAWING_STREAM` (50ms intervals, 1-2s) -> `DRAWING_END`
+- **Shape drawing session**: `SHAPE_DRAWING_START` -> `SHAPE_DRAWING_UPDATE` (50ms intervals, 1-2s) -> `SHAPE_DRAWING_END`
+
+### Scenarios
+
+1. **Standard**: N users, gradual ramp-up, fixed duration, disconnect all.
+2. **Ramp-up**: 10 -> 30 -> 50 -> 70 -> 100 -> 50 -> 0 users with stage durations.
+3. **Burst**: Seed user gets edit token. N bursts of simultaneous connections, 30s gap between bursts.
+
+### Metrics
+
+Tracks connection latencies, messages sent/received, throughput (msg/s), errors, active/peak users, memory snapshots.
+
+**Pass/fail thresholds:**
+- P95 connection latency <= 500ms
+- P99 connection latency <= 1000ms
+- Error rate <= 5%
+- Average throughput >= 10 msg/s
+
+### Test Profiles
+
+| Profile | Users | Duration | Ramp-up |
+|---|---|---|---|
+| 10 | 10 | 60s | 5s |
+| 30 | 30 | 120s | 10s |
+| 50 | 50 | 180s | 15s |
+| 70 | 70 | 180s | 20s |
+| 100 | 100 | 300s | 30s |
+
+### Running Load Tests
+
+The server must be running first.
 
 ```bash
-# Build frontend
-npm run build
-
-# Start server (serves built frontend)
-npm start
+npm run load-test:10    # Light load
+npm run load-test:30    # Spec minimum
+npm run load-test:50    # Heavy load
+npm run load-test:70    # Stress test
+npm run load-test:100   # Extreme stress
+npm run load-test:ramp  # Progressive ramp-up
+npm run load-test:burst # Burst test
 ```
-
-## E. URL Structure
-
-| URL | Description |
-|-----|-------------|
-| `/` | Landing page |
-| `/w/{workspaceId}` | Workspace |
-| `/w/{workspaceId}?access={token}` | Workspace with edit token (token is cleared from URL after reading) |
 
 ---
 
-**End of Documentation**
+# 14. Configuration
+
+## 14.1 package.json
+
+Root `package.json` declares ES module (`"type": "module"`), requires Node.js >= 20.19.0.
+
+### NPM Scripts
+
+| Script | Description |
+|---|---|
+| `dev` | Vite dev server (frontend only), port 5173 |
+| `build` | Vite production build into `dist/` |
+| `server` | Backend server via `tsx server/index.ts` |
+| `start` | Alias for `server` |
+| `dev:all` | Runs both `dev` and `server` concurrently |
+| `test` | Vitest single run |
+| `test:docker` | Tests inside Docker via WSL |
+| `test:watch` | Vitest watch mode |
+| `test:coverage` | Vitest with V8 coverage |
+| `lint` | ESLint on the entire project |
+| `load-test` | Load test (no args shows help) |
+| `load-test:10` through `load-test:100` | Load test with N users |
+| `load-test:ramp` | Progressive ramp-up |
+| `load-test:burst` | Burst connection test |
+
+### Dependencies by Purpose
+
+- **UI Framework:** React 19, React Router 7, MUI Material 7, Emotion
+- **Canvas:** Fabric.js 6.9
+- **Code Editing:** Monaco Editor (via `@monaco-editor/react`)
+- **Diagramming:** Mermaid 11, nomnoml, plantuml-encoder
+- **Real-time:** Socket.IO 4.8, Yjs 13.6, y-websocket, y-monaco
+- **Server:** Express 5, cors, helmet, express-rate-limit
+- **Styling:** Tailwind CSS 4 (via Vite plugin)
+- **Build:** Vite 7, TypeScript 5, tsx, concurrently
+- **Validation:** Zod 4
+- **Security:** DOMPurify
+- **i18n:** i18next, react-i18next, i18next-browser-languagedetector
+- **Utilities:** lodash, uuid, hotkeys-js, perfect-cursors, lib0
+
+## 14.2 TypeScript Configuration
+
+**`tsconfig.json`** (client + tests):
+- Target: ES2022, Module: ESNext, bundler resolution
+- JSX: react-jsx, Strict mode enabled
+- `noEmit: true` (Vite handles bundling)
+- Path alias: `@/*` -> `./client/src/*`
+
+**`tsconfig.server.json`** (server):
+- Target: ES2022, no DOM libs
+- Path aliases: `@server/*` -> `./server/*`, `@shared/*` -> `./shared/*`
+
+## 14.3 Vite Configuration
+
+- **Root:** `./client`, output to `../dist`
+- **Plugins:** `@vitejs/plugin-react`, `@tailwindcss/vite`
+- **Dev server:** port 5173, proxies `/api`, `/socket.io`, `/yjs` to backend at `http://localhost:3000` (WebSocket support enabled)
+- **Code splitting:** three separate chunks: `monaco`, `fabric`, `mermaid`
+- **Pre-bundling:** force-includes 19 MUI icon components
+- **Path alias:** `@` -> `client/src`
+
+## 14.4 ESLint Configuration
+
+Flat config format. Applies to `**/*.{js,jsx}` files only.
+
+Plugins: `eslint-plugin-react`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`.
+
+Key rules: `no-unused-vars: 'warn'` (ignores `_` prefixed), `no-console: 'off'`, `react-hooks/exhaustive-deps: 'warn'`.
+
+## 14.5 Docker
+
+`docker-compose.yml` defines three services.
+
+**Development mode** (default): two services
+
+- **frontend**: `node:20-alpine`, runs `npm install && npm run dev`, port 5173
+- **backend**: `node:20-alpine`, runs `npm install && npm run server`, port 3000
+
+Both mount the project root with `node_modules` excluded via anonymous volume.
+
+**Production mode** (`prod` profile):
+
+- **production**: builds from `Dockerfile`, port 3000
+
+```bash
+# Development
+docker-compose up
+
+# Production
+docker-compose --profile prod up production --build
+```
+
+---
+
+# 15. Project Setup
+
+### Prerequisites
+
+- Node.js >= 20.19.0
+- npm (included with Node.js)
+- Docker (optional)
+
+### Install
+
+```bash
+git clone <repository-url>
+cd shareboard
+npm install
+```
+
+### Development
+
+Start both frontend and backend together:
+```bash
+npm run dev:all
+```
+
+This runs Vite dev server at http://localhost:5173 and Express server at http://localhost:3000. The Vite dev server proxies `/api`, `/socket.io`, and `/yjs` to the backend automatically.
+
+Or run them separately:
+```bash
+npm run server   # Terminal 1
+npm run dev      # Terminal 2
+```
+
+### Production Build
+
+```bash
+npm run build
+npm start
+```
+
+### Environment Variables
+
+If the backend runs on a different origin, create `client/.env.local`:
+```
+VITE_API_URL=https://your-backend.example.com
+```
+
+### Running Tests
+
+```bash
+npm test              # Single run
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage
+```
+
+### Linting
+
+```bash
+npm run lint
+```
