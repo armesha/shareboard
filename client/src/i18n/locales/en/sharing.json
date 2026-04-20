@@ -1,0 +1,44 @@
+{
+  "title": "Sharing Settings",
+  "currentMode": "Current Mode",
+  "sharingMode": "Sharing Mode",
+  "onlyOwnerCanChange": "Only the workspace owner can change sharing settings.",
+  "modes": {
+    "readOnly": {
+      "label": "Read Only",
+      "description": "Only you can edit"
+    },
+    "readWriteAll": {
+      "label": "Edit by All",
+      "description": "Anyone with link can edit"
+    },
+    "readWriteSelected": {
+      "label": "Selected Users",
+      "description": "Only users with edit token can edit"
+    }
+  },
+  "nonOwnerModes": {
+    "readOnly": {
+      "label": "Read Only",
+      "description": "Only the owner can edit"
+    },
+    "readWriteAll": {
+      "label": "Edit by All",
+      "description": "Anyone with the link can edit"
+    },
+    "readWriteSelected": {
+      "label": "Selected Users",
+      "description": "Only users with edit token can edit"
+    }
+  },
+  "links": {
+    "viewLink": {
+      "title": "View Link",
+      "description": "Share this link for read-only access"
+    },
+    "editLink": {
+      "title": "Edit Link",
+      "description": "Share this link to grant edit access"
+    }
+  }
+}

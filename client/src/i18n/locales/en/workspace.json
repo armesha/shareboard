@@ -1,0 +1,32 @@
+{
+  "header": {
+    "workspacePrefix": "Workspace / ",
+    "clickToCopy": "Click to copy",
+    "copiedToClipboard": "Workspace ID copied",
+    "copyFailed": "Failed to copy"
+  },
+  "connection": {
+    "online": "Online",
+    "connecting": "Connecting...",
+    "connectingToWorkspace": "Connecting to workspace...",
+    "loadingHistory": "Loading drawing history...",
+    "reconnecting": "Connection lost. Reconnecting...",
+    "errorRefresh": "Connection error. Please try refreshing the page.",
+    "offline": "Offline - Reconnecting...",
+    "error": "Connection Error",
+    "participants_one": "{{count}} user",
+    "participants_other": "{{count}} users"
+  },
+  "zoom": {
+    "tips": "Tips"
+  },
+  "codeboard": {
+    "openCodeBoard": "Open CodeBoard",
+    "closePanel": "Close panel",
+    "resizePanel": "Resize panel",
+    "codeEditorPanel": "Code editor panel",
+    "addToWhiteboard": "Add to Whiteboard",
+    "code": "Code",
+    "diagram": "Diagram"
+  }
+}

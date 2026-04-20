@@ -1,0 +1,72 @@
+{
+  "tools": {
+    "select": "Select",
+    "selectReadOnly": "Select (Read-Only View)",
+    "pen": "Pen",
+    "penTitle": "Pen (click again to change color)",
+    "text": "Text",
+    "shapes": "Shapes",
+    "shapesTitle": "Shapes & Lines",
+    "line": "Line",
+    "arrow": "Arrow"
+  },
+  "shapes": {
+    "rectangle": "Rectangle",
+    "circle": "Circle",
+    "ellipse": "Ellipse",
+    "triangle": "Triangle",
+    "pentagon": "Pentagon",
+    "hexagon": "Hexagon",
+    "octagon": "Octagon",
+    "diamond": "Diamond",
+    "star": "Star",
+    "cross": "Cross"
+  },
+  "options": {
+    "exportAsImage": "Export as Image",
+    "clearWhiteboard": "Clear Whiteboard",
+    "endSession": "End Session",
+    "moreOptions": "More Options",
+    "expandOptions": "More Options",
+    "collapseOptions": "Hide Options"
+  },
+  "controls": {
+    "rightClick": "Right-click",
+    "scroll": "Scroll",
+    "delete": "Delete",
+    "ctrlDragRect": "Ctrl+Drag",
+    "ctrlDragCircle": "Ctrl+Drag",
+    "panCanvas": "Pan canvas",
+    "zoomInOut": "Zoom in/out",
+    "deleteSelected": "Delete selected",
+    "perfectSquare": "Perfect square",
+    "perfectCircle": "Perfect circle"
+  },
+  "pen": {
+    "size": "Size",
+    "custom": "Custom",
+    "ariaLabel": "Pen tool",
+    "settings": "Pen settings"
+  },
+  "text": {
+    "fontSize": "Font Size",
+    "custom": "Custom",
+    "settings": "Text settings"
+  },
+  "colorPicker": {
+    "moreColors": "More colors",
+    "colorPalette": "Color palette",
+    "customColor": "Custom color",
+    "custom": "Custom"
+  },
+  "export": {
+    "title": "Export Preview",
+    "selectAll": "Select All",
+    "clearSelection": "Clear",
+    "fullAreaSelected": "Full area selected",
+    "customAreaSelected": "Custom area selected",
+    "drawOrSelectAll": "Draw selection or click 'Select All'",
+    "downloadImage": "Download",
+    "generatingPreview": "Generating preview..."
+  }
+}

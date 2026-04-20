@@ -1,0 +1,60 @@
+{
+  "buttons": {
+    "create": "Vytvořit",
+    "join": "Připojit se",
+    "cancel": "Zrušit",
+    "confirm": "Potvrdit",
+    "close": "Zavřít",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno!",
+    "save": "Uložit",
+    "delete": "Smazat",
+    "clear": "Vymazat",
+    "export": "Exportovat",
+    "download": "Stáhnout",
+    "back": "Zpět"
+  },
+  "status": {
+    "loading": "Načítání...",
+    "creating": "Vytváření...",
+    "saving": "Ukládání...",
+    "error": "Chyba",
+    "success": "Úspěch"
+  },
+  "accessibility": {
+    "returnToHome": "Návrat na domovskou stránku",
+    "zoomIn": "Přiblížit",
+    "zoomOut": "Oddálit",
+    "keyboardShortcuts": "Klávesové zkratky",
+    "moreOptions": "Další možnosti",
+    "shareSettings": "Nastavení sdílení",
+    "expandOptions": "Rozbalit možnosti",
+    "collapseOptions": "Skrýt možnosti"
+  },
+  "permissions": {
+    "readOnly": "Pouze pro čtení",
+    "readOnlyMode": "Režim pouze pro čtení"
+  },
+  "animals": {
+    "fox": "Liška",
+    "owl": "Sova",
+    "wolf": "Vlk",
+    "bear": "Medvěd",
+    "deer": "Jelen",
+    "eagle": "Orel",
+    "rabbit": "Králík",
+    "tiger": "Tygr",
+    "lion": "Lev",
+    "panda": "Panda",
+    "koala": "Koala",
+    "dolphin": "Delfín",
+    "penguin": "Tučňák",
+    "otter": "Vydra",
+    "hedgehog": "Ježek",
+    "raccoon": "Mýval",
+    "squirrel": "Veverka",
+    "falcon": "Sokol",
+    "lynx": "Rys",
+    "beaver": "Bobr"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "confirmDialog": {
+    "title": "Confirm Action",
+    "defaultMessage": "Are you sure you want to proceed?",
+    "clearWhiteboard": {
+      "title": "Clear Whiteboard",
+      "message": "This will remove all objects from the whiteboard. This action cannot be undone."
+    },
+    "endSession": {
+      "title": "End Session",
+      "message": "This will end the session for all participants. Everyone will be disconnected from this workspace."
+    }
+  },
+  "errors": {
+    "diagramRenderFailed": "Failed to render diagram",
+    "diagramTypeNotRecognized": "Diagram type not recognized",
+    "diagramParseError": "Syntax error on line {{line}}",
+    "diagramSyntaxError": "Syntax error in diagram",
+    "connectionError": "Connection error occurred",
+    "permissionDenied": "Permission denied",
+    "diagramAddFailed": "Failed to add diagram",
+    "codeAddFailed": "Failed to add code to whiteboard",
+    "codeEmpty": "Code editor is empty",
+    "socketError": "Socket error: {{message}}",
+    "connectionFailed": "Failed to connect to server after {{attempts}} attempts. Please check your internet connection or try again later.",
+    "workspaceNotFound": "Workspace not found"
+  },
+  "notifications": {
+    "whiteboardCleared": "Whiteboard cleared",
+    "sessionEnded": "Session ended",
+    "exportSuccess": "Export successful",
+    "copySuccess": "Copied to clipboard",
+    "diagramAdded": "Diagram added to whiteboard",
+    "codeAdded": "Code added to whiteboard",
+    "editAccessGranted": "You've been granted edit access",
+    "editAccessRevoked": "Edit access revoked",
+    "connected": "Connected to server successfully!",
+    "disconnected": "Disconnected from server. Attempting to reconnect...",
+    "connectionRetrying": "Connection error: {{message}}. Retrying... ({{current}}/{{max}})"
+  }
+}

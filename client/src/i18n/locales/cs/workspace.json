@@ -1,0 +1,33 @@
+{
+  "header": {
+    "workspacePrefix": "Pracovní prostor / ",
+    "clickToCopy": "Klikněte pro kopírování",
+    "copiedToClipboard": "ID zkopírováno",
+    "copyFailed": "Kopírování selhalo"
+  },
+  "connection": {
+    "online": "Online",
+    "connecting": "Připojování...",
+    "connectingToWorkspace": "Připojování k pracovnímu prostoru...",
+    "loadingHistory": "Načítání historie kreslení...",
+    "reconnecting": "Připojení ztraceno. Opětovné připojování...",
+    "errorRefresh": "Chyba připojení. Zkuste prosím obnovit stránku.",
+    "offline": "Offline - Znovu připojování...",
+    "error": "Chyba",
+    "participants_one": "{{count}} uživatel",
+    "participants_few": "{{count}} uživatelé",
+    "participants_other": "{{count}} uživatelů"
+  },
+  "zoom": {
+    "tips": "Tipy"
+  },
+  "codeboard": {
+    "openCodeBoard": "Otevřít CodeBoard",
+    "closePanel": "Zavřít panel",
+    "resizePanel": "Změnit velikost panelu",
+    "codeEditorPanel": "Panel editoru kódu",
+    "addToWhiteboard": "Přidat na tabuli",
+    "code": "Kód",
+    "diagram": "Diagram"
+  }
+}

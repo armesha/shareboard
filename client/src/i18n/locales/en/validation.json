@@ -1,0 +1,7 @@
+{
+  "required": "This field is required",
+  "invalidWorkspaceKey": "Invalid workspace key",
+  "invalidEmail": "Invalid email address",
+  "tooShort": "Too short",
+  "tooLong": "Too long"
+}

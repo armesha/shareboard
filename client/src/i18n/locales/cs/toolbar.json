@@ -1,0 +1,72 @@
+{
+  "tools": {
+    "select": "Vybrat",
+    "selectReadOnly": "Vybrat (Zobrazení pouze pro čtení)",
+    "pen": "Pero",
+    "penTitle": "Pero (klikněte znovu pro změnu barvy)",
+    "text": "Text",
+    "shapes": "Tvary",
+    "shapesTitle": "Tvary a čáry",
+    "line": "Čára",
+    "arrow": "Šipka"
+  },
+  "shapes": {
+    "rectangle": "Obdélník",
+    "circle": "Kruh",
+    "ellipse": "Elipsa",
+    "triangle": "Trojúhelník",
+    "pentagon": "Pětiúhelník",
+    "hexagon": "Šestiúhelník",
+    "octagon": "Osmiúhelník",
+    "diamond": "Kosočtverec",
+    "star": "Hvězda",
+    "cross": "Kříž"
+  },
+  "options": {
+    "exportAsImage": "Exportovat jako obrázek",
+    "clearWhiteboard": "Vymazat tabuli",
+    "endSession": "Ukončit relaci",
+    "moreOptions": "Další možnosti",
+    "expandOptions": "Další možnosti",
+    "collapseOptions": "Skrýt možnosti"
+  },
+  "controls": {
+    "rightClick": "Pravé tl.",
+    "scroll": "Kolečko",
+    "delete": "Delete",
+    "ctrlDragRect": "Ctrl+Tažení",
+    "ctrlDragCircle": "Ctrl+Tažení",
+    "panCanvas": "Posun",
+    "zoomInOut": "Zoom",
+    "deleteSelected": "Smazat",
+    "perfectSquare": "Pravidelný čtverec",
+    "perfectCircle": "Pravidelný kruh"
+  },
+  "pen": {
+    "size": "Velikost",
+    "custom": "Vlastní",
+    "ariaLabel": "Nástroj pero",
+    "settings": "Nastavení pera"
+  },
+  "text": {
+    "fontSize": "Velikost písma",
+    "custom": "Vlastní",
+    "settings": "Nastavení textu"
+  },
+  "colorPicker": {
+    "moreColors": "Více barev",
+    "colorPalette": "Paleta barev",
+    "customColor": "Vlastní barva",
+    "custom": "Vlastní"
+  },
+  "export": {
+    "title": "Náhled exportu",
+    "selectAll": "Vybrat vše",
+    "clearSelection": "Zrušit",
+    "fullAreaSelected": "Celá oblast vybrána",
+    "customAreaSelected": "Vlastní oblast vybrána",
+    "drawOrSelectAll": "Nakreslete výběr nebo klikněte 'Vybrat vše'",
+    "downloadImage": "Stáhnout",
+    "generatingPreview": "Generování náhledu..."
+  }
+}

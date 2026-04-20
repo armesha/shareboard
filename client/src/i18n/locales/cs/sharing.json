@@ -1,0 +1,44 @@
+{
+  "title": "Nastavení sdílení",
+  "currentMode": "Aktuální režim",
+  "sharingMode": "Režim sdílení",
+  "onlyOwnerCanChange": "Nastavení sdílení může měnit pouze vlastník pracovního prostoru.",
+  "modes": {
+    "readOnly": {
+      "label": "Pouze pro čtení",
+      "description": "Upravovat můžete jen vy"
+    },
+    "readWriteAll": {
+      "label": "Úpravy pro všechny",
+      "description": "Kdokoli s odkazem může upravovat"
+    },
+    "readWriteSelected": {
+      "label": "Vybraní uživatelé",
+      "description": "Upravovat mohou pouze uživatelé s editačním tokenem"
+    }
+  },
+  "nonOwnerModes": {
+    "readOnly": {
+      "label": "Pouze pro čtení",
+      "description": "Upravovat může pouze vlastník"
+    },
+    "readWriteAll": {
+      "label": "Úpravy pro všechny",
+      "description": "Kdokoli s odkazem může upravovat"
+    },
+    "readWriteSelected": {
+      "label": "Vybraní uživatelé",
+      "description": "Upravovat mohou pouze uživatelé s editačním tokenem"
+    }
+  },
+  "links": {
+    "viewLink": {
+      "title": "Odkaz pro zobrazení",
+      "description": "Sdílejte tento odkaz pro přístup pouze ke čtení"
+    },
+    "editLink": {
+      "title": "Odkaz pro úpravy",
+      "description": "Sdílejte tento odkaz pro udělení práv k úpravám"
+    }
+  }
+}

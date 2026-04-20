@@ -1,0 +1,60 @@
+{
+  "buttons": {
+    "create": "Create",
+    "join": "Join",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "save": "Save",
+    "delete": "Delete",
+    "clear": "Clear",
+    "export": "Export",
+    "download": "Download",
+    "back": "Back"
+  },
+  "status": {
+    "loading": "Loading...",
+    "creating": "Creating...",
+    "saving": "Saving...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "accessibility": {
+    "returnToHome": "Return to Home",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "keyboardShortcuts": "Keyboard shortcuts",
+    "moreOptions": "More options",
+    "shareSettings": "Share Settings",
+    "expandOptions": "Expand options",
+    "collapseOptions": "Collapse options"
+  },
+  "permissions": {
+    "readOnly": "Read-Only",
+    "readOnlyMode": "Read-Only Mode"
+  },
+  "animals": {
+    "fox": "Fox",
+    "owl": "Owl",
+    "wolf": "Wolf",
+    "bear": "Bear",
+    "deer": "Deer",
+    "eagle": "Eagle",
+    "rabbit": "Rabbit",
+    "tiger": "Tiger",
+    "lion": "Lion",
+    "panda": "Panda",
+    "koala": "Koala",
+    "dolphin": "Dolphin",
+    "penguin": "Penguin",
+    "otter": "Otter",
+    "hedgehog": "Hedgehog",
+    "raccoon": "Raccoon",
+    "squirrel": "Squirrel",
+    "falcon": "Falcon",
+    "lynx": "Lynx",
+    "beaver": "Beaver"
+  }
+}

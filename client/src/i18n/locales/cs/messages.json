@@ -1,0 +1,41 @@
+{
+  "confirmDialog": {
+    "title": "Potvrdit akci",
+    "defaultMessage": "Opravdu chcete pokračovat?",
+    "clearWhiteboard": {
+      "title": "Vymazat tabuli",
+      "message": "Tímto odstraníte všechny objekty z tabule. Tuto akci nelze vrátit zpět."
+    },
+    "endSession": {
+      "title": "Ukončit relaci",
+      "message": "Tímto ukončíte relaci pro všechny účastníky. Všichni budou odpojeni od tohoto pracovního prostoru."
+    }
+  },
+  "errors": {
+    "diagramRenderFailed": "Vykreslení diagramu selhalo",
+    "diagramTypeNotRecognized": "Typ diagramu nebyl rozpoznán",
+    "diagramParseError": "Chyba syntaxe na řádku {{line}}",
+    "diagramSyntaxError": "Chyba syntaxe v diagramu",
+    "connectionError": "Došlo k chybě připojení",
+    "permissionDenied": "Přístup odepřen",
+    "diagramAddFailed": "Přidání diagramu selhalo",
+    "codeAddFailed": "Přidání kódu na tabuli selhalo",
+    "codeEmpty": "Editor kódu je prázdný",
+    "socketError": "Chyba soketu: {{message}}",
+    "connectionFailed": "Nepodařilo se připojit k serveru po {{attempts}} pokusech. Zkontrolujte připojení k internetu.",
+    "workspaceNotFound": "Pracovní prostor nenalezen"
+  },
+  "notifications": {
+    "whiteboardCleared": "Tabule vymazána",
+    "sessionEnded": "Relace ukončena",
+    "exportSuccess": "Export úspěšný",
+    "copySuccess": "Zkopírováno do schránky",
+    "diagramAdded": "Diagram přidán na tabuli",
+    "codeAdded": "Kód přidán na tabuli",
+    "editAccessGranted": "Bylo vám uděleno právo úprav",
+    "editAccessRevoked": "Právo úprav bylo odebráno",
+    "connected": "Připojeno k serveru!",
+    "disconnected": "Odpojeno od serveru. Pokus o opětovné připojení...",
+    "connectionRetrying": "Chyba připojení: {{message}}. Opakování... ({{current}}/{{max}})"
+  }
+}
