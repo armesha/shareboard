@@ -2,6 +2,8 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
+![ShareBoard landing page](docs/landing.png)
+
 ## Spuštění projektu
 
 ### Předpoklady
