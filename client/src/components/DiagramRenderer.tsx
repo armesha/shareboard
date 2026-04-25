@@ -87,7 +87,7 @@ export default function DiagramRenderer({ onAddToWhiteboard, canAddToWhiteboard 
 
     const cleaned = rawMessage.replace(/^\[mermaid\]\s*/i, '').trim();
 
-    const lineMatch = cleaned.match(/(?:line|строк[аи])\s*(\d+)/i);
+    const lineMatch = cleaned.match(/line\s*(\d+)/i);
     const errorLineNum = lineMatch?.[1] ? parseInt(lineMatch[1], 10) : null;
 
     if (/no diagram type detected/i.test(cleaned)) {
