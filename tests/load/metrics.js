@@ -210,83 +210,40 @@ export class MetricsCollector {
     const stats = this.getStats();
     const threshold = this.checkThresholds();
 
-    console.log('\n');
-    console.log('═'.repeat(60));
-    console.log('                    LOAD TEST RESULTS');
-    console.log('═'.repeat(60));
-    console.log();
+    console.log('\nResults');
+    console.log(`  duration         ${stats.duration}s`);
+    console.log(`  peak users       ${stats.peakUsers}`);
+    console.log(`  messages         ${stats.totalMessages} (sent ${stats.messagesSent}, received ${stats.messagesReceived})`);
+    console.log(`  throughput       ${stats.throughput.avg} msg/s avg, ${stats.throughput.peak} msg/s peak`);
 
-    console.log('SUMMARY');
-    console.log('─'.repeat(40));
-    console.log(`  Duration:        ${stats.duration}s`);
-    console.log(`  Peak Users:      ${stats.peakUsers}`);
-    console.log(`  Total Messages:  ${stats.totalMessages}`);
-    console.log(`    Sent:          ${stats.messagesSent}`);
-    console.log(`    Received:      ${stats.messagesReceived}`);
-    console.log();
-
-    console.log('THROUGHPUT');
-    console.log('─'.repeat(40));
-    console.log(`  Average:         ${stats.throughput.avg} msg/s`);
-    console.log(`  Peak:            ${stats.throughput.peak} msg/s`);
-    console.log();
-
-    console.log('MESSAGE LATENCY (Round-Trip)');
-    console.log('─'.repeat(40));
-    if (stats.messageLatency.samples > 0) {
-      console.log(`  Min:             ${stats.messageLatency.min}ms`);
-      console.log(`  Max:             ${stats.messageLatency.max}ms`);
-      console.log(`  Average:         ${stats.messageLatency.avg}ms`);
-      console.log(`  P95:             ${stats.messageLatency.p95}ms`);
-      console.log(`  P99:             ${stats.messageLatency.p99}ms`);
-      console.log(`  Samples:         ${stats.messageLatency.samples}`);
+    const ml = stats.messageLatency;
+    if (ml.samples > 0) {
+      console.log(`  latency avg      ${ml.avg} ms`);
+      console.log(`  latency p95      ${ml.p95} ms`);
+      console.log(`  latency p99      ${ml.p99} ms`);
+      console.log(`  latency min/max  ${ml.min} / ${ml.max} ms (${ml.samples} samples)`);
     } else {
-      console.log('  No message latency data collected');
+      console.log('  latency          no samples');
     }
-    console.log();
 
-    console.log('CONNECTION LATENCY');
-    console.log('─'.repeat(40));
-    console.log(`  Average:         ${stats.connectLatency.avg}ms`);
-    console.log(`  P95:             ${stats.connectLatency.p95}ms`);
-    console.log(`  Samples:         ${stats.connectLatency.samples}`);
-    console.log();
-
-    console.log('ERRORS');
-    console.log('─'.repeat(40));
-    console.log(`  Total:           ${stats.errors}`);
-    console.log(`  Error Rate:      ${stats.errorRate}%`);
+    console.log(`  connect latency  avg ${stats.connectLatency.avg} ms, p95 ${stats.connectLatency.p95} ms (${stats.connectLatency.samples} samples)`);
+    console.log(`  errors           ${stats.errors} (${stats.errorRate}%)`);
 
     if (this.errors.length > 0 && this.errors.length <= 10) {
-      console.log('  Recent errors:');
-      this.errors.slice(-5).forEach(e => {
-        console.log(`    - ${e.message}`);
-      });
+      this.errors.slice(-5).forEach(e => console.log(`    - ${e.message}`));
     }
-    console.log();
 
     if (stats.serverMemory) {
-      console.log('SERVER MEMORY');
-      console.log('─'.repeat(40));
-      console.log(`  Heap Used:       ${stats.serverMemory.heapUsed}MB`);
-      console.log(`  RSS:             ${stats.serverMemory.rss}MB`);
-      console.log();
+      console.log(`  server memory    heap ${stats.serverMemory.heapUsed} MB, RSS ${stats.serverMemory.rss} MB`);
     }
+    console.log(`  client memory    heap ${stats.memory.heapUsed} MB, RSS ${stats.memory.rss} MB`);
 
-    console.log('TEST CLIENT MEMORY');
-    console.log('─'.repeat(40));
-    console.log(`  Heap Used:       ${stats.memory.heapUsed}MB`);
-    console.log(`  RSS:             ${stats.memory.rss}MB`);
-    console.log();
-
-    console.log('═'.repeat(60));
     if (threshold.passed) {
-      console.log('  [PASS] All thresholds met');
+      console.log('\nResult: PASS');
     } else {
-      console.log('  [FAIL] Threshold violations:');
-      threshold.failures.forEach(f => console.log(`     - ${f}`));
+      console.log('\nResult: FAIL');
+      threshold.failures.forEach(f => console.log(`  - ${f}`));
     }
-    console.log('═'.repeat(60));
     console.log();
 
     return threshold.passed;

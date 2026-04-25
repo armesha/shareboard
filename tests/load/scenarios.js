@@ -17,11 +17,8 @@ export async function runScenario(profile, metrics, options = {}) {
   const users = [];
   let sharedEditToken = null;
 
-  console.log();
-  console.log(`[START] ${profile.name}`);
-  console.log(`   ${profile.description}`);
-  console.log(`   Workspace: ${workspaceId}`);
-  console.log();
+  console.log(`\nScenario: ${profile.name} (${profile.description})`);
+  console.log(`Workspace: ${workspaceId}\n`);
 
   const rampUpDelay = profile.rampUpTime / profile.users;
 
@@ -35,25 +32,23 @@ export async function runScenario(profile, metrics, options = {}) {
       await user.connect();
       if (i === 0 && user.editToken) {
         sharedEditToken = user.editToken;
-        console.log(`   Edit token obtained from first user`);
+        console.log('Edit token obtained from first user');
       }
       user.startActivity();
       users.push(user);
 
       if ((i + 1) % 10 === 0 || i + 1 === profile.users) {
-        console.log(`   Connected: ${i + 1}/${profile.users} users`);
+        console.log(`  connected ${i + 1}/${profile.users}`);
       }
     } catch (error) {
-      console.error(`   Failed to connect user ${i + 1}: ${error.message}`);
+      console.error(`  failed to connect user ${i + 1}: ${error.message}`);
     }
 
     await sleep(rampUpDelay);
   }
 
-  console.log();
-  console.log(`[OK] ${users.length}/${profile.users} users connected`);
-  console.log(`Running for ${profile.duration / 1000} seconds...`);
-  console.log();
+  console.log(`\n${users.length}/${profile.users} users connected`);
+  console.log(`Running for ${profile.duration / 1000}s\n`);
 
   const liveStatsInterval = setInterval(() => {
     metrics.calculateThroughput();
@@ -67,15 +62,14 @@ export async function runScenario(profile, metrics, options = {}) {
   clearInterval(liveStatsInterval);
   await pollServerMemory(metrics);
 
-  console.log('\n');
-  console.log('Disconnecting users...');
+  console.log('\nDisconnecting users...');
 
   for (const user of users) {
     user.disconnect();
     metrics.recordDisconnect();
   }
 
-  console.log('   All users disconnected');
+  console.log('All users disconnected');
 
   return users.length;
 }
@@ -95,11 +89,9 @@ export async function runRampUpScenario(metrics, options = {}) {
   const users = [];
   let sharedEditToken = null;
 
-  console.log();
-  console.log('[START] Progressive Ramp-Up Test');
-  console.log(`   Workspace: ${workspaceId}`);
-  console.log('   Stages: 10 → 30 → 50 → 70 → 100 → 50 → 0');
-  console.log();
+  console.log(`\nScenario: Progressive Ramp-Up`);
+  console.log(`Workspace: ${workspaceId}`);
+  console.log('Stages: 10 -> 30 -> 50 -> 70 -> 100 -> 50 -> 0\n');
 
   const liveStatsInterval = setInterval(() => {
     metrics.calculateThroughput();
@@ -113,11 +105,11 @@ export async function runRampUpScenario(metrics, options = {}) {
     const targetUsers = currentStage.users;
     const currentUsers = users.length;
 
-    console.log(`\n[STAGE] ${i + 1}: ${currentStage.name}`);
+    console.log(`\nStage ${i + 1}: ${currentStage.name}`);
 
     if (targetUsers > currentUsers) {
       const toAdd = targetUsers - currentUsers;
-      console.log(`   Adding ${toAdd} users...`);
+      console.log(`  adding ${toAdd} users`);
 
       for (let j = 0; j < toAdd; j++) {
         const userId = `ramp-user-${users.length + 1}-${uuidv4().slice(0, 6)}`;
@@ -127,19 +119,19 @@ export async function runRampUpScenario(metrics, options = {}) {
           await user.connect();
           if (!sharedEditToken && user.editToken) {
             sharedEditToken = user.editToken;
-            console.log(`   Edit token obtained from first user`);
+            console.log('  edit token obtained from first user');
           }
           user.startActivity();
           users.push(user);
         } catch (error) {
-          console.error(`   Failed to connect: ${error.message}`);
+          console.error(`  failed to connect: ${error.message}`);
         }
 
         await sleep(TIMING.RAMP_UP_DELAY);
       }
     } else if (targetUsers < currentUsers) {
       const toRemove = currentUsers - targetUsers;
-      console.log(`   Removing ${toRemove} users...`);
+      console.log(`  removing ${toRemove} users`);
 
       for (let j = 0; j < toRemove; j++) {
         const user = users.pop();
@@ -151,7 +143,7 @@ export async function runRampUpScenario(metrics, options = {}) {
       }
     }
 
-    console.log(`   Running with ${users.length} users for ${currentStage.duration / 1000}s`);
+    console.log(`  running with ${users.length} users for ${currentStage.duration / 1000}s`);
     await sleep(currentStage.duration);
   }
 
@@ -175,23 +167,21 @@ export async function runBurstScenario(metrics, options = {}) {
   const users = [];
   let sharedEditToken = null;
 
-  console.log();
-  console.log('[START] Burst Test');
-  console.log(`   Workspace: ${workspaceId}`);
-  console.log(`   Burst size: ${burstSize} users`);
-  console.log(`   Bursts: ${burstCount}`);
-  console.log();
+  console.log(`\nScenario: Burst Test`);
+  console.log(`Workspace: ${workspaceId}`);
+  console.log(`Burst size: ${burstSize} users`);
+  console.log(`Bursts: ${burstCount}\n`);
 
   const firstUserId = `burst-user-first-${uuidv4().slice(0, 6)}`;
   const firstUser = new SimulatedUser(firstUserId, workspaceId, metrics);
   try {
     await firstUser.connect();
     sharedEditToken = firstUser.editToken;
-    console.log(`   Edit token obtained from first user`);
+    console.log('Edit token obtained from first user');
     firstUser.startActivity();
     users.push(firstUser);
   } catch (error) {
-    console.error(`   Failed to connect first user: ${error.message}`);
+    console.error(`Failed to connect first user: ${error.message}`);
   }
 
   const liveStatsInterval = setInterval(() => {
@@ -202,7 +192,7 @@ export async function runBurstScenario(metrics, options = {}) {
   }, 1000);
 
   for (let burst = 0; burst < burstCount; burst++) {
-    console.log(`\n[BURST] ${burst + 1}/${burstCount}: Adding ${burstSize} users simultaneously`);
+    console.log(`\nBurst ${burst + 1}/${burstCount}: adding ${burstSize} users simultaneously`);
 
     const connectPromises = [];
     for (let i = 0; i < burstSize; i++) {
@@ -213,18 +203,18 @@ export async function runBurstScenario(metrics, options = {}) {
       connectPromises.push(
         user.connect()
           .then(() => user.startActivity())
-          .catch(err => console.error(`   Connection failed: ${err.message}`))
+          .catch(err => console.error(`  connection failed: ${err.message}`))
       );
     }
 
     await Promise.allSettled(connectPromises);
-    console.log(`   Burst complete. Active users: ${metrics.activeUsers}`);
+    console.log(`  burst complete, active users: ${metrics.activeUsers}`);
 
     if (burst < burstCount - 1) {
-      console.log(`   Waiting ${burstInterval / 1000}s before next burst...`);
+      console.log(`  waiting ${burstInterval / 1000}s before next burst`);
       await sleep(burstInterval);
 
-      console.log('   Disconnecting burst users...');
+      console.log('  disconnecting burst users');
       while (users.length > 0) {
         const user = users.pop();
         user.disconnect();
@@ -233,7 +223,7 @@ export async function runBurstScenario(metrics, options = {}) {
     }
   }
 
-  console.log(`\n   Holding final burst for 60 seconds...`);
+  console.log(`\nHolding final burst for 60s`);
   await sleep(60000);
 
   clearInterval(liveStatsInterval);

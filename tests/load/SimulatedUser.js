@@ -49,9 +49,7 @@ export class SimulatedUser {
       const connectStart = Date.now();
 
       this.socket = io(SERVER_URL, {
-        reconnection: true,
-        reconnectionAttempts: 3,
-        reconnectionDelay: 1000,
+        reconnection: false,
         transports: ['websocket', 'polling'],
         timeout: 10000,
       });

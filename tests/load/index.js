@@ -5,9 +5,7 @@ import { runScenario, runRampUpScenario, runBurstScenario } from './scenarios.js
 import { TEST_PROFILES, SERVER_URL } from './config.js';
 
 const HELP_TEXT = `
-╔════════════════════════════════════════════════════════════════╗
-║              ShareBoard Load Testing Tool                       ║
-╚════════════════════════════════════════════════════════════════╝
+ShareBoard Load Testing Tool
 
 Usage: node tests/load/index.js <command> [options]
 
@@ -43,7 +41,6 @@ async function main() {
   if (args.length === 0 || args.includes('help') || args.includes('--help')) {
     console.log(HELP_TEXT);
     console.log('  Profile     Users    Duration    Description');
-    console.log('  ───────────────────────────────────────────────────────');
     for (const [key, profile] of Object.entries(TEST_PROFILES)) {
       console.log(`  ${key.padEnd(12)} ${String(profile.users).padEnd(8)} ${(profile.duration / 1000 + 's').padEnd(11)} ${profile.description}`);
     }
@@ -58,10 +55,7 @@ async function main() {
     process.env.SERVER_URL = options.server;
   }
 
-  console.log('╔════════════════════════════════════════════════════════════════╗');
-  console.log('║              ShareBoard Load Testing Tool                       ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝');
-  console.log();
+  console.log(`ShareBoard load test`);
   console.log(`Server: ${process.env.SERVER_URL || SERVER_URL}`);
 
   const metrics = new MetricsCollector();
@@ -100,7 +94,7 @@ async function main() {
     passed = metrics.printFinalReport();
 
   } catch (error) {
-    console.error('\n[FAIL] Test failed with error:', error.message);
+    console.error('\nTest failed:', error.message);
     console.error(error.stack);
     process.exit(1);
   }
