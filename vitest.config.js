@@ -12,12 +12,15 @@ export default defineConfig({
       include: [
         'server/services/**/*.ts',
         'server/validation/**/*.ts',
-        'client/src/utils/**/*.ts',
-        'client/src/hooks/**/*.ts'
+        'server/handlers/**/*.ts',
+        'server/utils/**/*.ts',
+        'server/yjs-utils.ts',
+        'client/src/utils/**/*.ts'
       ],
       exclude: [
-        'node_modules',
-        'tests'
+        'node_modules/**',
+        'tests/**',
+        'client/src/utils/fabricArrow.ts'
       ]
     }
   }
