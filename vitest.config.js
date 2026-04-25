@@ -11,6 +11,7 @@ export default defineConfig({
       reporter: ['text', 'html'],
       include: [
         'server/services/**/*.ts',
+        'server/validation/**/*.ts',
         'client/src/utils/**/*.ts',
         'client/src/hooks/**/*.ts'
       ],

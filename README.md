@@ -2,7 +2,7 @@
 
 > Sdílená tabule a editor kódu v reálném čase
 
-![ShareBoard landing page](docs/landing.png)
+![ShareBoard landing page](screenshots/landing.png)
 
 ## Spuštění projektu
 
@@ -18,11 +18,29 @@ npm run dev:all
 
 - Frontend: http://localhost:5173
 - Backend: port 3000
-- prod: https://shareboard.live/
 
 #### Konfigurace backend URL (frontend)
 Pokud frontend běží na jiném originu než backend, zkopíruj `client/.env.local.example` jako `client/.env.local` (nebo `.env.production.example` jako `.env.production`) a nastav:
 `VITE_API_URL=http://localhost:3000` (lokálně) nebo URL tvého backendu (produkce).
+
+#### Konfigurace logování (backend)
+Úroveň logování se řídí proměnnou prostředí `LOG_LEVEL`. Povolené hodnoty: `fatal` | `error` | `warn` | `info` | `debug` | `trace` | `silent`.
+
+Výchozí hodnota: `info` v produkci, `debug` ve vývoji.
+
+```bash
+# lokálně (bash):
+LOG_LEVEL=warn npm run server
+
+# lokálně (PowerShell):
+$env:LOG_LEVEL="warn"; npm run server
+
+# na produkci (PM2):
+export LOG_LEVEL=warn
+pm2 restart shareboard --update-env
+```
+
+Logy jsou vypisovány na stdout — v produkci je zachytává PM2 (`pm2 logs shareboard`), ve vývoji se zobrazují přímo v terminálu (barevně, přes `pino-pretty`).
 
 ## Funkce
 - Interaktivní kreslící plocha (tvary, čáry, text, volné kreslení)
@@ -50,6 +68,7 @@ Pokud frontend běží na jiném originu než backend, zkopíruj `client/.env.lo
 - y-websocket 3 + ws 8 - Yjs WebSocket server (code/diagram sync)
 - Helmet - bezpečnostní HTTP hlavičky a CSP
 - express-rate-limit - omezovač frekvence
+- Pino - strukturované logování (JSON v produkci, pino-pretty ve vývoji)
 
 ## npm skripty
 
