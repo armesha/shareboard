@@ -15,6 +15,7 @@ import * as batchService from './services/batchService';
 import * as handlers from './handlers/socketHandlers';
 import { setupWSConnection } from './yjs-utils';
 import { toUser } from './utils/userUtils';
+import { logger, logThrottled, logSampled, clearLogKeysForSocket } from './utils/logger';
 import {
   isValidCursorPosition,
   isValidUserColor,
@@ -56,7 +57,7 @@ httpServer.on('upgrade', (request, socket, head) => {
     });
   }
 });
-console.log('Y-websocket server initialized');
+logger.info('y-websocket server initialized');
 
 batchService.startBatchInterval(io);
 
@@ -116,6 +117,7 @@ app.post('/api/workspaces', createWorkspaceLimiter, (req: Request, res: Response
   const workspaceId = workspaceService.generateKey();
   const userId = req.body.userId || workspaceService.generateKey(config.workspace.userIdLength);
   workspaceService.createWorkspace(workspaceId, userId);
+  logger.info({ workspaceId, userId }, 'workspace created');
   res.json({ workspaceId });
 });
 
@@ -152,11 +154,17 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
   workspaceService.setUserSession(socket.id, currentUser);
 
   socket.on('error', (error: Error) => {
-    console.error(`Socket error for ${socket.id}:`, error);
+    logger.error({ err: error, socketId: socket.id }, 'socket error');
   });
 
   const checkRateLimit = (eventName: string): boolean => {
-    return rateLimitService.checkRateLimit(socket.id, eventName);
+    const allowed = rateLimitService.checkRateLimit(socket.id, eventName);
+    if (!allowed) {
+      logThrottled(`${socket.id}:rl:${eventName}`, 10000, () => {
+        logger.warn({ socketId: socket.id, event: eventName }, 'rate limit exceeded');
+      });
+    }
+    return allowed;
   };
 
   socket.on(SOCKET_EVENTS.CHECK_WORKSPACE_EXISTS, ({ workspaceId }: { workspaceId: string }) => {
@@ -164,7 +172,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
       const exists = workspaceService.workspaceExists(workspaceId);
       socket.emit(SOCKET_EVENTS.WORKSPACE_EXISTS_RESULT, { workspaceId, exists });
     } catch (error) {
-      console.error('CHECK_WORKSPACE_EXISTS error:', error);
+      logger.warn({ err: error, socketId: socket.id, event: 'CHECK_WORKSPACE_EXISTS' }, 'handler failed');
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to check workspace' });
     }
   });
@@ -179,9 +187,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
     });
 
     if (result.success) {
-      console.log(`User ${socket.id} joined workspace ${data.workspaceId}`);
+      logger.info({ socketId: socket.id, workspaceId: data.workspaceId, isNewWorkspace: result.isNewWorkspace }, 'user joined workspace');
     } else {
-      console.error('JOIN_WORKSPACE error:', result.error);
+      logger.error({ err: result.error, socketId: socket.id, workspaceId: data.workspaceId, reason: result.reason }, 'join workspace failed');
     }
   });
 
@@ -197,10 +205,14 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
       currentUser.isOwner = isOwner;
       currentUser.hasEditAccess = hasEditAccess;
 
-      permissionService.validateAndSetToken(workspace, accessToken, toUser(currentUser));
+      const tokenValid = permissionService.validateAndSetToken(workspace, accessToken, toUser(currentUser));
+      if (accessToken && !tokenValid && !isOwner) {
+        logger.warn({ socketId: socket.id, workspaceId }, 'invalid edit token');
+      }
+
       socket.emit(SOCKET_EVENTS.SHARING_INFO, permissionService.getSharingInfo(workspace, toUser(currentUser)));
     } catch (error) {
-      console.error('GET_SHARING_INFO error:', error);
+      logger.warn({ err: error, socketId: socket.id, event: 'GET_SHARING_INFO' }, 'handler failed');
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to get sharing info' });
     }
   });
@@ -246,7 +258,9 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.CURSOR_UPDATE, { userId: socket.id, position, userColor, animalKey });
       }
     } catch (error) {
-      console.error('CURSOR_POSITION error:', error);
+      logSampled(`${socket.id}:cursor-err`, 100, (count) => {
+        logger.warn({ err: error, socketId: socket.id, event: 'CURSOR_POSITION', sampledCount: count }, 'cursor handler failed');
+      });
     }
   });
 
@@ -266,7 +280,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_START, { drawingId, userId: socket.id, color, brushWidth });
       }
     } catch (error) {
-      console.error('DRAWING_START error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -286,7 +300,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_STREAM, { drawingId, points });
       }
     } catch (error) {
-      console.error('DRAWING_STREAM error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -306,7 +320,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_END, { drawingId });
       }
     } catch (error) {
-      console.error('DRAWING_END error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -326,7 +340,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_START, { shapeId, userId: socket.id, shapeType, data });
       }
     } catch (error) {
-      console.error('SHAPE_DRAWING_START error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -346,7 +360,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, { shapeId, data });
       }
     } catch (error) {
-      console.error('SHAPE_DRAWING_UPDATE error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -366,7 +380,7 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
         socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_END, { shapeId });
       }
     } catch (error) {
-      console.error('SHAPE_DRAWING_END error:', error);
+      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
     }
   });
 
@@ -385,40 +399,41 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
 
   socket.on(SOCKET_EVENTS.DISCONNECT, () => {
     rateLimitService.clearSocketRateLimits(socket.id);
+    clearLogKeysForSocket(socket.id);
     handlers.handleDisconnect({ socket, io, currentUser, currentWorkspaceRef });
   });
 });
 
 process.on('uncaughtException', (error: Error) => {
-  console.error('Uncaught Exception:', error);
+  logger.fatal({ err: error }, 'uncaught exception');
 });
 
-process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.fatal({ err: reason }, 'unhandled rejection');
 });
 
 io.on('error', (error: Error) => {
-  console.error('Socket.io error:', error);
+  logger.error({ err: error }, 'socket.io error');
 });
 
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, cleaning up...');
+  logger.info('SIGTERM received, cleaning up');
   clearInterval(rateLimitCleanupInterval);
   httpServer.close(() => {
-    console.log('Server closed');
+    logger.info('server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, cleaning up...');
+  logger.info('SIGINT received, cleaning up');
   clearInterval(rateLimitCleanupInterval);
   httpServer.close(() => {
-    console.log('Server closed');
+    logger.info('server closed');
     process.exit(0);
   });
 });
 
 httpServer.listen(config.port, () => {
-  console.log(`Server running on port ${config.port}`);
+  logger.info({ port: config.port }, 'server started');
 });

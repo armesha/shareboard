@@ -2,6 +2,7 @@ import { SOCKET_EVENTS, SHARING_MODES } from '../config';
 import * as workspaceService from '../services/workspaceService';
 import * as permissionService from '../services/permissionService';
 import { withOwnerAuth } from '../middleware/socketAuth';
+import { logger } from '../utils/logger';
 import type {
   Handler,
   HandlerContext,
@@ -14,7 +15,7 @@ import type {
 export function handleGetEditToken(
   { workspaceId }: GetEditTokenData,
   callback: ((response: { error?: string; editToken?: string | null }) => void) | undefined,
-  { currentUser }: HandlerContext
+  { socket, currentUser }: HandlerContext
 ): HandlerResult {
   try {
     const workspace = workspaceService.getWorkspace(workspaceId);
@@ -23,7 +24,9 @@ export function handleGetEditToken(
       return { success: false, reason: 'workspace_not_found' };
     }
 
-    if (!permissionService.checkOwnership(workspace, currentUser.userId || currentUser.id)) {
+    const userId = currentUser.userId || currentUser.id;
+    if (!permissionService.checkOwnership(workspace, userId)) {
+      logger.warn({ socketId: socket.id, workspaceId, userId }, 'permission denied: not owner (get edit token)');
       callback?.({ error: 'Permission denied' });
       return { success: false, reason: 'not_owner' };
     }
@@ -31,6 +34,7 @@ export function handleGetEditToken(
     callback?.({ editToken: workspace.editToken || null });
     return { success: true, editToken: workspace.editToken };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'get edit token failed');
     callback?.({ error: 'Failed to get edit token' });
     return { success: false, error };
   }
@@ -58,6 +62,7 @@ const handleChangeSharingModeCore: Handler<ChangeSharingModeData> = (
 
     return { success: false, reason: 'update_failed' };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'change sharing mode failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to change sharing mode' });
     return { success: false, error };
   }
@@ -88,6 +93,7 @@ const handleEndSessionCore: Handler<EndSessionData> = (
 
     return { success: false, reason: 'io_not_available' };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'end session failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to end session' });
     return { success: false, error };
   }

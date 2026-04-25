@@ -3,6 +3,7 @@ import * as workspaceService from '../services/workspaceService';
 import * as permissionService from '../services/permissionService';
 import { isValidWorkspaceId } from './elementValidation';
 import { toUser } from '../utils/userUtils';
+import { logger } from '../utils/logger';
 import type { HandlerContext, HandlerResult, JoinWorkspaceData, Workspace, CurrentUser } from '../types';
 import type { Socket, Server } from 'socket.io';
 
@@ -233,6 +234,7 @@ export async function handleJoinWorkspace(
 
     return { success: true, workspace, isNewWorkspace };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'join workspace handler failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to join workspace' });
     return { success: false, error };
   }
@@ -257,12 +259,14 @@ export function handleDisconnect({ socket, io, currentWorkspaceRef }: HandlerCon
         if (io) {
           io.to(workspaceId).emit(SOCKET_EVENTS.USER_LEFT, { userId: socket.id, activeUsers });
         }
+        logger.info({ socketId: socket.id, workspaceId, activeUsers }, 'user disconnected');
       }
     }
 
     workspaceService.removeUserSession(socket.id);
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id }, 'disconnect handler failed');
     return { success: false, error };
   }
 }

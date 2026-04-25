@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { config, SOCKET_EVENTS } from '../config';
 import * as workspaceService from './workspaceService';
+import { logger } from '../utils/logger';
 import type { WhiteboardElement, UpdateQueue } from '../types';
 
 const updateQueues = new Map<string, UpdateQueue>();
@@ -47,14 +48,14 @@ export function startBatchInterval(io: Server): NodeJS.Timeout {
                   }
                 }
               } catch (innerError) {
-                console.error('Error in batched update emission:', innerError);
+                logger.error({ err: innerError }, 'error in batched update emission');
               }
             });
           }
         }
       }
     } catch (error) {
-      console.error('Error in batched update interval:', error);
+      logger.error({ err: error }, 'error in batched update interval');
     }
   }, config.batch.interval);
 }

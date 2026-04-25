@@ -1,6 +1,7 @@
 import { SOCKET_EVENTS } from '../../shared/constants';
 import * as workspaceService from '../services/workspaceService';
 import * as permissionService from '../services/permissionService';
+import { logger, logThrottled } from '../utils/logger';
 import type {
   HandlerData,
   HandlerContext,
@@ -25,6 +26,9 @@ export function withWorkspaceAuth<T extends HandlerData>(
     const { socket, currentUser } = context;
 
     if (!socket.rooms.has(workspaceId)) {
+      logThrottled(`${socket.id}:wsauth:notroom:${workspaceId}`, 10000, () => {
+        logger.warn({ socketId: socket.id, workspaceId }, 'permission denied: not in room');
+      });
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
       return { success: false, reason: 'not_authorized' };
     }
@@ -42,6 +46,9 @@ export function withWorkspaceAuth<T extends HandlerData>(
     };
 
     if (!permissionService.checkWritePermission(workspace, user)) {
+      logThrottled(`${socket.id}:wsauth:nowrite:${workspaceId}`, 10000, () => {
+        logger.warn({ socketId: socket.id, workspaceId, userId: user.userId }, 'permission denied: no write access');
+      });
       socket.emit(SOCKET_EVENTS.ERROR, { message: permissionErrorMessage });
       return { success: false, reason: 'no_permission' };
     }
@@ -60,6 +67,9 @@ export function withRoomAuth<T extends HandlerData>(
     const { socket } = context;
 
     if (!socket.rooms.has(workspaceId)) {
+      logThrottled(`${socket.id}:roomauth:${workspaceId}`, 10000, () => {
+        logger.warn({ socketId: socket.id, workspaceId }, 'permission denied: not in room');
+      });
       socket.emit(SOCKET_EVENTS.ERROR, { message: 'Not authorized for this workspace' });
       return { success: false, reason: 'not_authorized' };
     }
@@ -91,6 +101,7 @@ export function withOwnerAuth<T extends HandlerData>(
 
     const userId = currentUser.userId || currentUser.id;
     if (!permissionService.checkOwnership(workspace, userId)) {
+      logger.warn({ socketId: socket.id, workspaceId, userId }, 'permission denied: not owner');
       socket.emit(SOCKET_EVENTS.ERROR, { message: errorMessage });
       return { success: false, reason: 'not_owner' };
     }

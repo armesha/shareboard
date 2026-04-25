@@ -1,5 +1,6 @@
 import { config, SOCKET_EVENTS } from '../config';
 import { withWorkspaceAuth } from '../middleware/socketAuth';
+import { logger } from '../utils/logger';
 import type { Handler, CodeUpdateData, HandlerResult } from '../types';
 
 export const MAX_CODE_LENGTH = config.validation.workspace.maxCodeLength;
@@ -35,6 +36,7 @@ const handleCodeUpdateCore: Handler<CodeUpdateData> = (
 
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'code update failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update code' });
     return { success: false, error };
   }

@@ -9,6 +9,7 @@ import type {
   WhiteboardElement
 } from '../types';
 import * as yjsUtils from '../yjs-utils';
+import { logger } from '../utils/logger';
 
 const workspaces = new Map<string, Workspace>();
 const activeConnections = new Map<string, Set<string>>();
@@ -159,7 +160,7 @@ export function cleanupInactiveWorkspaces(): string[] {
     const connections = activeConnections.get(workspaceId) || new Set();
 
     if (connections.size === 0 && now - workspace.lastActivity > threshold) {
-      console.log(`Cleaning up inactive workspace: ${workspaceId}`);
+      logger.debug({ workspaceId }, 'cleaning up inactive workspace');
       workspaces.delete(workspaceId);
       activeConnections.delete(workspaceId);
 

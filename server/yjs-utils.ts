@@ -11,6 +11,7 @@ import * as decoding from 'lib0/decoding';
 import type { IncomingMessage } from 'http';
 import type WebSocket from 'ws';
 import * as workspaceService from './services/workspaceService';
+import { logger } from './utils/logger';
 
 const messageSync = 0;
 const messageAwareness = 1;
@@ -87,7 +88,7 @@ function schedulePersist(workspaceId: string, doc: WSSharedDoc): void {
       workspace.diagramContent = diagramText;
       workspaceService.updateLastActivity(workspaceId);
     } catch (err) {
-      console.error('Failed to persist Yjs content:', err);
+      logger.error({ err, workspaceId }, 'failed to persist Yjs content');
     }
   }, PERSIST_DEBOUNCE_MS);
   persistTimers.set(workspaceId, timeoutId);
@@ -129,7 +130,7 @@ function messageListener(conn: WebSocket, doc: WSSharedDoc, message: Uint8Array)
         break;
     }
   } catch (err) {
-    console.error('Y-websocket message error:', err);
+    logger.error({ err }, 'y-websocket message error');
   }
 }
 
@@ -176,7 +177,7 @@ export function cleanupYjsDoc(workspaceId: string): void {
 
   docs.delete(workspaceId);
 
-  console.log(`Cleaned up Yjs document for workspace: ${workspaceId}`);
+  logger.debug({ workspaceId }, 'cleaned up Yjs document');
 }
 
 export function setupWSConnection(
@@ -201,7 +202,7 @@ export function setupWSConnection(
   }
 
   if (attempts.count >= MAX_ATTEMPTS_PER_MINUTE) {
-    console.log(`Yjs connection rejected: rate limit exceeded for IP ${clientIp}`);
+    logger.warn({ clientIp, attempts: attempts.count }, 'Yjs connection rejected: rate limit exceeded');
     conn.close(4429, 'Too many connection attempts');
     connectionAttempts.set(clientIp, attempts);
     return;
@@ -217,7 +218,7 @@ export function setupWSConnection(
 
   const workspace = workspaceService.getWorkspace(workspaceId);
   if (!workspace) {
-    console.log(`Yjs connection rejected: workspace ${workspaceId} not found`);
+    logger.debug({ workspaceId }, 'Yjs connection rejected: workspace not found');
     conn.close(4404, 'Workspace not found');
     return;
   }

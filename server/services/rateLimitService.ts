@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { logger } from '../utils/logger';
 import type { RateLimitRecord } from '../types';
 
 const globalEventCounts = new Map<string, RateLimitRecord>();
@@ -41,7 +42,7 @@ export function startCleanupInterval(): NodeJS.Timeout {
     }
 
     if (removedCount > 0) {
-      console.log(`Cleaned up ${removedCount} stale rate limit entries`);
+      logger.debug({ removedCount }, 'cleaned up stale rate limit entries');
     }
   }, config.validation.rateLimit.cleanupIntervalMs);
 }

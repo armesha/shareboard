@@ -1,6 +1,7 @@
 import { config, SOCKET_EVENTS } from '../config';
 import { withWorkspaceAuth } from '../middleware/socketAuth';
 import { isValidWorkspaceId, isValidElement } from './elementValidation';
+import { logger } from '../utils/logger';
 import type { Handler, WhiteboardUpdateData, DeleteElementData, HandlerResult, HandlerData } from '../types';
 
 export const MAX_ELEMENTS_PER_UPDATE = config.validation.workspace.maxElementsPerUpdate;
@@ -75,6 +76,7 @@ const handleWhiteboardUpdateCore: Handler<WhiteboardUpdateData> = (
     }
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'whiteboard update failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to update whiteboard' });
     return { success: false, error };
   }
@@ -98,6 +100,7 @@ const handleWhiteboardClearCore: Handler<WhiteboardClearData> = (
 
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId }, 'whiteboard clear failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to clear whiteboard' });
     return { success: false, error };
   }
@@ -131,6 +134,7 @@ const handleDeleteElementCore: Handler<DeleteElementData> = (
 
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, socketId: socket.id, workspaceId, elementId }, 'delete element failed');
     socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to delete element' });
     return { success: false, error };
   }
