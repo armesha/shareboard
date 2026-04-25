@@ -7,7 +7,7 @@ export const config = {
   isProduction: process.env.NODE_ENV === 'production',
   cors: {
     origin: process.env.NODE_ENV === 'production'
-      ? ['https://shareboard.live', 'https://www.shareboard.live']
+      ? (process.env.ALLOWED_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean) ?? [])
       : ['http://localhost:5173', 'http://localhost:3000']
   },
   socketIO: {
