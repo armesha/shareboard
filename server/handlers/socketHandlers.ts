@@ -38,3 +38,21 @@ export {
   handleChangeSharingMode,
   handleEndSession
 } from './sharingHandlers';
+
+export {
+  handleDrawingStart,
+  handleDrawingStream,
+  handleDrawingEnd,
+  handleShapeDrawingStart,
+  handleShapeDrawingUpdate,
+  handleShapeDrawingEnd
+} from './drawingHandlers';
+
+export type {
+  DrawingStartData,
+  DrawingStreamData,
+  DrawingEndData,
+  ShapeDrawingStartData,
+  ShapeDrawingUpdateData,
+  ShapeDrawingEndData
+} from './drawingHandlers';

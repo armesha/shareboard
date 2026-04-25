@@ -19,14 +19,7 @@ import { logger, logThrottled, logSampled, clearLogKeysForSocket } from './utils
 import {
   isValidCursorPosition,
   isValidUserColor,
-  isValidAnimalKey,
-  isValidDrawingId,
-  isValidShapeId,
-  isValidShapeType,
-  isValidColor,
-  isValidBrushWidth,
-  isValidPoints,
-  isValidShapeData
+  isValidAnimalKey
 } from './validation/validators';
 import type { Server as HttpServer } from 'http';
 import type { CurrentUser, CurrentWorkspaceRef } from './types';
@@ -264,124 +257,34 @@ io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_START, ({ workspaceId, drawingId, color, brushWidth }: { workspaceId: string; drawingId: unknown; color: unknown; brushWidth: unknown }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_START, (data: handlers.DrawingStartData) => {
     if (!checkRateLimit(SOCKET_EVENTS.DRAWING_START)) return;
-    try {
-      if (!isValidDrawingId(drawingId) || !isValidColor(color) || !isValidBrushWidth(brushWidth)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing data' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_START, { drawingId, userId: socket.id, color, brushWidth });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleDrawingStart(data, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_STREAM, ({ workspaceId, drawingId, points }: { workspaceId: string; drawingId: unknown; points: unknown }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_STREAM, (data: handlers.DrawingStreamData) => {
     if (!checkRateLimit(SOCKET_EVENTS.DRAWING_STREAM)) return;
-    try {
-      if (!isValidDrawingId(drawingId) || !isValidPoints(points)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing stream data' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_STREAM, { drawingId, points });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleDrawingStream(data, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.DRAWING_END, ({ workspaceId, drawingId }: { workspaceId: string; drawingId: unknown }) => {
+  socket.on(SOCKET_EVENTS.DRAWING_END, (data: handlers.DrawingEndData) => {
     if (!checkRateLimit(SOCKET_EVENTS.DRAWING_END)) return;
-    try {
-      if (!isValidDrawingId(drawingId)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid drawing ID' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.DRAWING_END, { drawingId });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleDrawingEnd(data, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, ({ workspaceId, shapeId, shapeType, data }: { workspaceId: string; shapeId: unknown; shapeType: unknown; data: unknown }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_START, (data: handlers.ShapeDrawingStartData) => {
     if (!checkRateLimit(SOCKET_EVENTS.SHAPE_DRAWING_START)) return;
-    try {
-      if (!isValidShapeId(shapeId) || !isValidShapeType(shapeType) || !isValidShapeData(data)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape data' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_START, { shapeId, userId: socket.id, shapeType, data });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleShapeDrawingStart(data, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, ({ workspaceId, shapeId, data }: { workspaceId: string; shapeId: unknown; data: unknown }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, (data: handlers.ShapeDrawingUpdateData) => {
     if (!checkRateLimit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE)) return;
-    try {
-      if (!isValidShapeId(shapeId) || !isValidShapeData(data)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape update data' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_UPDATE, { shapeId, data });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleShapeDrawingUpdate(data, { socket, currentUser });
   });
 
-  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, ({ workspaceId, shapeId }: { workspaceId: string; shapeId: unknown }) => {
+  socket.on(SOCKET_EVENTS.SHAPE_DRAWING_END, (data: handlers.ShapeDrawingEndData) => {
     if (!checkRateLimit(SOCKET_EVENTS.SHAPE_DRAWING_END)) return;
-    try {
-      if (!isValidShapeId(shapeId)) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Invalid shape ID' });
-        return;
-      }
-      const workspace = workspaceService.getWorkspace(workspaceId);
-      if (!permissionService.checkWritePermission(workspace, toUser(currentUser))) {
-        socket.emit(SOCKET_EVENTS.ERROR, { message: 'No write permission' });
-        return;
-      }
-      if (workspaceService.workspaceExists(workspaceId)) {
-        socket.to(workspaceId).emit(SOCKET_EVENTS.SHAPE_DRAWING_END, { shapeId });
-      }
-    } catch (error) {
-      logger.error({ err: error, socketId: socket.id, workspaceId }, 'drawing handler failed');
-    }
+    handlers.handleShapeDrawingEnd(data, { socket, currentUser });
   });
 
   socket.on(SOCKET_EVENTS.GET_EDIT_TOKEN, (data: handlers.GetEditTokenData, callback: (result: unknown) => void) => {
