@@ -28,6 +28,7 @@
   "notifications": {
     "whiteboardCleared": "Whiteboard cleared",
     "sessionEnded": "Session ended",
+    "sessionEndedByOwner": "The workspace owner has ended this session",
     "exportSuccess": "Export successful",
     "copySuccess": "Copied to clipboard",
     "diagramAdded": "Diagram added to whiteboard",

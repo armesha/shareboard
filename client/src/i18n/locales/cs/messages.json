@@ -28,6 +28,7 @@
   "notifications": {
     "whiteboardCleared": "Tabule vymazána",
     "sessionEnded": "Relace ukončena",
+    "sessionEndedByOwner": "Vlastník pracovního prostoru ukončil relaci",
     "exportSuccess": "Export úspěšný",
     "copySuccess": "Zkopírováno do schránky",
     "diagramAdded": "Diagram přidán na tabuli",
